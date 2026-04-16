@@ -1,0 +1,79 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --surface: #0f1117;
+  --surface-2: #161b27;
+  --surface-3: #1e2535;
+  --border: #2a3347;
+  
+  --text-primary: #e2e8f0;
+  --text-secondary: #8892a4;
+  --text-muted: #4a5568;
+
+  --severity-harmless: #22c55e;
+  --severity-monitor: #f59e0b;
+  --severity-escalate: #ef4444;
+  --severity-uncertain: #6366f1;
+  --severity-unknown: #4a5568;
+
+  --agent-blue: #3b82f6;
+  --agent-blue-dim: #1e3a5f;
+  --drone-path: #60a5fa;
+}
+
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+
+  --color-severity-harmless: var(--severity-harmless);
+  --color-severity-monitor: var(--severity-monitor);
+  --color-severity-escalate: var(--severity-escalate);
+  --color-severity-uncertain: var(--severity-uncertain);
+  --color-severity-unknown: var(--severity-unknown);
+
+  --color-agent-blue: var(--agent-blue);
+  --color-agent-blue-dim: var(--agent-blue-dim);
+  --color-drone-path: var(--drone-path);
+
+  --font-mono: var(--font-jetbrains), "Fira Code", monospace;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  
+  /* Fallbacks for standard tailwind variables using our theme colors */
+  --color-background: var(--surface);
+  --color-foreground: var(--text-primary);
+  --color-primary: var(--agent-blue);
+  --color-primary-foreground: #ffffff;
+  --color-muted: var(--surface-2);
+  --color-muted-foreground: var(--text-secondary);
+  --color-card: var(--surface-2);
+  --color-card-foreground: var(--text-primary);
+}
+
+@layer base {
+  html {
+    @apply bg-surface text-text-primary antialiased;
+  }
+  * {
+    @apply border-border;
+  }
+  
+  /* Leaflet Map Dark Enforcement */
+  .leaflet-container {
+    background: var(--surface) !important;
+  }
+  .leaflet-layer,
+  .leaflet-control-zoom-in,
+  .leaflet-control-zoom-out,
+  .leaflet-control-attribution {
+    filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+  }
+}
