@@ -1,0 +1,30 @@
+{
+  "name": " RidgewaySite",
+  "version": "1.0.0",
+  "description": "Deliver a hosted, AI-first intelligence platform that transforms fragmented overnight operational signals into a validated morning briefing for industrial site operators.",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/index.js",
+    "start": "bun src/index.js"
+  },
+  "author": "chandanjainhp",
+  "license": "ISC",
+  "devDependencies": {
+    "prettier": "^3.6.2"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "bullmq": "^5.0.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-validator": "^7.2.1",
+    "jsonwebtoken": "^9.0.2",
+    "mailgen": "^2.0.29",
+    "mongoose": "^8.15.2",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.10.0"
+  }
+}
