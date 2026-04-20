@@ -1,0 +1,8 @@
+{
+	"chat.tools.terminal.autoApprove": {
+		"/^bun run build 2>&1$/": {
+			"approve": true,
+			"matchCommandLine": true
+		}
+	}
+}

@@ -1,0 +1,149 @@
+version: "3.9"
+
+# Production docker-compose configuration
+# This file is optimized for production deployments
+# Usage: docker-compose -f docker-compose.prod.yml up -d
+
+services:
+  # MongoDB database
+  mongodb:
+    image: mongo:7.0
+    container_name: ridgeway-mongodb-prod
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGODB_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD}
+      MONGO_INITDB_DATABASE: ridgeway
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data_prod:/data/db
+      - mongodb_config_prod:/data/configdb
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - ridgeway-network-prod
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  # Redis cache and job queue
+  redis:
+    image: redis:7-alpine
+    container_name: ridgeway-redis-prod
+    restart: always
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD} --maxmemory 1gb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_prod:/data
+    healthcheck:
+      test: redis-cli --raw incr ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - ridgeway-network-prod
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  # Node.js Server
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: ridgeway-server-prod
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 8000
+      MONGODB_URL: mongodb://${MONGODB_USER:-admin}:${MONGODB_PASSWORD}@mongodb:27017/ridgeway?authSource=admin
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      CLIENT_URL: ${CLIENT_URL:-https://yourdomain.com}
+    ports:
+      - "8000:8000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ridgeway-network-prod
+    healthcheck:
+      test: curl -f http://localhost:8000/api/v1/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '1'
+          memory: 512M
+
+  # Next.js Client
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: ridgeway-client-prod
+    restart: always
+    environment:
+      NEXT_PUBLIC_API_URL: ${CLIENT_API_URL:-https://api.yourdomain.com}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - server
+    networks:
+      - ridgeway-network-prod
+    healthcheck:
+      test: curl -f http://localhost:3000 || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+volumes:
+  mongodb_data_prod:
+    driver: local
+  mongodb_config_prod:
+    driver: local
+  redis_data_prod:
+    driver: local
+
+networks:
+  ridgeway-network-prod:
+    driver: bridge

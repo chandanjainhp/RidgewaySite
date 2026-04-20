@@ -37,9 +37,28 @@ function useCountdown() {
 }
 
 export default function BriefingPage() {
-  const nightDate = new Date().toISOString().split("T")[0];
+  const nightDate = (() => {
+    if (process.env.NEXT_PUBLIC_SEED_NIGHT_DATE) {
+      return process.env.NEXT_PUBLIC_SEED_NIGHT_DATE;
+    }
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().split("T")[0];
+  })();
   const { data, isLoading } = useBriefing(nightDate);
   const progressPercent = useProgressPercent();
+  const progressWidthClass =
+    progressPercent <= 0 ? 'w-0' :
+    progressPercent <= 10 ? 'w-[10%]' :
+    progressPercent <= 20 ? 'w-[20%]' :
+    progressPercent <= 30 ? 'w-[30%]' :
+    progressPercent <= 40 ? 'w-[40%]' :
+    progressPercent <= 50 ? 'w-1/2' :
+    progressPercent <= 60 ? 'w-[60%]' :
+    progressPercent <= 70 ? 'w-[70%]' :
+    progressPercent <= 80 ? 'w-[80%]' :
+    progressPercent <= 90 ? 'w-[90%]' :
+    'w-full';
   const { timeLeft, urgency } = useCountdown();
 
   const briefing = data?.briefing || null;
@@ -83,8 +102,8 @@ export default function BriefingPage() {
     return null;
   };
 
-  // Waiting state — investigation not yet complete
-  if (!isLoading && briefing?.status === "draft") {
+  // Waiting state — investigation not yet complete or briefing not generated yet
+  if (!isLoading && (!briefing || briefing?.status === "draft")) {
     return (
       <AppShell variant="briefing">
         <div className="w-full max-w-3xl mx-auto flex flex-col items-center justify-center h-full gap-8 px-8">
@@ -94,8 +113,7 @@ export default function BriefingPage() {
           </div>
           <div className="w-full bg-surface-3 rounded-full h-2 border border-border overflow-hidden">
             <div
-              className="h-full bg-agent-blue transition-all duration-500"
-              style={{ width: `${progressPercent}%` }}
+              className={`h-full bg-agent-blue transition-all duration-500 ${progressWidthClass}`}
             ></div>
           </div>
           <span className="font-mono text-agent-blue text-sm">{Math.round(progressPercent)}% complete</span>
@@ -113,7 +131,7 @@ export default function BriefingPage() {
         <div className="flex items-center justify-between px-8 py-5 border-b border-border shrink-0 print:hidden">
           <div>
             <h1 className="text-2xl font-bold text-white tracking-tight">Morning Briefing</h1>
-            <p className="font-mono text-xs text-text-secondary mt-1 uppercase tracking-widest">{formatNightLabel(new Date())}</p>
+            <p className="font-mono text-xs text-text-secondary mt-1 uppercase tracking-widest">{formatNightLabel(nightDate)}</p>
           </div>
           <div className="flex items-center gap-6">
             <div className="text-right">

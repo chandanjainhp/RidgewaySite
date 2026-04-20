@@ -19,6 +19,14 @@ const formatTime = (date) => {
   return date.toISOString().split('T')[1].substring(0, 5);
 };
 
+function getDayRange(dateString) {
+  const start = new Date(dateString)
+  start.setHours(0, 0, 0, 0)
+  const end = new Date(dateString)
+  end.setHours(23, 59, 59, 999)
+  return { start, end }
+}
+
 /**
  * Get all overnight security alerts for a given night
  * @param {Date|string} nightDate - the night to retrieve (date only, no time)
@@ -26,18 +34,16 @@ const formatTime = (date) => {
  */
 export const getOvernightAlerts = async (nightDate) => {
   try {
-    const startOfDay = new Date(nightDate);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(nightDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    const { start, end } = getDayRange(nightDate);
 
     // Query events from MongoDB
     const events = await Event.find({
-      timestamp: { $gte: startOfDay, $lte: endOfDay },
+      timestamp: { $gte: start, $lte: end },
     }).sort({ timestamp: 1 });
 
-    console.log(`[LogsTool] Retrieved ${events.length} alerts for ${nightDate}`);
+    console.log(
+      `[LogsTool] getOvernightAlerts nightDate=${start.toISOString().split('T')[0]} count=${events.length}`
+    );
 
     // Format for agent consumption
     const alerts = events.map((event) => {
@@ -101,18 +107,14 @@ export const getOvernightAlerts = async (nightDate) => {
  * @param {Date|string} nightDate - optional night date
  * @returns {Promise<array>} vehicle path summaries
  */
-export const getVehiclePaths = async (vehicleId = null, nightDate = new Date()) => {
+export const getVehiclePaths = async (vehicleId = null, nightDate) => {
   try {
-    const startOfDay = new Date(nightDate);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(nightDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    const { start, end } = getDayRange(nightDate);
 
     // Query vehicle events
     const query = {
       type: 'vehicle_detected',
-      timestamp: { $gte: startOfDay, $lte: endOfDay },
+      timestamp: { $gte: start, $lte: end },
     };
 
     if (vehicleId) {
@@ -121,7 +123,9 @@ export const getVehiclePaths = async (vehicleId = null, nightDate = new Date()) 
 
     const events = await Event.find(query).sort({ timestamp: 1 });
 
-    console.log(`[LogsTool] Retrieved ${events.length} vehicle events for ${nightDate}`);
+    console.log(
+      `[LogsTool] getVehiclePaths nightDate=${start.toISOString().split('T')[0]} count=${events.length}`
+    );
 
     // Group by vehicle ID
     const vehicleMap = {};
@@ -189,18 +193,14 @@ export const getVehiclePaths = async (vehicleId = null, nightDate = new Date()) 
  * @param {Date|string} nightDate - optional night date
  * @returns {Promise<array>} grouped badge swipe summaries
  */
-export const getBadgeSwipeHistory = async (filters = {}, nightDate = new Date()) => {
+export const getBadgeSwipeHistory = async (filters = {}, nightDate) => {
   try {
-    const startOfDay = new Date(nightDate);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(nightDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    const { start, end } = getDayRange(nightDate);
 
     // Query badge events
     const query = {
       type: 'badge_fail',
-      timestamp: { $gte: startOfDay, $lte: endOfDay },
+      timestamp: { $gte: start, $lte: end },
     };
 
     if (filters.locationName) {
@@ -213,7 +213,9 @@ export const getBadgeSwipeHistory = async (filters = {}, nightDate = new Date())
 
     const events = await Event.find(query).sort({ timestamp: 1 });
 
-    console.log(`[LogsTool] Retrieved ${events.length} badge swipe events for ${nightDate}`);
+    console.log(
+      `[LogsTool] getBadgeSwipeHistory nightDate=${start.toISOString().split('T')[0]} count=${events.length}`
+    );
 
     // Group by employee
     const employeeMap = {};
@@ -290,21 +292,19 @@ export const getBadgeSwipeHistory = async (filters = {}, nightDate = new Date())
  * @param {Date|string} nightDate - optional night date
  * @returns {Promise<object>} drone patrol summary
  */
-export const getDronePatrolLog = async (nightDate = new Date()) => {
+export const getDronePatrolLog = async (nightDate) => {
   try {
-    const startOfDay = new Date(nightDate);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(nightDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    const { start, end } = getDayRange(nightDate);
 
     // Query drone observation events
     const events = await Event.find({
       type: 'drone_observation',
-      timestamp: { $gte: startOfDay, $lte: endOfDay },
+      timestamp: { $gte: start, $lte: end },
     }).sort({ timestamp: 1 });
 
-    console.log(`[LogsTool] Retrieved ${events.length} drone observations for ${nightDate}`);
+    console.log(
+      `[LogsTool] getDronePatrolLog nightDate=${start.toISOString().split('T')[0]} count=${events.length}`
+    );
 
     if (events.length === 0) {
       return {
@@ -339,14 +339,14 @@ export const getDronePatrolLog = async (nightDate = new Date()) => {
     const { initGraph, SITE_LOCATIONS } = await import('../db/graph.js');
     initGraph();
 
-    for (const locName of Object.keys(SITE_LOCATIONS)) {
-      if (!uniqueLocations.includes(locName)) {
-        locationsNotCovered.push(locName);
+    for (const loc of SITE_LOCATIONS) {
+      if (!uniqueLocations.includes(loc.name)) {
+        locationsNotCovered.push(loc.name);
       }
     }
 
     return {
-      patrolId: `PATROL-${startOfDay.getTime()}`,
+      patrolId: `PATROL-${start.getTime()}`,
       startTime: formatTime(events[0].timestamp),
       endTime: formatTime(events[events.length - 1].timestamp),
       routeSummary,

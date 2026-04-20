@@ -1,111 +1,101 @@
-const asyncHandler = require('../utils/async-handler');
-const ApiResponse = require('../utils/api-response');
-const ApiError = require('../utils/api-error');
-const Investigation = require('../models/investigation.model');
+import Investigation from "../models/investigation.model.js";
+import { getAgentEvents } from "../db/redis.js";
+import { ApiError } from "../utils/api-error.js";
+import { ApiResponse } from "../utils/api-response.js";
+import { emitToStream, registerStream, unregisterStream } from "../lib/streamRegistry.js";
+import {
+  startNightInvestigation,
+  getInvestigationWithEvidence,
+} from "../services/investigation.service.js";
 
-// Create investigation
-const createInvestigation = asyncHandler(async (req, res) => {
-  const { investigationId, incident, aiAgent } = req.body;
+const normalizeProgressEvent = (event, investigation) => {
+  const payload = event.data ?? event.payload ?? {};
 
-  const investigation = await Investigation.create({
-    investigationId,
-    incident,
-    aiAgent,
-    status: 'pending',
-  });
-
-  return res
-    .status(201)
-    .json(new ApiResponse(201, investigation, 'Investigation created successfully'));
-});
-
-// Get investigations
-const getInvestigations = asyncHandler(async (req, res) => {
-  const { status, limit = 10, offset = 0 } = req.query;
-
-  const query = {};
-  if (status) query.status = status;
-
-  const investigations = await Investigation.find(query)
-    .populate('incident')
-    .limit(parseInt(limit))
-    .skip(parseInt(offset))
-    .sort({ createdAt: -1 });
-
-  const total = await Investigation.countDocuments(query);
-
-  return res.status(200).json(
-    new ApiResponse(200, { investigations, total, limit, offset }, 'Investigations fetched successfully')
-  );
-});
-
-// Get investigation by ID
-const getInvestigationById = asyncHandler(async (req, res) => {
-  const { investigationId } = req.params;
-  const investigation = await Investigation.findById(investigationId)
-    .populate('incident');
-
-  if (!investigation) {
-    throw new ApiError(404, 'Investigation not found');
-  }
-
-  return res.status(200).json(new ApiResponse(200, investigation, 'Investigation fetched successfully'));
-});
-
-// Update investigation findings
-const updateInvestigationFindings = asyncHandler(async (req, res) => {
-  const { investigationId } = req.params;
-  const { findings, rootCause, recommendedActions, status } = req.body;
-
-  const updateData = {};
-  if (findings) updateData.findings = findings;
-  if (rootCause) updateData.rootCause = rootCause;
-  if (recommendedActions) updateData.recommendedActions = recommendedActions;
-  if (status) updateData.status = status;
-
-  const investigation = await Investigation.findByIdAndUpdate(
-    investigationId,
-    updateData,
-    { new: true, runValidators: true }
-  );
-
-  if (!investigation) {
-    throw new ApiError(404, 'Investigation not found');
-  }
-
-  return res.status(200).json(new ApiResponse(200, investigation, 'Investigation updated successfully'));
-});
-
-// Add execution log
-const addExecutionLog = asyncHandler(async (req, res) => {
-  const { investigationId } = req.params;
-  const { action, result } = req.body;
-
-  const investigation = await Investigation.findByIdAndUpdate(
-    investigationId,
-    {
-      $push: {
-        executionLogs: {
-          timestamp: new Date(),
-          action,
-          result,
-        },
+  if (event.type === "classification" && payload.classification) {
+    return {
+      ...event,
+      payload: {
+        incidentId: investigation.incidentId.toString(),
+        ...payload.classification,
+        summary: payload.summary,
       },
-    },
-    { new: true }
-  );
-
-  if (!investigation) {
-    throw new ApiError(404, 'Investigation not found');
+    };
   }
 
-  return res.status(200).json(new ApiResponse(200, investigation, 'Execution log added successfully'));
-});
+  return {
+    ...event,
+    payload,
+  };
+};
 
-module.exports = {
-  createInvestigation,
-  getInvestigations,
-  getInvestigationById,
-  updateInvestigationFindings,
-  addExecutionLog,
+export const startInvestigation = async (req, res) => {
+  const nightDate =
+    req.body?.nightDate || new Date().toISOString().split("T")[0];
+  const result = await startNightInvestigation(nightDate);
+
+  res
+    .status(202)
+    .json(new ApiResponse(202, result, "Investigation queued successfully"));
+};
+
+export const getInvestigation = async (req, res) => {
+  const investigation = await getInvestigationWithEvidence(req.params.id);
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, investigation, "Investigation fetched successfully"));
+};
+
+export const streamInvestigationProgress = async (req, res) => {
+  const { jobId } = req.params;
+  const investigation = await Investigation.findOne({ jobId }).lean();
+
+  if (!investigation) {
+    throw new ApiError(404, "Investigation stream not found");
+  }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const write = (event) => {
+    if (!res.writableEnded) {
+      const normalized = normalizeProgressEvent(event, investigation);
+      res.write(`data: ${JSON.stringify(normalized)}\n\n`);
+    }
+  };
+
+  // Replay any previously emitted events for reconnect support.
+  try {
+    const history = await getAgentEvents(jobId);
+    history.forEach((event) => write(event));
+  } catch (error) {
+    write({ type: "failed", jobId, data: { message: error.message } });
+  }
+
+  registerStream(jobId, write);
+  write({ type: "connected", jobId, data: { jobId } });
+
+  const testEmitTimeout = setTimeout(() => {
+    emitToStream(jobId, {
+      type: "test",
+      jobId: jobId,
+      timestamp: new Date().toISOString(),
+      data: { summary: "SSE test event" },
+    });
+  }, 2000);
+
+  const heartbeat = setInterval(() => {
+    if (!res.writableEnded) {
+      res.write(`: heartbeat ${Date.now()}\n\n`);
+    }
+  }, 15000);
+
+  req.on("close", () => {
+    unregisterStream(jobId);
+    clearTimeout(testEmitTimeout);
+    clearInterval(heartbeat);
+  });
 };

@@ -1,31 +1,22 @@
-const Joi = require('joi');
+import Joi from "joi";
 
-// Briefing validators
-const createBriefingSchema = Joi.object().keys({
-  briefingId: Joi.string().required(),
-  investigation: Joi.string().required(),
+const createBriefingSchema = Joi.object({
   title: Joi.string().required(),
   summary: Joi.string().required(),
-  highlights: Joi.array().items(Joi.string()),
-  audience: Joi.string().valid('operator', 'manager', 'executive'),
-  attachments: Joi.array().items(Joi.string()),
-  aiGenerated: Joi.boolean(),
-  generatedBy: Joi.string(),
 });
 
-const updateBriefingSchema = Joi.object().keys({
+const updateBriefingSchema = Joi.object({
   title: Joi.string(),
   summary: Joi.string(),
-  highlights: Joi.array().items(Joi.string()),
-  attachments: Joi.array().items(Joi.string()),
 }).min(1);
 
-const updateBriefingSectionSchema = Joi.object().keys({
-  sectionName: Joi.string().required(),
-  content: Joi.object().required(),
+const updateBriefingSectionSchema = Joi.object({
+  content: Joi.alternatives()
+    .try(Joi.string(), Joi.object(), Joi.array())
+    .required(),
 });
 
-module.exports = {
+export default {
   createBriefingSchema,
   updateBriefingSchema,
   updateBriefingSectionSchema,

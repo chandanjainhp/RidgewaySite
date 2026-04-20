@@ -1,101 +1,127 @@
-const asyncHandler = require('../utils/async-handler');
-const ApiResponse = require('../utils/api-response');
-const ApiError = require('../utils/api-error');
-const Briefing = require('../models/briefing.model');
+import Briefing from "../models/briefing.model.js";
+import { ApiResponse } from "../utils/api-response.js";
+import { ApiError } from "../utils/api-error.js";
+import {
+  getLatestBriefing as getLatestBriefingService,
+  applyBriefingReview,
+} from "../services/briefing.service.js";
 
-// Create briefing
-const createBriefing = asyncHandler(async (req, res) => {
-  const { briefingId, investigation, title, summary, highlights, audience, attachments } = req.body;
+const sectionKeyMap = {
+  whatHappened: "executive_summary",
+  harmlessEvents: "incidents",
+  escalations: "incidents",
+  droneFindings: "anomalies",
+  followUpItems: "follow_up",
+};
 
-  const briefing = await Briefing.create({
-    briefingId,
-    investigation,
-    title,
-    summary,
-    highlights,
-    audience,
-    attachments,
-    aiGenerated: req.body.aiGenerated || true,
-    generatedBy: req.body.generatedBy || 'system',
-  });
+const stringify = (value) =>
+  typeof value === "string" ? value : JSON.stringify(value ?? "", null, 2);
 
-  return res
-    .status(201)
-    .json(new ApiResponse(201, briefing, 'Briefing created successfully'));
-});
+const sectionToClientFormat = (briefing) => {
+  const executive = briefing.sections?.executive_summary || {};
+  const incidents = briefing.sections?.incidents || {};
+  const anomalies = briefing.sections?.anomalies || {};
+  const followUp = briefing.sections?.follow_up || {};
+  const recommendations = briefing.sections?.recommendations || {};
 
-// Get briefings
-const getBriefings = asyncHandler(async (req, res) => {
-  const { audience, limit = 10, offset = 0 } = req.query;
+  return {
+    id: briefing._id.toString(),
+    status: briefing.status === "pending_review" ? "maya_reviewing" : briefing.status,
+    approvedAt: briefing.reviewedAt || null,
+    sections: {
+      whatHappened: {
+        agentDraft: stringify(executive.agentDraft),
+        mayaVersion: executive.mayaVersion ? stringify(executive.mayaVersion) : null,
+        isEdited: executive.isEdited || false,
+      },
+      harmlessEvents: {
+        agentDraft: stringify(incidents.agentDraft?.harmless?.summary || ""),
+        mayaVersion: incidents.mayaVersion ? stringify(incidents.mayaVersion) : null,
+        isEdited: incidents.isEdited || false,
+      },
+      escalations: {
+        items:
+          incidents.agentDraft?.escalations?.items?.map(
+            (item) => `${item.title}: ${item.reasoning || item.requiredAction || item.severity}`
+          ) || [],
+        agentDraft: stringify(incidents.agentDraft?.escalations?.items || []),
+        mayaVersion: incidents.mayaVersion ? stringify(incidents.mayaVersion) : null,
+        isEdited: incidents.isEdited || false,
+      },
+      droneFindings: {
+        agentDraft: stringify(anomalies.agentDraft),
+        mayaVersion: anomalies.mayaVersion ? stringify(anomalies.mayaVersion) : null,
+        isEdited: anomalies.isEdited || false,
+      },
+      followUpItems: {
+        agentDraft: stringify(followUp.agentDraft || recommendations.agentDraft || ""),
+        mayaVersion: followUp.mayaVersion ? stringify(followUp.mayaVersion) : null,
+        isEdited: followUp.isEdited || false,
+      },
+    },
+  };
+};
 
-  const query = {};
-  if (audience) query.audience = audience;
+export const getLatestBriefing = async (req, res) => {
+  const nightDate = req.query.nightDate || new Date().toISOString().split("T")[0];
+  const briefing = await getLatestBriefingService(nightDate);
 
-  const briefings = await Briefing.find(query)
-    .populate('investigation')
-    .limit(parseInt(limit))
-    .skip(parseInt(offset))
-    .sort({ createdAt: -1 });
+  if (!briefing) {
+    return res
+      .status(200)
+      .json(new ApiResponse(200, null, "No briefing available yet"));
+  }
 
-  const total = await Briefing.countDocuments(query);
-
-  return res.status(200).json(
-    new ApiResponse(200, { briefings, total, limit, offset }, 'Briefings fetched successfully')
+  res.status(200).json(
+    new ApiResponse(
+      200,
+      sectionToClientFormat(briefing),
+      "Briefing fetched successfully"
+    )
   );
-});
+};
 
-// Get briefing by ID
-const getBriefingById = asyncHandler(async (req, res) => {
-  const { briefingId } = req.params;
-  const briefing = await Briefing.findById(briefingId)
-    .populate('investigation');
+export const updateBriefingSection = async (req, res) => {
+  const { id } = req.params;
+  const sectionName = req.params.sectionName || req.body.sectionName;
+  const mappedSection = sectionKeyMap[sectionName];
 
-  if (!briefing) {
-    throw new ApiError(404, 'Briefing not found');
+  if (!mappedSection) {
+    throw new ApiError(400, "Invalid section name");
   }
 
-  return res.status(200).json(new ApiResponse(200, briefing, 'Briefing fetched successfully'));
-});
-
-// Update briefing
-const updateBriefing = asyncHandler(async (req, res) => {
-  const { briefingId } = req.params;
-  const { title, summary, highlights, attachments } = req.body;
-
-  const updateData = {};
-  if (title) updateData.title = title;
-  if (summary) updateData.summary = summary;
-  if (highlights) updateData.highlights = highlights;
-  if (attachments) updateData.attachments = attachments;
-
-  const briefing = await Briefing.findByIdAndUpdate(briefingId, updateData, {
-    new: true,
-    runValidators: true,
-  });
-
+  const briefing = await Briefing.findById(id);
   if (!briefing) {
-    throw new ApiError(404, 'Briefing not found');
+    throw new ApiError(404, "Briefing not found");
   }
 
-  return res.status(200).json(new ApiResponse(200, briefing, 'Briefing updated successfully'));
-});
+  const existing = briefing.sections?.[mappedSection] || {};
+  briefing.sections = briefing.sections || {};
+  briefing.sections[mappedSection] = {
+    ...existing,
+    mayaVersion: req.body.content,
+    isEdited: true,
+  };
 
-// Delete briefing
-const deleteBriefing = asyncHandler(async (req, res) => {
-  const { briefingId } = req.params;
-  const briefing = await Briefing.findByIdAndDelete(briefingId);
+  await briefing.save();
 
-  if (!briefing) {
-    throw new ApiError(404, 'Briefing not found');
-  }
+  res.status(200).json(
+    new ApiResponse(
+      200,
+      sectionToClientFormat(briefing.toJSON()),
+      "Briefing section updated successfully"
+    )
+  );
+};
 
-  return res.status(200).json(new ApiResponse(200, null, 'Briefing deleted successfully'));
-});
+export const approveBriefing = async (req, res) => {
+  const updated = await applyBriefingReview(
+    req.params.id,
+    { decision: "approved", notes: "" },
+    req.user?._id
+  );
 
-module.exports = {
-  createBriefing,
-  getBriefings,
-  getBriefingById,
-  updateBriefing,
-  deleteBriefing,
+  res
+    .status(200)
+    .json(new ApiResponse(200, updated, "Briefing approved successfully"));
 };

@@ -16,7 +16,7 @@ export default function EmptyState({ title, description, icon }) {
   const iconConfig = icon ? ICON_MAP[icon] : null;
 
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full gap-3 py-12 px-6 text-center">
+    <div className="flex flex-col items-center justify-center w-full h-full gap-4 py-12 px-6 text-center">
       {iconConfig && (
         <iconConfig.Component className={`w-12 h-12 ${iconConfig.className}`} strokeWidth={1.25} />
       )}

@@ -1,105 +1,126 @@
-const asyncHandler = require('../utils/async-handler');
-const ApiResponse = require('../utils/api-response');
-const ApiError = require('../utils/api-error');
-const Incident = require('../models/incident.model');
+import Incident from "../models/incident.model.js";
+import Event from "../models/event.model.js";
+import Investigation from "../models/investigation.model.js";
+import { ApiResponse } from "../utils/api-response.js";
+import { ApiError } from "../utils/api-error.js";
 
-// Create incident
-const createIncident = asyncHandler(async (req, res) => {
-  const { incidentId, events, severity, title, description, tags } = req.body;
+const startAndEndOfNight = (nightDate) => {
+  const start = new Date(nightDate);
+  start.setHours(0, 0, 0, 0);
 
-  const incident = await Incident.create({
-    incidentId,
-    events,
-    severity,
-    title,
-    description,
-    tags,
-  });
+  const end = new Date(nightDate);
+  end.setHours(23, 59, 59, 999);
 
-  return res
-    .status(201)
-    .json(new ApiResponse(201, incident, 'Incident created successfully'));
+  return { start, end };
+};
+
+const toIncidentSummary = (incident) => ({
+  id: incident._id.toString(),
+  incidentId: incident.incidentId || incident._id.toString(),
+  title: incident.title,
+  description: incident.description,
+  severity: incident.finalSeverity || incident.severity || "unknown",
+  status: incident.status,
+  priority: incident.priority,
+  primaryLocation: incident.primaryLocation,
+  location: incident.primaryLocation,
+  raghavsNote: incident.raghavsNote,
 });
 
-// Get all incidents
-const getIncidents = asyncHandler(async (req, res) => {
-  const { status, severity, limit = 10, offset = 0 } = req.query;
-
+export const getIncidents = async (req, res) => {
+  const { nightDate, status, severity } = req.query;
   const query = {};
-  if (status) query.status = status;
-  if (severity) query.severity = severity;
 
-  const incidents = await Incident.find(query)
-    .populate('events')
-    .populate('assignedTo', 'name email')
-    .limit(parseInt(limit))
-    .skip(parseInt(offset))
-    .sort({ createdAt: -1 });
-
-  const total = await Incident.countDocuments(query);
-
-  return res.status(200).json(
-    new ApiResponse(200, { incidents, total, limit, offset }, 'Incidents fetched successfully')
-  );
-});
-
-// Get incident by ID
-const getIncidentById = asyncHandler(async (req, res) => {
-  const { incidentId } = req.params;
-  const incident = await Incident.findById(incidentId)
-    .populate('events')
-    .populate('assignedTo', 'name email');
-
-  if (!incident) {
-    throw new ApiError(404, 'Incident not found');
+  if (nightDate) {
+    const { start, end } = startAndEndOfNight(nightDate);
+    query.nightDate = { $gte: start, $lte: end };
   }
 
-  return res.status(200).json(new ApiResponse(200, incident, 'Incident fetched successfully'));
-});
-
-// Update incident
-const updateIncident = asyncHandler(async (req, res) => {
-  const { incidentId } = req.params;
-  const { status, assignedTo, severity, description } = req.body;
-
-  const updateData = {};
-  if (status) updateData.status = status;
-  if (assignedTo) updateData.assignedTo = assignedTo;
-  if (severity) updateData.severity = severity;
-  if (description) updateData.description = description;
-
-  if (status === 'resolved' || status === 'closed') {
-    updateData.resolvedAt = new Date();
+  if (status) {
+    query.status = status;
   }
 
-  const incident = await Incident.findByIdAndUpdate(incidentId, updateData, {
-    new: true,
-    runValidators: true,
+  if (severity) {
+    query.$or = [{ finalSeverity: severity }, { severity }];
+  }
+
+  const incidents = await Incident.find(query).sort({
+    priority: 1,
+    createdAt: -1,
   });
 
+  res.status(200).json(
+    new ApiResponse(
+      200,
+      incidents.map(toIncidentSummary),
+      "Incidents fetched successfully"
+    )
+  );
+};
+
+export const getIncidentById = async (req, res) => {
+  const incident = await Incident.findById(req.params.id).lean();
+
   if (!incident) {
-    throw new ApiError(404, 'Incident not found');
+    throw new ApiError(404, "Incident not found");
   }
 
-  return res.status(200).json(new ApiResponse(200, incident, 'Incident updated successfully'));
-});
+  const [events, investigation] = await Promise.all([
+    Event.find({ _id: { $in: incident.eventIds || [] } }).sort({ timestamp: 1 }).lean(),
+    Investigation.findOne({ incidentId: incident._id }).sort({ createdAt: -1 }).lean(),
+  ]);
 
-// Delete incident
-const deleteIncident = asyncHandler(async (req, res) => {
-  const { incidentId } = req.params;
-  const incident = await Incident.findByIdAndDelete(incidentId);
+  const detail = {
+    ...toIncidentSummary(incident),
+    entities: incident.entityInvolved ? [incident.entityInvolved] : [],
+    rawEvents: events.map((event) => ({
+      id: event._id.toString(),
+      time: event.timestamp?.toISOString?.().split("T")[1]?.slice(0, 5),
+      description: event.description || event.type,
+      type: event.type,
+      severity: event.severity,
+      location: event.location,
+    })),
+    finalClassification: investigation?.finalClassification || {
+      severity: incident.finalSeverity || incident.severity || "unknown",
+      confidence: 0,
+      reasoning: incident.agentSummary || "",
+      uncertainties: [],
+    },
+  };
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, detail, "Incident fetched successfully"));
+};
+
+export const getIncidentEvidenceGraph = async (req, res) => {
+  const incident = await Incident.findById(req.params.id).lean();
 
   if (!incident) {
-    throw new ApiError(404, 'Incident not found');
+    throw new ApiError(404, "Incident not found");
   }
 
-  return res.status(200).json(new ApiResponse(200, null, 'Incident deleted successfully'));
-});
+  const investigation = await Investigation.findOne({ incidentId: incident._id })
+    .sort({ createdAt: -1 })
+    .lean();
 
-module.exports = {
-  createIncident,
-  getIncidents,
-  getIncidentById,
-  updateIncident,
-  deleteIncident,
+  const graph = {
+    steps:
+      investigation?.evidenceChain?.map((step) => ({
+        id: `${req.params.id}-${step.step}`,
+        step: step.step,
+        source: step.source,
+        finding: step.finding,
+        confidence: step.confidence,
+        // Keep compatibility for any existing clients using title/summary
+        title: step.source,
+        summary: step.finding,
+      })) || [],
+    classification: investigation?.finalClassification || null,
+  };
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, graph, "Evidence graph fetched successfully"));
 };

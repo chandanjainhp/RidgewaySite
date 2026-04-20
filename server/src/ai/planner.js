@@ -17,6 +17,17 @@
 import Incident from '../models/incident.model.js';
 import { initGraph, getDroneObservationsNear, SITE_LOCATIONS } from '../db/graph.js';
 
+// Returns a {start, end} pair covering the full local calendar day for a given date.
+// Accepts a Date object or a YYYY-MM-DD string.
+const getDayRange = (dateInput) => {
+  const base = new Date(dateInput);
+  base.setHours(0, 0, 0, 0);
+  const start = new Date(base);
+  const end = new Date(base);
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
+};
+
 // Base priority scores by incident type/correlation
 const BASE_SCORES = {
   escalation_candidate: 10,
@@ -108,12 +119,13 @@ export const planInvestigations = async (nightDate) => {
 
   try {
     // 1. Load all incidents for the night in pending or investigating status
+    const { start, end } = getDayRange(nightDate);
     const incidents = await Incident.find({
-      nightDate: new Date(nightDate),
+      nightDate: { $gte: start, $lte: end },
       status: { $in: ['pending', 'investigating'] },
     });
 
-    console.log(`[Planner] Found ${incidents.length} incidents to plan`);
+    console.log(`[Planner] Found ${incidents.length} incidents for ${start.toISOString().split('T')[0]} (query: ${start.toISOString()} → ${end.toISOString()})`);
 
     if (incidents.length === 0) {
       console.log(`[Planner] No incidents to plan`);

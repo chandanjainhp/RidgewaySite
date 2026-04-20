@@ -15,6 +15,14 @@ import {
   getDronePatrolLog as queryDronePatrolLog,
 } from '../tools/logs.tool.js';
 
+function getDayRange(dateString) {
+  const start = new Date(dateString)
+  start.setHours(0, 0, 0, 0)
+  const end = new Date(dateString)
+  end.setHours(23, 59, 59, 999)
+  return { start, end }
+}
+
 // ========== DELEGATION TO LOGS TOOL ==========
 
 /**
@@ -38,9 +46,9 @@ export const getOvernightAlerts = async (nightDate) => {
  * @param {string} vehicleId - optional specific vehicle ID
  * @returns {Promise<array>} vehicle paths
  */
-export const getVehiclePaths = async (vehicleId = null) => {
+export const getVehiclePaths = async (vehicleId = null, nightDate) => {
   try {
-    const paths = await queryVehiclePaths(vehicleId);
+    const paths = await queryVehiclePaths(vehicleId, nightDate);
     console.log(`[EventService] Retrieved ${paths.length} vehicle paths`);
     return paths;
   } catch (error) {
@@ -54,9 +62,9 @@ export const getVehiclePaths = async (vehicleId = null) => {
  * @param {object} filters - optional {locationName, employeeId}
  * @returns {Promise<array>} badge swipe history
  */
-export const getBadgeSwipeHistory = async (filters = {}) => {
+export const getBadgeSwipeHistory = async (filters = {}, nightDate) => {
   try {
-    const history = await queryBadgeSwipeHistory(filters);
+    const history = await queryBadgeSwipeHistory(filters, nightDate);
     console.log(`[EventService] Retrieved badge swipe history`);
     return history;
   } catch (error) {
@@ -69,9 +77,9 @@ export const getBadgeSwipeHistory = async (filters = {}) => {
  * Get drone patrol log
  * @returns {Promise<object>} drone patrol summary
  */
-export const getDronePatrolLog = async () => {
+export const getDronePatrolLog = async (nightDate) => {
   try {
-    const log = await queryDronePatrolLog();
+    const log = await queryDronePatrolLog(nightDate);
     console.log(`[EventService] Retrieved drone patrol log`);
     return log;
   } catch (error) {
@@ -89,15 +97,11 @@ export const getDronePatrolLog = async () => {
  */
 export const getEventsForNight = async (nightDate) => {
   try {
-    const startOfDay = new Date(nightDate);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(nightDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    const { start, end } = getDayRange(nightDate);
 
     // Query all events for the night
     const events = await Event.find({
-      nightDate: { $gte: startOfDay, $lte: endOfDay },
+      nightDate: { $gte: start, $lte: end },
     })
       .populate('incidentId', 'title status')
       .lean();

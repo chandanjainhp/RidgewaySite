@@ -1,4 +1,16 @@
-const mongoose = require('mongoose');
+import mongoose from "mongoose";
+
+const briefingSectionSchema = new mongoose.Schema(
+  {
+    agentDraft: mongoose.Schema.Types.Mixed,
+    mayaVersion: mongoose.Schema.Types.Mixed,
+    isEdited: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  { _id: false }
+);
 
 const briefingSchema = new mongoose.Schema(
   {
@@ -8,38 +20,43 @@ const briefingSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    investigation: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Investigation',
+    nightDate: {
+      type: Date,
       required: true,
+      index: true,
     },
-    title: {
-      type: String,
-      required: true,
-    },
-    summary: {
-      type: String,
-      required: true,
-    },
-    highlights: [String],
-    aiGenerated: {
-      type: Boolean,
-      default: true,
-    },
-    generatedBy: String,
-    audience: {
-      type: String,
-      enum: ['operator', 'manager', 'executive'],
-      default: 'manager',
-    },
-    createdAt: {
+    generatedAt: {
       type: Date,
       default: Date.now,
       index: true,
     },
-    attachments: [String],
+    status: {
+      type: String,
+      enum: ["draft", "pending_review", "approved", "pending_revision"],
+      default: "pending_review",
+      index: true,
+    },
+    sections: {
+      executive_summary: briefingSectionSchema,
+      incidents: briefingSectionSchema,
+      recommendations: briefingSectionSchema,
+      anomalies: briefingSectionSchema,
+      follow_up: briefingSectionSchema,
+    },
+    metadata: mongoose.Schema.Types.Mixed,
+    reviewedAt: Date,
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    lastReview: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Review",
+    },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model('Briefing', briefingSchema);
+briefingSchema.set("toJSON", { virtuals: true });
+
+export default mongoose.model("Briefing", briefingSchema);

@@ -2,26 +2,53 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getLatestBriefing, updateBriefingSection, approveBriefing } from "@/lib/api";
 import { toast } from "sonner";
 
+const normalizeBriefing = (data) => {
+  if (!data) {
+    return null;
+  }
+
+  return data;
+};
+
 export function useBriefing(nightDate, options = {}) {
   return useQuery({
     queryKey: ["briefing", nightDate],
     queryFn: () => getLatestBriefing(nightDate),
     refetchInterval: (query) => {
       const data = query?.state?.data;
-      if (data && data.status === 'approved') return false; 
+      if (data?.briefing?.status === 'approved') return false;
       return 30 * 1000; // 30s refetch
     },
     select: (data) => {
+      const briefing = normalizeBriefing(data);
+      if (!briefing) {
+        return { briefing: null, isApproved: false, canApprove: false };
+      }
+
       // Dynamic resolution to test if Maya can push final Briefing
-      const canApprove = (data.status === 'agent_complete' || data.status === 'maya_reviewing') 
-                         && data.escalationsPending === 0;
-                         
-      return { 
-        briefing: data, 
-        isApproved: data.status === 'approved', 
-        canApprove 
+      const canApprove =
+        briefing.status === "maya_reviewing" ||
+        briefing.status === "pending_review";
+
+      return {
+        briefing,
+        isApproved: briefing.status === 'approved',
+        canApprove
       };
     },
+    retry: (failureCount, error) => {
+      // Do not retry auth failures; session will be refreshed or redirected by interceptor.
+      if (error?.statusCode === 401 || error?.statusCode === 403) {
+        return false;
+      }
+
+      // Retry transient network errors.
+      if (!error?.statusCode) {
+        return failureCount < 3;
+      }
+      return failureCount < 1;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     ...options
   });
 }
@@ -30,23 +57,31 @@ export function useUpdateBriefingSection(options = {}) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ briefingId, sectionName, content }) => 
+    mutationFn: ({ briefingId, sectionName, content }) =>
       updateBriefingSection(briefingId, { sectionName, content }),
-    
+
     onMutate: async ({ briefingId, sectionName, content }) => {
       // Optimistic update
       await queryClient.cancelQueries({ queryKey: ["briefing"] });
-      
+
       const previousBriefings = queryClient.getQueriesData({ queryKey: ["briefing"] });
-      
+
       queryClient.setQueriesData({ queryKey: ["briefing"] }, (old) => {
         if (!old) return old;
-        const updatedSections = [...(old.sections || [])];
-        const sectionIndex = updatedSections.findIndex(s => s.name === sectionName);
-        if (sectionIndex >= 0) {
-          updatedSections[sectionIndex] = { ...updatedSections[sectionIndex], content };
-        }
-        return { ...old, sections: updatedSections };
+        return {
+          ...old,
+          briefing: {
+            ...old.briefing,
+            sections: {
+              ...old.briefing?.sections,
+              [sectionName]: {
+                ...(old.briefing?.sections?.[sectionName] || {}),
+                mayaVersion: content,
+                isEdited: true,
+              },
+            },
+          },
+        };
       });
 
       return { previousBriefings };

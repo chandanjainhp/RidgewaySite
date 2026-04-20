@@ -13,6 +13,40 @@ import { SITE_LOCATIONS } from '../db/graph.js';
 
 const DRONE_SPEED_M_S = 15; // meters per second
 
+const SEEDED_PATROL = {
+  patrolId: 'D-Night-04',
+  waypoints: [
+    {
+      location: 'Gate 3',
+      lat: 51.5065,
+      lng: -0.0890,
+      time: '03:12',
+      observation: 'Loose wire on fence sensor. No physical breach.',
+    },
+    {
+      location: 'Block C',
+      lat: 51.5055,
+      lng: -0.0870,
+      time: '03:28',
+      observation: 'One untagged vehicle near loading bay. Plate unreadable.',
+    },
+    {
+      location: 'Storage Yard B',
+      lat: 51.5045,
+      lng: -0.0910,
+      time: '03:45',
+      observation: 'No anomaly detected at time of flyover.',
+    },
+    {
+      location: 'Access Point 7',
+      lat: 51.5035,
+      lng: -0.0925,
+      time: '04:05',
+      observation: 'Badge reader functioning normally. No persons present.',
+    },
+  ],
+};
+
 /**
  * Helper: Calculate Haversine distance between two coordinates
  */
@@ -44,14 +78,83 @@ const interpolatePosition = (from, to, fraction) => {
 /**
  * Helper: Parse time string to minutes from midnight
  */
-const parseTime = (timeStr) => {
-  if (typeof timeStr === 'string' && timeStr.includes(':')) {
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    return hours * 60 + minutes;
-  } else if (timeStr instanceof Date) {
-    return timeStr.getHours() * 60 + timeStr.getMinutes();
+const timeToMinutes = (timeStr) => {
+  if (typeof timeStr !== 'string' || !timeStr.includes(':')) {
+    return Number.NaN;
   }
-  return 0;
+  const parts = timeStr.split(':');
+  return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+};
+
+const formatHHMM = (dateValue, offsetMinutes = 0) => {
+  const d = new Date(dateValue);
+  d.setMinutes(d.getMinutes() + offsetMinutes);
+  return d.toISOString().substring(11, 16);
+};
+
+const getPatrolWaypoints = async (patrolId, nightDate = new Date()) => {
+  const patrolEvent = await Event.findOne({
+    type: 'drone_observation',
+    $or: [
+      { 'rawData.patrolId': patrolId },
+      { 'rawData.droneId': patrolId },
+      { 'rawData.patrol': patrolId },
+    ],
+  }).sort({ timestamp: 1 });
+
+  if (patrolEvent && Array.isArray(patrolEvent.rawData?.observations)) {
+    const waypoints = patrolEvent.rawData.observations
+      .map((obs, idx) => {
+        const locationName = obs.location || patrolEvent.location?.name;
+        const siteLocation = SITE_LOCATIONS.find(
+          (loc) => loc.name.toLowerCase() === String(locationName || '').toLowerCase()
+        );
+
+        return {
+          location: locationName || 'Unknown',
+          lat: siteLocation?.coordinates?.lat ?? patrolEvent.location?.coordinates?.lat ?? null,
+          lng: siteLocation?.coordinates?.lng ?? patrolEvent.location?.coordinates?.lng ?? null,
+          time:
+            typeof obs.time === 'string' && obs.time.includes(':')
+              ? obs.time
+              : formatHHMM(patrolEvent.timestamp, idx * 16),
+          observation: obs.finding || obs.observation || 'Drone observation',
+        };
+      })
+      .filter((wp) => wp.lat !== null && wp.lng !== null);
+
+    if (waypoints.length > 0) {
+      return {
+        patrolId,
+        waypoints,
+      };
+    }
+  }
+
+  const startOfDay = new Date(nightDate);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(nightDate);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  const droneEvents = await Event.find({
+    type: 'drone_observation',
+    timestamp: { $gte: startOfDay, $lte: endOfDay },
+  }).sort({ timestamp: 1 });
+
+  if (droneEvents.length > 0) {
+    return {
+      patrolId,
+      waypoints: droneEvents.map((event) => ({
+        location: event.location.name,
+        lat: event.location.coordinates.lat,
+        lng: event.location.coordinates.lng,
+        time: event.timestamp.toISOString().substring(11, 16),
+        observation: event.rawData?.observation || 'Drone observation',
+      })),
+    };
+  }
+
+  return SEEDED_PATROL;
 };
 
 /**
@@ -63,24 +166,35 @@ const parseTime = (timeStr) => {
  */
 export const getDroneStateAtTime = async (patrolId, targetTime, nightDate = new Date()) => {
   try {
-    // Load all drone observations for this night
-    const startOfDay = new Date(nightDate);
-    startOfDay.setHours(0, 0, 0, 0);
+    const normalizedTime =
+      typeof targetTime === 'string' && targetTime.includes(':')
+        ? targetTime
+        : new Date(targetTime || Date.now()).toISOString().substring(11, 16);
+    const targetMinutes = timeToMinutes(normalizedTime);
 
-    const endOfDay = new Date(nightDate);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    const droneEvents = await Event.find({
-      type: 'drone_observation',
-      timestamp: { $gte: startOfDay, $lte: endOfDay },
-    }).sort({ timestamp: 1 });
-
-    console.log(`[DroneSimulator] Loaded ${droneEvents.length} drone waypoints`);
-
-    if (droneEvents.length === 0) {
+    if (Number.isNaN(targetMinutes)) {
       return {
         patrolId,
-        targetTime: targetTime.toString(),
+        targetTime: String(targetTime || ''),
+        currentPosition: null,
+        lastWaypoint: null,
+        nextWaypoint: null,
+        observationsToDate: [],
+        percentComplete: 0,
+        error: 'Invalid time format. Use HH:MM (e.g. 03:28).',
+      };
+    }
+
+    const patrol = await getPatrolWaypoints(patrolId, nightDate);
+    const waypoints = (patrol?.waypoints || [])
+      .map((wp) => ({ ...wp, minutes: timeToMinutes(wp.time) }))
+      .filter((wp) => !Number.isNaN(wp.minutes))
+      .sort((a, b) => a.minutes - b.minutes);
+
+    if (waypoints.length === 0) {
+      return {
+        patrolId,
+        targetTime: normalizedTime,
         currentPosition: null,
         lastWaypoint: null,
         nextWaypoint: null,
@@ -90,74 +204,65 @@ export const getDroneStateAtTime = async (patrolId, targetTime, nightDate = new 
       };
     }
 
-    const targetMinutes = parseTime(targetTime);
-
-    // Find waypoints before and after target time
     let lastWaypoint = null;
     let nextWaypoint = null;
     let waypointsBefore = [];
 
-    for (const event of droneEvents) {
-      const eventMinutes = event.timestamp.getHours() * 60 + event.timestamp.getMinutes();
-
-      if (eventMinutes <= targetMinutes) {
-        lastWaypoint = event;
-        waypointsBefore.push(event);
+    for (const waypoint of waypoints) {
+      if (waypoint.minutes <= targetMinutes) {
+        lastWaypoint = waypoint;
+        waypointsBefore.push(waypoint);
       } else if (!nextWaypoint) {
-        nextWaypoint = event;
+        nextWaypoint = waypoint;
       }
     }
 
-    // Build observations up to target time
-    const observationsToDate = waypointsBefore.map((event) => ({
-      location: event.location.name,
-      finding: event.rawData?.observation || 'patrol waypoint',
-      time: event.timestamp.toISOString().split('T')[1].substring(0, 5),
+    const observationsToDate = waypointsBefore.map((waypoint) => ({
+      location: waypoint.location,
+      finding: waypoint.observation,
+      time: waypoint.time,
     }));
 
-    // Calculate current position (interpolate between last and next waypoint)
     let currentPosition = null;
 
     if (lastWaypoint && nextWaypoint) {
-      const lastCoord = lastWaypoint.location.coordinates;
-      const nextCoord = nextWaypoint.location.coordinates;
+      const lastCoord = { lat: lastWaypoint.lat, lng: lastWaypoint.lng };
+      const nextCoord = { lat: nextWaypoint.lat, lng: nextWaypoint.lng };
       const distance = calculateDistance(lastCoord, nextCoord);
       const travelTime = distance / DRONE_SPEED_M_S;
 
-      const lastMinutes = lastWaypoint.timestamp.getHours() * 60 + lastWaypoint.timestamp.getMinutes();
-      const nextMinutes = nextWaypoint.timestamp.getHours() * 60 + nextWaypoint.timestamp.getMinutes();
+      const lastMinutes = lastWaypoint.minutes;
+      const nextMinutes = nextWaypoint.minutes;
       const timeInLeg = targetMinutes - lastMinutes;
-      const fraction = Math.min(1, Math.max(0, timeInLeg / (nextMinutes - lastMinutes)));
+      const legMinutes = Math.max(1, nextMinutes - lastMinutes);
+      const fraction = Math.min(1, Math.max(0, timeInLeg / legMinutes));
 
       currentPosition = interpolatePosition(lastCoord, nextCoord, fraction);
     } else if (lastWaypoint) {
-      // Target time is after last waypoint, stay at last position
-      currentPosition = lastWaypoint.location.coordinates;
+      currentPosition = { lat: lastWaypoint.lat, lng: lastWaypoint.lng };
     } else if (nextWaypoint) {
-      // Target time is before first waypoint
-      currentPosition = nextWaypoint.location.coordinates;
+      currentPosition = { lat: nextWaypoint.lat, lng: nextWaypoint.lng };
     }
 
-    // Calculate percent complete
-    const totalWaypoints = droneEvents.length;
+    const totalWaypoints = waypoints.length;
     const completeWaypoints = waypointsBefore.length;
     const percentComplete = Math.round((completeWaypoints / totalWaypoints) * 100);
 
     return {
       patrolId,
-      targetTime: targetTime.toString(),
+      targetTime: normalizedTime,
       currentPosition,
       lastWaypoint: lastWaypoint
         ? {
-            location: lastWaypoint.location.name,
-            observation: lastWaypoint.rawData?.observation || 'patrol waypoint',
-            time: lastWaypoint.timestamp.toISOString().split('T')[1].substring(0, 5),
+            location: lastWaypoint.location,
+            observation: lastWaypoint.observation,
+            time: lastWaypoint.time,
           }
         : null,
       nextWaypoint: nextWaypoint
         ? {
-            location: nextWaypoint.location.name,
-            estimatedArrival: nextWaypoint.timestamp.toISOString().split('T')[1].substring(0, 5),
+            location: nextWaypoint.location,
+            estimatedArrival: nextWaypoint.time,
           }
         : null,
       observationsToDate,
@@ -167,7 +272,7 @@ export const getDroneStateAtTime = async (patrolId, targetTime, nightDate = new 
     console.error(`[DroneSimulator] Error in getDroneStateAtTime:`, error.message);
     return {
       patrolId,
-      targetTime: targetTime.toString(),
+      targetTime: String(targetTime || ''),
       error: error.message,
       currentPosition: null,
       lastWaypoint: null,

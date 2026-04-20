@@ -2,6 +2,7 @@ import Redis from 'ioredis';
 
 // Key naming constants
 const AGENT_STATE_KEY = (jobId) => `agent:state:${jobId}`;
+const AGENT_EVENTS_KEY = (jobId) => `agent:events:${jobId}`;
 const SSE_SUBSCRIBERS_KEY = (jobId) => `sse:subscribers:${jobId}`;
 const AGENT_STATE_TTL = 2 * 60 * 60; // 2 hours in seconds
 
@@ -119,6 +120,56 @@ const deleteAgentState = async (jobId) => {
   }
 };
 
+const appendAgentEvent = async (jobId, event) => {
+  try {
+    if (!redisClient) {
+      throw new Error('Redis client not connected');
+    }
+
+    const key = AGENT_EVENTS_KEY(jobId);
+    await redisClient.rpush(key, JSON.stringify(event));
+    await redisClient.expire(key, AGENT_STATE_TTL);
+  } catch (error) {
+    console.error('[Redis] appendAgentEvent failed:', error.message);
+    throw error;
+  }
+};
+
+const getAgentEvents = async (jobId) => {
+  try {
+    if (!redisClient) {
+      throw new Error('Redis client not connected');
+    }
+
+    const key = AGENT_EVENTS_KEY(jobId);
+    const values = await redisClient.lrange(key, 0, -1);
+    return values.map((item) => {
+      try {
+        return JSON.parse(item);
+      } catch {
+        return null;
+      }
+    }).filter(Boolean);
+  } catch (error) {
+    console.error('[Redis] getAgentEvents failed:', error.message);
+    throw error;
+  }
+};
+
+const clearAgentEvents = async (jobId) => {
+  try {
+    if (!redisClient) {
+      throw new Error('Redis client not connected');
+    }
+
+    const key = AGENT_EVENTS_KEY(jobId);
+    await redisClient.del(key);
+  } catch (error) {
+    console.error('[Redis] clearAgentEvents failed:', error.message);
+    throw error;
+  }
+};
+
 export {
   connectRedis,
   disconnectRedis,
@@ -126,6 +177,10 @@ export {
   setAgentState,
   getAgentState,
   deleteAgentState,
+  appendAgentEvent,
+  getAgentEvents,
+  clearAgentEvents,
   AGENT_STATE_KEY,
+  AGENT_EVENTS_KEY,
   SSE_SUBSCRIBERS_KEY,
 };

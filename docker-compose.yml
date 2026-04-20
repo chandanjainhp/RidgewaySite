@@ -1,0 +1,117 @@
+version: "3.9"
+
+services:
+  # MongoDB database
+  mongodb:
+    image: mongo:7.0
+    container_name: ridgeway-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: ridgeway
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+      - ./scripts/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - ridgeway-network
+
+  # Redis cache and job queue
+  redis:
+    image: redis:7-alpine
+    container_name: ridgeway-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass password123
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: redis-cli --raw incr ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - ridgeway-network
+
+  # Node.js Server
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: ridgeway-server
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 8000
+      MONGODB_URL: mongodb://admin:password123@mongodb:27017/ridgeway?authSource=admin
+      REDIS_URL: redis://:password123@redis:6379
+      JWT_SECRET: ${JWT_SECRET:-your-jwt-secret-key-change-in-production}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-your-email@gmail.com}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-your-app-password}
+    ports:
+      - "8000:8000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./server/src:/app/src
+    networks:
+      - ridgeway-network
+    healthcheck:
+      test: curl -f http://localhost:8000/api/v1/health || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Next.js Client
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: ridgeway-client
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - server
+    volumes:
+      - ./client/src:/app/src
+      - /app/.next
+    networks:
+      - ridgeway-network
+    healthcheck:
+      test: curl -f http://localhost:3000 || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  ridgeway-network:
+    driver: bridge

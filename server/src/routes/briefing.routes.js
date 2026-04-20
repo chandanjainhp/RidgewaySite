@@ -15,6 +15,7 @@ router.get('/latest', asyncHandler(getLatestBriefing));
 
 // PATCH /briefing/:id/section
 router.patch('/:id/section', validate(briefingValidator.updateBriefingSectionSchema), asyncHandler(updateBriefingSection));
+router.patch('/:id/sections/:sectionName', validate(briefingValidator.updateBriefingSectionSchema), asyncHandler(updateBriefingSection));
 
 // POST /briefing/:id/approve
 router.post('/:id/approve', asyncHandler(approveBriefing));

@@ -9,15 +9,31 @@
   5. Save complete investigation record to MongoDB
 */
 
-import { getClaudeClient } from '../utils/anthropic.js';
+import { getClaudeClient, getModelName } from '../utils/anthropic.js';
 import { buildSystemPrompt } from './prompts/system.js';
 import { TOOLS_FOR_CLAUDE, executeTool } from './tools-registry.js';
-import Investigation from '../models/investigation.model.js';
 import Incident from '../models/incident.model.js';
-import Event from '../models/event.model.js';
 
 const MAX_TOOL_CALLS = 12;
-const CLAUDE_MODEL = 'claude-sonnet-4-20250514';
+const DEFAULT_MODEL = getModelName();
+
+const toUsageNumber = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+};
+
+const extractTokenUsage = (response) => {
+  const usage = response?.usage || {};
+
+  return {
+    input: toUsageNumber(
+      usage.input_tokens ?? usage.inputTokens ?? usage.prompt_tokens ?? usage.promptTokens
+    ),
+    output: toUsageNumber(
+      usage.output_tokens ?? usage.outputTokens ?? usage.completion_tokens ?? usage.completionTokens
+    ),
+  };
+};
 
 /**
  * Main investigation orchestrator
@@ -26,7 +42,12 @@ const CLAUDE_MODEL = 'claude-sonnet-4-20250514';
  * @param {function} emitProgress - callback(progressEvent) for real-time streaming
  * @returns {Promise<object>} investigation record
  */
-export const runInvestigation = async (incidentId, jobId, emitProgress) => {
+export const runInvestigation = async (
+  incidentId,
+  jobId,
+  emitProgress,
+  investigationRecord = null
+) => {
   const startTime = Date.now();
   let investigation = null;
   let conversationHistory = [];
@@ -55,18 +76,16 @@ export const runInvestigation = async (incidentId, jobId, emitProgress) => {
     }
 
     const events = incident.eventIds || [];
+    const investigationNightDate = incident.nightDate;
+    if (!investigationNightDate) {
+      throw new Error(`Incident ${incidentId} is missing nightDate`);
+    }
     console.log(`[Agent] Loaded incident with ${events.length} events`);
 
-    // Create investigation record
-    investigation = new Investigation({
-      incidentId,
-      nightDate: incident.nightDate,
-      jobId,
-      status: 'running',
-      agentModel: CLAUDE_MODEL,
-    });
-    await investigation.save();
-    console.log(`[Agent] Created investigation record: ${investigation._id}`);
+    investigation = investigationRecord;
+    if (!investigation) {
+      throw new Error('Investigation record is required before running the agent');
+    }
 
     // Build system prompt
     const systemPrompt = buildSystemPrompt(incident, events);
@@ -101,32 +120,66 @@ Begin by gathering all available data for this location and these event types. O
       console.log(`[Agent] Iteration ${toolCallCount + 1}/${MAX_TOOL_CALLS}`);
 
       try {
+        const model = DEFAULT_MODEL;
+        const tools = TOOLS_FOR_CLAUDE;
+        const messages = conversationHistory;
+
+        console.log('[TOOLS]', JSON.stringify(TOOLS_FOR_CLAUDE, null, 2));
+        console.log('[CLAUDE CALL] model:', model);
+        console.log('[CLAUDE CALL] tools count:', tools?.length);
+        console.log('[CLAUDE CALL] messages count:', messages.length);
+        console.log(
+          '[FIRST MSG]',
+          messages[0]?.role,
+          typeof messages[0]?.content === 'string'
+            ? messages[0].content.slice(0, 100)
+            : JSON.stringify(messages[0]?.content || '').slice(0, 100)
+        );
+        console.log('[CLAUDE CALL] last message role:', messages[messages.length - 1]?.role);
+
         // Call Claude with current conversation
         const response = await claude.messages.create({
-          model: CLAUDE_MODEL,
+          model,
           max_tokens: 2000,
           system: systemPrompt,
-          tools: TOOLS_FOR_CLAUDE,
-          messages: conversationHistory,
+          tools,
+          tool_choice: { type: 'auto' },
+          messages,
         });
 
+        console.log('[CLAUDE RESPONSE] stop_reason:', response.stop_reason);
+        console.log(
+          '[CLAUDE RESPONSE] content blocks:',
+          (Array.isArray(response?.content) ? response.content : []).map((b) => b.type).join(', ')
+        );
+        console.log('[CLAUDE RESPONSE] usage:', response.usage);
+
         // Track token usage
-        tokenUsage.inputTokens += response.usage.input_tokens || 0;
-        tokenUsage.outputTokens += response.usage.output_tokens || 0;
+        const usage = extractTokenUsage(response);
+        tokenUsage.inputTokens += usage.input;
+        tokenUsage.outputTokens += usage.output;
+
+        const responseContent = Array.isArray(response?.content) ? response.content : [];
+
+        console.log('CLAUDE RESPONSE stop_reason', response.stop_reason);
+        console.log(
+          'CLAUDE CONTENT TYPES',
+          responseContent.map((block) => block?.type || 'unknown')
+        );
 
         console.log(`[Agent] Claude response received (stop_reason: ${response.stop_reason})`);
 
         // Append assistant response to history (before processing)
         conversationHistory.push({
           role: 'assistant',
-          content: response.content,
+          content: responseContent,
         });
 
         // ===== CASE 1: Tool use =====
         if (response.stop_reason === 'tool_use') {
           console.log(`[Agent] Tool use detected, processing...`);
 
-          const toolUseBlocks = response.content.filter(block => block.type === 'tool_use');
+          const toolUseBlocks = responseContent.filter(block => block.type === 'tool_use');
           const toolResults = [];
 
           for (const toolBlock of toolUseBlocks) {
@@ -155,7 +208,7 @@ Begin by gathering all available data for this location and these event types. O
             const toolStartTime = Date.now();
             let toolResult;
             try {
-              toolResult = await executeTool(toolName, toolInput);
+              toolResult = await executeTool(toolName, toolInput, investigationNightDate);
             } catch (toolError) {
               console.error(`[Agent] Tool execution error:`, toolError.message);
               toolResult = {
@@ -225,7 +278,7 @@ Begin by gathering all available data for this location and these event types. O
           loopComplete = true;
 
           // Extract text content and parse JSON classification
-          const textContent = response.content
+          const textContent = responseContent
             .filter(block => block.type === 'text')
             .map(block => block.text)
             .join('\n');
@@ -280,6 +333,9 @@ Begin by gathering all available data for this location and these event types. O
           loopComplete = true;
         }
       } catch (loopError) {
+        console.error('[CLAUDE ERROR] status:', loopError?.status);
+        console.error('[CLAUDE ERROR] message:', loopError?.message);
+        console.error('[CLAUDE ERROR] full:', JSON.stringify(loopError, null, 2));
         console.error(`[Agent] Error in loop iteration:`, loopError.message);
 
         // Emit error progress
@@ -336,6 +392,7 @@ Begin by gathering all available data for this location and these event types. O
     investigation.totalToolCalls = toolCallCount;
     investigation.durationMs = duration;
     investigation.failureReason = failureReason;
+    investigation.agentModel = DEFAULT_MODEL;
 
     await investigation.save();
     console.log(`[Agent] Investigation saved with status: ${finalStatus}`);

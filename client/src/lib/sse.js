@@ -1,4 +1,8 @@
-// SSE specific event types 
+import { getStoredToken } from "@/lib/api";
+
+/* =========================================
+          SSE EVENT TYPES
+========================================= */
 export const SSE_EVENT_TYPES = {
   TOOL_CALLED: "tool_called",
   TOOL_RESULT: "tool_result",
@@ -7,105 +11,150 @@ export const SSE_EVENT_TYPES = {
   COMPLETE: "complete",
   FAILED: "failed",
   CONNECTED: "connected",
+  ERROR: "error",
 };
+
+/* =========================================
+          CONSTANTS
+========================================= */
+const MAX_RECONNECT_ATTEMPTS = 3;
+const RECONNECT_DELAY_MS = 3000;
+
+/**
+ * Safe JSON parser that returns null on parse error
+ */
+function safeParseJSON(str) {
+  try {
+    return JSON.parse(str);
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Creates and wraps an EventSource connection capable of reconnecting with defined hooks.
- * 
- * @param {string} jobId The associated backend job identifier hooking to stream.
- * @param {Object} handlers Lifecycle hooks: { onMessage, onComplete, onFailed, onConnected, onError }
+ * Handles authentication via token query parameter and implements exponential backoff for reconnection.
+ *
+ * @param {string} jobId The associated backend job identifier
+ * @param {Object} handlers Lifecycle hooks:
+ *   - onConnected: () → void
+ *   - onMessage: (parsedEvent) → void
+ *   - onComplete: (completionData) → void
+ *   - onFailed: (errorData) → void
+ *   - onReconnecting: (attemptNumber) → void
+ *   - onError: (error) → void
+ * @returns {Function} disconnect function to close the connection
  */
-export function createSSEConnection(jobId, handlers) {
-  const { 
-    onMessage = () => {}, 
-    onComplete = () => {}, 
-    onFailed = () => {}, 
-    onConnected = () => {}, 
-    onError = () => {} 
+export function createSSEConnection(jobId, handlers = {}) {
+  // Guard against SSR environment
+  if (typeof EventSource === "undefined") {
+    const error = new Error("EventSource is not available in this environment");
+    handlers.onError?.(error);
+    return () => {};
+  }
+
+  const {
+    onConnected = () => {},
+    onMessage = () => {},
+    onComplete = () => {},
+    onFailed = () => {},
+    onReconnecting = () => {},
+    onError = () => {},
   } = handlers;
 
   let eventSource = null;
-  let reconnectAttempts = 0;
-  const MAX_RECONNECTS = 3;
+  let reconnectCount = 0;
+  let isIntentionallyClosed = false;
 
   const connect = () => {
     try {
-      const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "") + `/api/v1/investigations/${jobId}/stream`;
-      
-      // Attempt resolving local storage token dynamically
-      let tokenStr = "";
-      if (typeof window !== "undefined") {
-        const token = localStorage.getItem("ridgeway_token");
-        if (token) tokenStr = `?token=${token}`;
+      // Get auth token
+      const token = getStoredToken();
+      if (!token) {
+        const error = new Error("No auth token available for SSE connection");
+        onError(error);
+        return;
       }
 
-      const url = `${baseUrl}${tokenStr}`;
+      // Build SSE URL with token
+      const baseUrl =
+        (process.env.NEXT_PUBLIC_API_URL || "") +
+        `/api/v1/investigations/${jobId}/stream`;
+      const url = `${baseUrl}?token=${encodeURIComponent(token)}`;
+
+      // Create EventSource connection
       eventSource = new EventSource(url);
 
-      // Handle raw messages stream
-      eventSource.onmessage = (event) => {
-        try {
-          const parsed = JSON.parse(event.data);
-          onMessage(parsed);
-        } catch (err) {
-          onError(err);
-        }
-      };
-
-      // Handle named semantic events mapping to explicit boundaries
-      eventSource.addEventListener("connected", () => {
-        reconnectAttempts = 0; // reset ping
+      // Handle the 'connected' named event
+      eventSource.addEventListener(SSE_EVENT_TYPES.CONNECTED, () => {
+        reconnectCount = 0; // Reset on successful connect
         onConnected();
       });
 
-      eventSource.addEventListener("complete", (event) => {
-        try {
-          const parsed = JSON.parse(event.data);
-          onComplete(parsed);
-        } catch (err) {
-          onError(err);
-        }
+      // Handle named completion/failure events emitted by server
+      eventSource.addEventListener(SSE_EVENT_TYPES.COMPLETE, (event) => {
+        const data = safeParseJSON(event.data) || {};
+        onComplete(data);
+        isIntentionallyClosed = true;
         disconnect();
       });
 
-      eventSource.addEventListener("failed", (event) => {
-        try {
-          const parsed = JSON.parse(event.data);
-          onFailed(parsed);
-        } catch (err) {
-          onError(err);
-        }
+      eventSource.addEventListener(SSE_EVENT_TYPES.FAILED, (event) => {
+        const data = safeParseJSON(event.data) || {};
+        onFailed(data);
+        isIntentionallyClosed = true;
         disconnect();
       });
 
-      // Unified error/closure bounds
-      eventSource.onerror = (error) => {
-        if (eventSource.readyState === EventSource.CLOSED) {
-          if (reconnectAttempts < MAX_RECONNECTS) {
-            reconnectAttempts++;
-            setTimeout(() => {
-              connect();
-            }, 3000);
+      // Handle default message events (progress updates)
+      eventSource.onmessage = (event) => {
+        const data = safeParseJSON(event.data);
+        if (!data) return;
+
+        // Regular message
+        onMessage(data);
+      };
+
+      // Handle errors and reconnection logic
+      eventSource.onerror = () => {
+        if (isIntentionallyClosed) return;
+
+        // Check if connection is closed
+        if (eventSource?.readyState === EventSource.CLOSED) {
+          if (reconnectCount < MAX_RECONNECT_ATTEMPTS) {
+            reconnectCount++;
+            onReconnecting(reconnectCount);
+
+            // Exponential backoff: multiply base delay by attempt number
+            const delayMs = RECONNECT_DELAY_MS * reconnectCount;
+            setTimeout(connect, delayMs);
           } else {
-            onError(new Error("SSE connection exhausted maximum reconnect attempts."));
+            isIntentionallyClosed = true;
+            const error = new Error(
+              `SSE connection failed after ${MAX_RECONNECT_ATTEMPTS} reconnection attempts`
+            );
+            onError(error);
           }
-        } else {
-          onError(error);
         }
       };
     } catch (err) {
+      isIntentionallyClosed = true;
       onError(err);
     }
   };
 
+  /**
+   * Disconnect function to cleanly close the SSE connection
+   */
   const disconnect = () => {
+    isIntentionallyClosed = true;
     if (eventSource) {
       eventSource.close();
       eventSource = null;
     }
   };
 
-  // Instantiate connection
+  // Start the connection immediately
   connect();
 
   return disconnect;

@@ -1,62 +1,52 @@
+import jwt from "jsonwebtoken";
 import { User } from "../models/user.models.js";
-import { ProjectMember } from "../models/projectmember.models.js";
 import { ApiError } from "../utils/api-error.js";
 import { asyncHandler } from "../utils/async-handler.js";
-import jwt from "jsonwebtoken";
 
 export const verifyJWT = asyncHandler(async (req, res, next) => {
-  const token =
-    req.cookies?.accessToken ||
-    req.header("Authorization")?.replace("Bearer ", "");
+  const headerToken = req.header("Authorization")?.replace("Bearer ", "")?.trim();
+  const cookieToken = req.cookies?.accessToken?.trim();
+  const candidateTokens = [headerToken, cookieToken].filter(Boolean);
 
-  if (!token) {
+  if (candidateTokens.length === 0) {
     throw new ApiError(401, "Unauthorized request");
   }
 
-  try {
-    const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-    const user = await User.findById(decodedToken?._id).select(
-      "-password -refreshToken -emailVerificationToken -emailVerificationExpiry",
-    );
+  for (const token of candidateTokens) {
+    try {
+      const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+      const user = await User.findById(decodedToken?._id).select(
+        "-password -refreshToken -emailVerificationToken -emailVerificationExpiry"
+      );
 
-    if (!user) {
-      throw new ApiError(401, "Invalid access token");
+      if (!user) {
+        continue;
+      }
+
+      req.user = user;
+      next();
+      return;
+    } catch {
+      // Try next token candidate.
     }
-    req.user = user;
-    next();
-  } catch (error) {
-    throw new ApiError(401, "Invalid access token");
   }
+
+  throw new ApiError(401, "Invalid access token");
 });
 
-export const validateProjectPermission = (roles = []) => {
+export const validateProjectPermission = (roles = []) =>
   asyncHandler(async (req, res, next) => {
-    const { projectId } = req.params;
-
-    if (!projectId) {
-      throw new ApiError(400, "project id is missing");
+    if (roles.length === 0) {
+      return next();
     }
 
-    const project = await ProjectMember.findOne({
-      project: new mongoose.Types.ObjectId(projectId),
-      user: new mongoose.Types.ObjectId(req.user._id),
-    });
-
-    if (!project) {
-      throw new ApiError(400, "project not found");
-    }
-
-    const givenRole = project?.role;
-
-    req.user.role = givenRole;
-
-    if (!roles.includes(givenRole)) {
+    const role = req.user?.role;
+    if (!role || !roles.includes(role)) {
       throw new ApiError(
         403,
-        "You do not have permission to perform this action",
+        "You do not have permission to perform this action"
       );
     }
 
     next();
   });
-};

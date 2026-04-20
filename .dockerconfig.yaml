@@ -1,0 +1,30 @@
+db:
+  type: mongodb
+  version: 7.0
+  port: 27017
+  username: admin
+  password: password123
+  database: ridgeway
+
+cache:
+  type: redis
+  version: 7-alpine
+  port: 6379
+  password: password123
+
+server:
+  runtime: bun
+  port: 8000
+
+client:
+  framework: nextjs
+  port: 3000
+
+network:
+  name: ridgeway-network
+  type: bridge
+
+volumes:
+  - mongodb_data
+  - mongodb_config
+  - redis_data

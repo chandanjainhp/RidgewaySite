@@ -16,7 +16,8 @@ router.get('/', asyncHandler(getEventsForNight));
 // GET /events/:id
 router.get('/:id', asyncHandler(getEventById));
 
-// PATCH /events/:id/review
+// PATCH/POST /events/:id/review
 router.patch('/:id/review', validate(eventValidator.applyReviewSchema), asyncHandler(applyMayaReview));
+router.post('/:id/review', validate(eventValidator.applyReviewSchema), asyncHandler(applyMayaReview));
 
 export default router;

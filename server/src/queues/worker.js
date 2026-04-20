@@ -3,7 +3,7 @@ import { Worker } from 'bullmq';
 import { runInvestigation } from '../ai/agent.js';
 import { checkNightComplete } from '../services/investigation.service.js';
 import Investigation from '../models/investigation.model.js';
-import { setAgentState } from '../db/redis.js';
+import { emitToStream } from '../lib/streamRegistry.js';
 
 /**
  * BullMQ Worker for investigation queue
@@ -64,7 +64,7 @@ export const startWorker = async () => {
     investigationWorker = new Worker(
       'investigations',
       async (job) => {
-        const { incidentId, nightDate } = job.data;
+        const { investigationId, incidentId, nightDate } = job.data;
         const jobId = job.id;
 
         console.log(
@@ -75,9 +75,9 @@ export const startWorker = async () => {
 
         try {
           // ========== UPDATE STATUS TO RUNNING ==========
-          investigation = await Investigation.findById(incidentId);
+          investigation = await Investigation.findById(investigationId);
           if (!investigation) {
-            throw new Error(`Investigation not found: ${incidentId}`);
+            throw new Error(`Investigation not found: ${investigationId}`);
           }
 
           investigation.status = 'running';
@@ -91,11 +91,17 @@ export const startWorker = async () => {
               // Update BullMQ job progress
               await job.updateProgress(progressEvent);
 
-              // Save progress event to Redis for SSE clients to replay
-              await setAgentState(jobId, progressEvent);
+              const streamEvent = {
+                type: progressEvent.type,
+                jobId,
+                timestamp: new Date().toISOString(),
+                data: progressEvent.data,
+              };
+
+              await emitToStream(jobId, streamEvent);
 
               console.log(
-                `[Worker] Progress emitted for job ${jobId}: ${progressEvent.type}`
+                `[Worker] Progress emitted to stream for job ${jobId}: ${progressEvent.type}`
               );
             } catch (error) {
               console.error(
@@ -106,11 +112,25 @@ export const startWorker = async () => {
             }
           };
 
+          await emitProgress({
+            type: 'started',
+            data: {
+              incidentId,
+              investigationId,
+              summary: 'Investigation started',
+            },
+          });
+
           // ========== RUN INVESTIGATION ==========
+          console.log('[Worker] Waiting 3s for SSE stream to register...');
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          console.log('[Worker] Starting investigation now:', incidentId);
+
           const investigationResult = await runInvestigation(
             investigation.incidentId,
             jobId,
-            emitProgress
+            emitProgress,
+            investigation
           );
 
           console.log(
@@ -138,6 +158,15 @@ export const startWorker = async () => {
             nightCheckResult
           );
 
+          await emitProgress({
+            type: 'complete',
+            data: {
+              investigationId,
+              summary: 'Investigation complete',
+              classification: investigationResult.finalClassification,
+            },
+          });
+
           // ========== RETURN RESULT ==========
           return {
             jobId,
@@ -154,11 +183,19 @@ export const startWorker = async () => {
 
           // ========== ERROR HANDLING - UPDATE STATUS TO FAILED ==========
           try {
-            const failedInvestigation = await Investigation.findById(incidentId);
+            const failedInvestigation = await Investigation.findById(investigationId);
             if (failedInvestigation) {
               failedInvestigation.status = 'failed';
               failedInvestigation.failureReason = error.message;
               await failedInvestigation.save();
+
+              await emitToStream(jobId, {
+                type: 'failed',
+                jobId,
+                timestamp: new Date().toISOString(),
+                data: { message: error.message },
+              });
+
               console.log(
                 `[Worker] Investigation status updated to failed: ${incidentId}`
               );

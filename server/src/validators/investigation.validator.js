@@ -1,19 +1,18 @@
-const Joi = require('joi');
+import Joi from "joi";
 
-// Investigation validators
-const createInvestigationSchema = Joi.object().keys({
+const createInvestigationSchema = Joi.object({
   investigationId: Joi.string().required(),
   incident: Joi.string().required(),
   aiAgent: Joi.string(),
 });
 
-const startInvestigationSchema = Joi.object().keys({
+const startInvestigationSchema = Joi.object({
   nightDate: Joi.string().isoDate().optional(),
 });
 
-const updateFindingsSchema = Joi.object().keys({
+const updateFindingsSchema = Joi.object({
   findings: Joi.array().items(
-    Joi.object().keys({
+    Joi.object({
       category: Joi.string(),
       detail: Joi.string(),
       severity: Joi.string(),
@@ -21,15 +20,15 @@ const updateFindingsSchema = Joi.object().keys({
   ),
   rootCause: Joi.string(),
   recommendedActions: Joi.array().items(Joi.string()),
-  status: Joi.string().valid('pending', 'in_progress', 'completed', 'escalated'),
+  status: Joi.string().valid("pending", "in_progress", "completed", "escalated"),
 });
 
-const executionLogSchema = Joi.object().keys({
+const executionLogSchema = Joi.object({
   action: Joi.string().required(),
   result: Joi.string().required(),
 });
 
-module.exports = {
+export default {
   createInvestigationSchema,
   startInvestigationSchema,
   updateFindingsSchema,

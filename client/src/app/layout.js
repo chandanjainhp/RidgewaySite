@@ -1,16 +1,6 @@
-import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import TopBar from "@/components/layout/TopBar";
 import Providers from "@/components/shared/Providers";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-jetbrains",
-});
 
 export const metadata = {
   title: "6:10 Assistant | Ridgeway Site",
@@ -20,11 +10,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className="dark">
-      <body
-        className={`${inter.variable} ${jetbrainsMono.variable} bg-surface text-text-primary font-sans antialiased h-screen overflow-hidden flex flex-col`}
-      >
+      <body style={{ backgroundColor: "#0f1117", margin: 0 }}>
         <Providers>
-          {children}
+          <TopBar />
+          <div style={{ paddingTop: "56px" }}>{children}</div>
         </Providers>
       </body>
     </html>

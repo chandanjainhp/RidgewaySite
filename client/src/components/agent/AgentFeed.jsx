@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { useInvestigationStore } from "@/store/investigationStore";
 import AgentFeedItem from "./AgentFeedItem";
+import AgentStatusBadge from "./AgentStatusBadge";
 
 export default function AgentFeed() {
   const feedItems = useInvestigationStore((state) => state.feedItems);
@@ -11,76 +12,83 @@ export default function AgentFeed() {
   const errorMsg = useInvestigationStore((state) => state.error);
 
   const scrollRef = useRef(null);
-  const [isAutoScrolling, setIsAutoScrolling] = useState(true);
-
-  // Scroll handler detaches auto-lock if user explores back in time
-  const handleScroll = (e) => {
-    const { scrollTop, scrollHeight, clientHeight } = e.target;
-    // 20px threshold margin
-    const isAtBottom = scrollHeight - scrollTop - clientHeight < 20;
-    setIsAutoScrolling(isAtBottom);
-  };
+  const bottomRef = useRef(null);
 
   useEffect(() => {
-    if (isAutoScrolling && scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    const scrollEl = scrollRef.current;
+    if (!scrollEl) {
+      return;
     }
-  }, [feedItems, isAutoScrolling]);
+
+    const distanceFromBottom =
+      scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight;
+
+    if (distanceFromBottom <= 50) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+  }, [feedItems.length]);
 
   return (
-    <div className="flex flex-col h-full w-full">
-      {/* Feed Header */}
-      <div className="px-6 py-4 border-b border-border shrink-0 flex items-center justify-between">
-        <h3 className="font-mono text-sm text-text-primary uppercase tracking-widest font-bold">AGENT ACTIVITY</h3>
-        
-        {/* Dynamic Mock of AgentStatusBadge */}
-        {jobStatus === "running" && <div className="w-2 h-2 rounded-full bg-agent-blue animate-pulse"></div>}
-        {jobStatus === "complete" && <div className="w-2 h-2 rounded-full bg-severity-harmless"></div>}
+    <div className="h-full flex flex-col overflow-hidden bg-surface-2">
+      <div className="h-12 px-4 md:px-5 shrink-0 flex items-center justify-between border-b border-border">
+        <h3 className="font-display text-[11px] uppercase tracking-[0.12em] text-text-secondary">
+          AGENT ACTIVITY
+        </h3>
+        <AgentStatusBadge jobStatus={jobStatus} />
       </div>
 
-      {/* Feed Scroll Container */}
-      <div 
-        ref={scrollRef} 
-        onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3 scroll-smooth"
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto p-4 flex flex-col gap-1"
       >
-        {/* State Empty Displays */}
+        {jobStatus === "complete" && (
+          <div
+            className="mb-2 px-4 py-2 rounded-md border font-mono bg-severity-harmless/10 border-severity-harmless/30 text-severity-harmless text-[11px] tracking-[0.08em]"
+          >
+            INVESTIGATION COMPLETE
+          </div>
+        )}
+
         {jobStatus === "idle" && feedItems.length === 0 && (
-          <div className="text-center p-8 text-text-muted font-mono text-xs uppercase opacity-70">
-            Waiting for investigation<br/>to start...
+          <div className="text-center mt-10 font-mono uppercase text-[10px] text-text-muted tracking-wider">
+            WAITING FOR INVESTIGATION TO START
           </div>
         )}
 
         {jobStatus === "connecting" && (
-          <div className="text-center p-8 text-agent-blue font-mono text-xs uppercase animate-pulse">
-            Connecting to agent...
+          <div className="text-center mt-10 font-mono uppercase flex items-center justify-center gap-1 text-[10px] text-text-muted tracking-wider">
+            CONNECTING
+            <span className="dot-pulse">.</span>
+            <span className="dot-pulse [animation-delay:0.2s]">.</span>
+            <span className="dot-pulse [animation-delay:0.4s]">.</span>
           </div>
         )}
 
         {jobStatus === "running" && feedItems.length === 0 && (
-          <div className="text-center p-8 text-agent-blue font-mono text-xs uppercase pb-4">
-            Agent is gathering context<span className="animate-pulse">...</span>
+          <div className="text-center mt-10 font-mono uppercase text-[10px] text-text-muted tracking-wider">
+            AGENT IS GATHERING CONTEXT
           </div>
         )}
-        
-        {/* Live List Stream */}
+
         {feedItems.map((item) => (
           <AgentFeedItem key={item.id} item={item} />
         ))}
 
-        {/* State Overlays */}
-        {jobStatus === "complete" && (
-          <div className="mt-4 border border-severity-harmless/50 bg-severity-harmless/10 rounded-sm p-4 text-center">
-            <span className="font-mono text-severity-harmless text-xs block uppercase">Investigation complete</span>
-            <span className="font-mono text-text-primary text-xs block mt-1">{investigationStats?.resolvedIncidents || 0} incidents classified</span>
+        {jobStatus === "failed" && (
+          <div className="mt-2 border border-severity-escalate bg-severity-escalate/10 rounded-sm p-4 text-center">
+            <span className="font-mono text-severity-escalate text-xs uppercase font-bold">
+              {errorMsg || "Unhandled Agent Exception"}
+            </span>
           </div>
         )}
 
-        {jobStatus === "failed" && (
-          <div className="mt-4 border border-severity-escalate bg-severity-escalate/10 rounded-sm p-4 text-center">
-             <span className="font-mono text-severity-escalate text-xs uppercase font-bold">{errorMsg || "Unhandled Agent Exception"}</span>
+        {jobStatus === "complete" && (
+          <div className="font-mono text-xs text-text-primary mt-2 tracking-[0.04em]">
+            {investigationStats?.resolvedIncidents || 0} incidents classified
           </div>
         )}
+
+        <div ref={bottomRef} />
       </div>
     </div>
   );

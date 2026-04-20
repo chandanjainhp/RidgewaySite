@@ -39,8 +39,7 @@ export default function ApproveButton({ briefingId, canApprove, isApproved, appr
             animate={{ opacity: 1, scale: 1 }}
             onClick={() => setShowDialog(true)}
             disabled={isPending}
-            className="relative flex items-center gap-2 bg-severity-monitor hover:bg-amber-500 text-surface font-mono text-sm font-bold uppercase tracking-widest px-6 py-3 rounded-sm transition-colors disabled:opacity-60 shadow-[0_0_20px_rgba(245,158,11,0.3)] print:hidden"
-            style={{ animation: "pulse-border 2s ease-in-out infinite" }}
+            className="relative flex items-center gap-2 bg-severity-monitor hover:bg-amber-500 text-surface font-mono text-sm font-bold uppercase tracking-widest px-6 py-4 rounded-sm transition-colors disabled:opacity-60 shadow-[0_0_20px_rgba(245,158,11,0.3)] print:hidden animate-pulse"
           >
             {isPending ? (
               <><Loader2 className="w-4 h-4 animate-spin" /> Approving...</>
@@ -75,7 +74,7 @@ export default function ApproveButton({ briefingId, canApprove, isApproved, appr
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm print:hidden"
+            className="fixed inset-0 z-9999 flex items-center justify-center bg-black/70 backdrop-blur-sm print:hidden"
             onClick={(e) => { if (e.target === e.currentTarget) setShowDialog(false); }}
           >
             <motion.div
@@ -91,7 +90,7 @@ export default function ApproveButton({ briefingId, canApprove, isApproved, appr
                 </p>
               </div>
 
-              <div className="flex justify-end gap-3 px-6 py-4">
+              <div className="flex justify-end gap-4 px-6 py-4">
                 <button
                   onClick={() => setShowDialog(false)}
                   className="font-mono text-[10px] uppercase tracking-widest text-text-muted hover:text-white px-4 py-2 transition-colors"

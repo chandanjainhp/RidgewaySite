@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useIncidents } from "@/hooks/useIncidents";
 import { useMapStore } from "@/store/mapStore";
 import { SEVERITY_CONFIG } from "@/config/constants";
@@ -15,7 +15,7 @@ const EventGroup = ({ title, severityKey, events, count }) => {
 
   return (
     <div className="mb-4">
-      <button 
+      <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full flex items-center justify-between py-2 border-b border-border/50 hover:bg-surface/50 transition-colors px-2 mb-2"
       >
@@ -29,7 +29,7 @@ const EventGroup = ({ title, severityKey, events, count }) => {
       </button>
 
       {isExpanded && (
-        <div className="flex flex-col gap-3 px-2">
+        <div className="flex flex-col gap-4 px-2">
             {events.map(event => (
               <EventCard key={event.id} incident={event} />
             ))}
@@ -40,10 +40,14 @@ const EventGroup = ({ title, severityKey, events, count }) => {
 };
 
 export default function EventPanel() {
-  // Grab raw dates/context efficiently tracking the current night
-  const nightDate = new Date().toISOString().split('T')[0];
-  const { data, isLoading } = useIncidents({ nightDate });
+  // Use yesterday's date to match server seed data (same as investigate/page.js)
+  const nightDate = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().split('T')[0];
+  })();
 
+  const { data, isLoading, isError, error } = useIncidents({ nightDate });
   const activeSeverityFilters = useMapStore(state => state.activeSeverityFilters);
   const toggleSeverityFilter = useMapStore(state => state.toggleSeverityFilter);
 
@@ -60,47 +64,84 @@ export default function EventPanel() {
     return <div className="p-6 font-mono text-xs text-text-muted uppercase text-center animate-pulse">Loading Event Matrix...</div>;
   }
 
+  if (isError) {
+    const failureReason = error?.message || "Unknown request error";
+    return (
+      <div className="p-6 text-center">
+        <div className="text-xs text-severity-escalate font-mono tracking-wide uppercase mb-2">
+          ERROR LOADING EVENT DATA
+        </div>
+        <div className="text-[10px] text-text-muted font-mono mb-1">
+          PLEASE CHECK YOUR NETWORK OR SESSION
+        </div>
+        <div className="text-[10px] text-amber-300 font-mono wrap-break-word">
+          {failureReason}
+        </div>
+      </div>
+    );
+  }
+
   const allIncidents = data?.incidents || [];
   const filteredEvents = allIncidents.filter(inc => activeSeverityFilters.includes(inc.severity || "unknown"));
 
   return (
-    <div className="flex flex-col h-full overflow-hidden shrink-0 w-full relative group">
-      {/* Scrollable List container */}
-      <div className="flex-1 overflow-y-auto w-full p-4 custom-scrollbar scroll-smooth">
-         {allIncidents.length === 0 && (
-            <div className="border border-border/50 border-dashed rounded-sm p-8 text-center text-text-muted font-mono text-xs uppercase mt-4">
-              No overnight events found
-            </div>
-         )}
-         
-         {allIncidents.length > 0 && filteredEvents.length === 0 && (
-            <div className="border border-border/50 border-dashed rounded-sm p-8 text-center text-text-muted font-mono text-xs uppercase mt-4">
-              No events match the active filters
-            </div>
-         )}
-
-         {groupings.map(g => {
-            // Bind group data ensuring we only map locally visible filters
-            const groupData = (data?.[g.dataKey] || []).filter(inc => activeSeverityFilters.includes(inc.severity || "unknown"));
-            return <EventGroup key={g.key} title={g.title} severityKey={g.key} events={groupData} count={groupData.length} />;
-         })}
+    <div className="flex flex-col h-full overflow-hidden shrink-0 w-full bg-surface-2">
+      {/* Panel Header */}
+      <div className="px-4 py-4 border-b border-border flex justify-between items-center shrink-0">
+        <span className="font-display uppercase text-[11px] tracking-[0.12em] text-text-secondary">
+          OVERNIGHT EVENTS
+        </span>
+        <div className="font-mono bg-surface text-text-secondary text-[11px] px-2 py-1 rounded-full border border-border">
+          {allIncidents?.length || 0} events
+        </div>
       </div>
-      
-      {/* Filter Overlay attached to Header area seamlessly */}
-      <div className="absolute top-[-73px] right-6 flex gap-1 z-[50]">
-         {Object.keys(SEVERITY_CONFIG).map(sKey => {
-            const isActive = activeSeverityFilters.includes(sKey);
-            const conf = SEVERITY_CONFIG[sKey];
-            return (
-              <div 
-                key={sKey}
-                onClick={() => toggleSeverityFilter(sKey)}
-                className={`w-6 h-6 rounded-full border cursor-pointer transition-all flex items-center justify-center opacity-${isActive ? '100' : '40 hover:opacity-80 scale-90'} shadow-sm`}
-                style={{ backgroundColor: conf.color, borderColor: '#fff' }}
-                title={`Toggle ${conf.label}`}
-              ></div>
-            );
-         })}
+
+      {/* Severity Filter Pills — ONLY instance - responsive */}
+      <div className="flex flex-wrap gap-2 p-4 border-b border-border shrink-0">
+        {['harmless', 'monitor', 'escalate', 'uncertain'].map(severity => {
+          const isActive = activeSeverityFilters.includes(severity);
+          const config = SEVERITY_CONFIG[severity];
+          return (
+            <button
+              key={severity}
+              onClick={() => toggleSeverityFilter(severity)}
+              className={`font-mono whitespace-nowrap text-[10px] font-semibold uppercase tracking-wider px-3 py-1 rounded-full border transition-colors ${
+                isActive
+                  ? `${config.borderClass} ${config.bgClass} ${config.textClass}`
+                  : 'border-border text-text-muted bg-surface'
+              }`}
+            >
+              {severity.toUpperCase()}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Scrollable List container - responsive padding */}
+      <div className="flex-1 overflow-y-auto w-full custom-scrollbar scroll-smooth px-4 py-4">
+        {allIncidents.length === 0 && (
+          <div className="py-6 text-center">
+            <div className="text-xs text-text-muted font-mono tracking-wide uppercase mb-2">
+              NO OVERNIGHT EVENTS FOUND
+            </div>
+            <div className="text-xs text-border font-mono">
+              {nightDate}
+            </div>
+          </div>
+        )}
+
+        {allIncidents.length > 0 && filteredEvents.length === 0 && (
+          <div className="py-6 text-center">
+            <div className="text-xs text-text-muted font-mono tracking-wide uppercase">
+              NO EVENTS MATCH FILTERS
+            </div>
+          </div>
+        )}
+
+        {groupings.map(g => {
+          const groupData = (data?.[g.dataKey] || []).filter(inc => activeSeverityFilters.includes(inc.severity || "unknown"));
+          return <EventGroup key={g.key} title={g.title} severityKey={g.key} events={groupData} count={groupData.length} />;
+        })}
       </div>
     </div>
   );

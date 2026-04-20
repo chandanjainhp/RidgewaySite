@@ -46,15 +46,22 @@ const getInvestigationQueue = () => {
  * @param {string} incidentId - The incident ID to investigate
  * @param {number} priority - Priority level (lower = higher priority)
  * @param {string} jobId - Optional BullMQ job ID for idempotency
+ * @param {object} extraData - Additional job data payload
  * @returns {Promise<Job>} The BullMQ Job object
  */
-export const dispatchInvestigation = async (incidentId, priority = 5, jobId = null) => {
+export const dispatchInvestigation = async (
+  incidentId,
+  priority = 5,
+  jobId = null,
+  extraData = {}
+) => {
   try {
     const queue = getInvestigationQueue();
 
     const jobData = {
       incidentId,
       dispatchedAt: new Date().toISOString(),
+      ...extraData,
     };
 
     const jobOptions = {

@@ -17,6 +17,14 @@ const SPATIAL_TIME_WINDOW_MS = 2 * 60 * 60 * 1000; // 2 hours
 const TEMPORAL_TIME_WINDOW_MS = 30 * 60 * 1000;   // 30 minutes
 const CROSS_TYPE_TIME_WINDOW_MS = 45 * 60 * 1000; // 45 minutes
 
+function getDayRange(dateString) {
+  const start = new Date(dateString)
+  start.setHours(0, 0, 0, 0)
+  const end = new Date(dateString)
+  end.setHours(23, 59, 59, 999)
+  return { start, end }
+}
+
 
 /**
  * Main entry point — Correlate all events for a night into incidents
@@ -28,15 +36,11 @@ export const correlateNightEvents = async (nightDate) => {
   try {
     console.log(`[CorrelationService] Correlating events for ${nightDate}`);
 
-    const startOfDay = new Date(nightDate);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(nightDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    const { start, end } = getDayRange(nightDate);
 
     // Fetch all events for the night
     const events = await Event.find({
-      nightDate: { $gte: startOfDay, $lte: endOfDay },
+      nightDate: { $gte: start, $lte: end },
     }).lean();
 
     if (events.length === 0) {
@@ -72,7 +76,7 @@ export const correlateNightEvents = async (nightDate) => {
     for (const cluster of deduplicatedClusters) {
       const incident = await Incident.create({
         incidentId: `INC-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        nightDate: new Date(nightDate),
+        nightDate: start,
         title: generateIncidentTitle(cluster),
         description: generateIncidentDescription(cluster),
         eventIds: cluster.eventIds,
@@ -375,32 +379,40 @@ export const crossTypeCorrelation = async (events) => {
  * @param {number} radiusMeters - search radius in meters
  * @returns {Promise<array>} formatted events with drone observations
  */
-export const getEventsByLocation = async (locationName, radiusMeters = 200) => {
+export const getEventsByLocation = async (locationName, radiusMeters = 200, nightDate) => {
   try {
+    const { start, end } = getDayRange(nightDate);
     console.log(
-      `[CorrelationService] Fetching events for ${locationName} within ${radiusMeters}m`
+      `[CorrelationService] Fetching events for ${locationName} within ${radiusMeters}m on ${start.toISOString().split('T')[0]}`
     );
-
-    // Find events at location from last 24 hours
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     const events = await Event.find({
       'location.name': locationName,
-      detectedAt: { $gte: oneDayAgo },
+      timestamp: { $gte: start, $lte: end },
     })
       .lean()
-      .sort({ detectedAt: -1 });
+      .sort({ timestamp: -1 });
+
+    const sourceTypeFromEventType = (type) => {
+      if (type === 'vehicle_detected') return 'vehicle';
+      if (type === 'badge_fail') return 'badge';
+      if (type === 'fence_alert') return 'fence';
+      if (type === 'drone_observation') return 'drone';
+      if (type === 'motion_sensor') return 'motion';
+      if (type === 'light_anomaly') return 'light';
+      return 'unknown';
+    };
 
     // Format for Claude
     const formatted = events.map((e) => ({
       eventId: e._id,
-      type: e.event_type,
-      sourceType: e.sourceType,
-      detectedAt: e.detectedAt,
+      type: e.type,
+      sourceType: sourceTypeFromEventType(e.type),
+      detectedAt: e.timestamp,
       location: e.location?.name,
       details: {
-        vehicleId: e.vehicleId || null,
-        employeeId: e.employeeId || null,
+        vehicleId: e.rawData?.vehicleId || null,
+        employeeId: e.rawData?.employeeId || null,
         description: e.description,
       },
     }));
@@ -408,8 +420,8 @@ export const getEventsByLocation = async (locationName, radiusMeters = 200) => {
     // Add drone observations
     const drones = await Event.find({
       'location.name': locationName,
-      sourceType: 'drone',
-      detectedAt: { $gte: oneDayAgo },
+      type: 'drone_observation',
+      timestamp: { $gte: start, $lte: end },
     })
       .lean();
 
@@ -419,7 +431,9 @@ export const getEventsByLocation = async (locationName, radiusMeters = 200) => {
       latestObservation: drones[0]?.description,
     } : null;
 
-    console.log(`[CorrelationService] Found ${formatted.length} events, drone activity: ${!!droneObservations}`);
+    console.log(
+      `[CorrelationService] getEventsByLocation nightDate=${start.toISOString().split('T')[0]} count=${formatted.length} droneCount=${drones.length}`
+    );
 
     return {
       location: locationName,

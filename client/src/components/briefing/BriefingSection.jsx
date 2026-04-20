@@ -57,7 +57,7 @@ export default function BriefingSection({ sectionName, sectionData, briefingId, 
     <section className="px-8 py-8 group print:px-0 print:py-6">
       {/* Section Header */}
       <div className="flex items-center justify-between mb-5 print:hidden">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <Icon className={`w-5 h-5 ${iconClass} shrink-0`} />
           <h2 className="text-white font-bold text-base tracking-tight">{label}</h2>
           {isEdited ? (
@@ -84,7 +84,7 @@ export default function BriefingSection({ sectionName, sectionData, briefingId, 
 
       {/* EDIT MODE */}
       {isEditMode ? (
-        <div className="flex flex-col gap-3 print:hidden">
+        <div className="flex flex-col gap-4 print:hidden">
           <textarea
             disabled={isPending}
             value={editValue}
@@ -94,7 +94,7 @@ export default function BriefingSection({ sectionName, sectionData, briefingId, 
 
           <div className="flex justify-between items-center">
             <span className="font-mono text-[10px] text-text-muted">{wordCount} words</span>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <button onClick={handleCancel} className="font-mono text-[10px] text-text-muted hover:text-white uppercase tracking-widest transition-colors">Cancel</button>
               <button
                 onClick={handleSave}
@@ -110,7 +110,7 @@ export default function BriefingSection({ sectionName, sectionData, briefingId, 
         /* VIEW MODE */
         <div>
           {sectionName === "escalations" && Array.isArray(sectionData?.items) && sectionData.items.length > 0 ? (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-4">
               {sectionData.items.map((item, i) => (
                 <div key={i} className="border-l-4 border-severity-escalate bg-severity-escalate/5 px-5 py-4 rounded-r-sm">
                   <p className="text-text-primary text-sm leading-relaxed">{item}</p>

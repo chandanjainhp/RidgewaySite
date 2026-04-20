@@ -16,5 +16,6 @@ router.get('/:id', asyncHandler(getIncidentById));
 
 // GET /incidents/:id/graph - evidence graph for visual representation
 router.get('/:id/graph', asyncHandler(getIncidentEvidenceGraph));
+router.get('/:id/evidence-graph', asyncHandler(getIncidentEvidenceGraph));
 
 export default router;

@@ -126,7 +126,6 @@ const eventSchema = new mongoose.Schema(
 
 // Indexes for common queries
 eventSchema.index({ nightDate: 1, type: 1 });
-eventSchema.index({ incidentId: 1 });
 eventSchema.index({ 'location.name': 1 });
 eventSchema.index({ severity: 1, nightDate: -1 });
 

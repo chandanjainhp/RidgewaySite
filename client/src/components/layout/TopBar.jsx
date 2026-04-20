@@ -2,97 +2,197 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { formatNightLabel } from "@/lib/formatters";
-import { useInvestigationStore } from "@/store/investigationStore";
-import { CheckCircle2, AlertTriangle, FileText } from "lucide-react";
-
+import { usePathname, useRouter } from "next/navigation";
 export default function TopBar() {
   const [time, setTime] = useState("");
-  
-  // Investigation metrics mapped seamlessly via hook logic
-  const jobStatus = useInvestigationStore((state) => state.jobStatus);
-  const investigationStats = useInvestigationStore((state) => state.investigationStats);
-  const { totalIncidents, resolvedIncidents, escalationCount } = investigationStats;
+  const [nightLabel, setNightLabel] = useState("Night of --");
+  const [currentUser, setCurrentUser] = useState(null);
+  const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
-    // Clock handler avoiding interval drift via reliable Date extraction
-    const updateTime = () => setTime(new Date().toLocaleTimeString("en-US", { hour12: false }));
+    const updateTime = () => {
+      setTime(
+        new Date().toLocaleTimeString("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        })
+      );
+    };
+
+    const loadCurrentUser = () => {
+      try {
+        const stored = localStorage.getItem("ridgeway_user");
+        if (stored) setCurrentUser(JSON.parse(stored));
+      } catch (e) {
+        console.log("Could not read user from storage");
+      }
+    };
+
+    const updateNightLabel = () => {
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      const parts = new Intl.DateTimeFormat("en-GB", {
+        weekday: "short",
+        day: "2-digit",
+        month: "short",
+      }).formatToParts(d);
+      const weekday = parts.find((p) => p.type === "weekday")?.value || "";
+      const day = parts.find((p) => p.type === "day")?.value || "";
+      const month = parts.find((p) => p.type === "month")?.value || "";
+      setNightLabel(`Night of ${weekday} ${day} ${month}`.trim());
+    };
+
     updateTime();
+    updateNightLabel();
+    loadCurrentUser();
+
     const timer = setInterval(updateTime, 1000);
     return () => clearInterval(timer);
   }, []);
 
-  return (
-    <header className="w-full h-full flex items-center justify-between px-6 bg-surface">
-      {/* 1. Left Layout Navigation & Context */}
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-3">
-          {/* Mock simplistic Skylark drones representation */}
-          <div className="w-5 h-5 rounded-sm bg-text-secondary/10 flex items-center justify-center border border-border">
-            <div className="w-2 h-2 rounded-full bg-text-secondary"></div>
-          </div>
-          <span className="text-text-primary tracking-widest uppercase font-mono text-xs font-bold leading-none">
-            RIDGEWAY SITE
-          </span>
-        </div>
+  const investigateActive = pathname?.startsWith("/investigate") || pathname?.startsWith("/incident");
+  const briefingActive = pathname?.startsWith("/briefing");
 
-        <nav className="flex items-center gap-4 text-xs font-mono border-l border-border pl-6">
-          <Link href="/investigate" className="text-text-muted hover:text-text-primary transition-colors">
+  async function handleLogout() {
+    localStorage.removeItem("ridgeway_token");
+    localStorage.removeItem("ridgeway_refresh_token");
+    localStorage.removeItem("ridgeway_user");
+    document.cookie = "ridgeway_auth=; path=/; max-age=0; SameSite=Lax";
+    router.push("/login");
+  }
+
+  const displayUser = currentUser?.email || currentUser?.username || "";
+
+  return (
+    <header
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        height: "56px",
+        backgroundColor: "#0f1117",
+        borderBottom: "1px solid #2a3347",
+        zIndex: 1000,
+        display: "flex",
+        alignItems: "center",
+        paddingLeft: "20px",
+        paddingRight: "20px",
+      }}
+    >
+      <div style={{ flex: "none", display: "flex", alignItems: "center", gap: "12px" }}>
+        <span
+          style={{
+            width: "8px",
+            height: "8px",
+            borderRadius: "999px",
+            backgroundColor: "#22c55e",
+            display: "inline-block",
+          }}
+        />
+        <span
+          style={{
+            fontFamily: "var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            fontSize: "13px",
+            fontWeight: 600,
+            color: "#e2e8f0",
+            letterSpacing: "0.04em",
+          }}
+        >
+          RIDGEWAY SITE
+        </span>
+        <span style={{ color: "#2a3347", margin: "0 16px" }}>|</span>
+        <nav style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <Link
+            href="/investigate"
+            style={{
+              fontFamily: "var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+              fontSize: "11px",
+              color: investigateActive ? "#e2e8f0" : "#4a5568",
+              textDecoration: "none",
+              letterSpacing: "0.08em",
+            }}
+          >
             INVESTIGATE
           </Link>
-          <Link href="/briefing" className="text-text-muted hover:text-text-primary transition-colors">
+          <Link
+            href="/briefing"
+            style={{
+              fontFamily: "var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+              fontSize: "11px",
+              color: briefingActive ? "#e2e8f0" : "#4a5568",
+              textDecoration: "none",
+              letterSpacing: "0.08em",
+            }}
+          >
             BRIEFING
           </Link>
         </nav>
       </div>
 
-      {/* 2. Central Agent States and Notifications */}
-      <div className="flex-1 flex justify-center items-center gap-6 font-mono text-xs">
-        <span className="text-text-secondary">
-          {formatNightLabel(new Date()) /* In production dynamic date targets exist */}
-        </span>
-        
-        {/* Dynamic AI Hook Rendering */}
-        {(jobStatus === "running" || jobStatus === "connecting") && (
-          <div className="flex items-center gap-4 border border-border bg-surface-2 px-4 py-1.5 rounded-sm">
-            <span className="flex h-2 w-2 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-agent-blue opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-agent-blue"></span>
-            </span>
-            <span className="text-agent-blue">Agent investigating...</span>
-            <span className="text-text-secondary border-l border-border pl-4">{resolvedIncidents}/{totalIncidents} INCIDENTS</span>
-          </div>
-        )}
-
-        {jobStatus === "complete" && (
-           <div className="flex items-center gap-3 border border-border bg-severity-harmless/10 px-4 py-1.5 rounded-sm">
-             <CheckCircle2 className="w-4 h-4 text-severity-harmless" />
-             <span className="text-severity-harmless">Investigation complete</span>
-           </div>
-        )}
-        
-        {/* Flag Badges */}
-        {escalationCount > 0 && (
-           <div className="flex items-center gap-2 border border-severity-escalate bg-severity-escalate/10 px-3 py-1.5 rounded-sm text-severity-escalate">
-             <AlertTriangle className="w-3.5 h-3.5" />
-             {escalationCount} ESCALATIONS
-           </div>
-        )}
-
-        {/* Call to Review */}
-        {jobStatus === "complete" && (
-           <Link 
-             href="/briefing"
-             className="bg-severity-monitor text-surface px-4 py-1.5 rounded-sm font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-severity-monitor/90 transition-colors"
-           >
-             <FileText className="w-4 h-4" /> REVIEW BRIEFING
-           </Link>
-        )}
+      <div
+        style={{
+          flex: 1,
+          textAlign: "center",
+          fontFamily: "var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+          fontSize: "12px",
+          color: "#8892a4",
+        }}
+      >
+        {nightLabel}
       </div>
 
-      {/* 3. Live Edge Standard Clock Right Component */}
-      <div className="flex items-center text-text-primary font-mono text-sm tracking-widest min-w-[70px] justify-end">
-        {time}
+      <div style={{ flex: "none", display: "flex", alignItems: "center", gap: "16px" }}>
+        {displayUser ? (
+          <span
+            style={{
+              fontFamily: "var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+              fontSize: "10px",
+              color: "#4a5568",
+              maxWidth: "150px",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+            title={displayUser}
+          >
+            {displayUser}
+          </span>
+        ) : null}
+        <span
+          style={{
+            fontFamily: "var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            fontSize: "13px",
+            color: "#e2e8f0",
+          }}
+        >
+          {time}
+        </span>
+        <button
+          type="button"
+          onClick={handleLogout}
+          style={{
+            fontFamily: "var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            fontSize: "10px",
+            color: "#4a5568",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: 0,
+            transition: "color 0.15s ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = "#e2e8f0";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = "#4a5568";
+          }}
+        >
+          SIGN OUT
+        </button>
       </div>
     </header>
   );

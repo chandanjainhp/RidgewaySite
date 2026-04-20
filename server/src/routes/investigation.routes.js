@@ -28,6 +28,7 @@ const verifyQueryToken = asyncHandler(async (req, res, next) => {
 
 // POST /investigations/start (protected by JWT)
 router.post('/start', verifyJWT, validate(investigationValidator.startInvestigationSchema), asyncHandler(startInvestigation));
+router.post('/', verifyJWT, validate(investigationValidator.startInvestigationSchema), asyncHandler(startInvestigation));
 
 // GET /investigations/:jobId/stream (SSE endpoint - auth via query param)
 // Place this BEFORE the generic /:id route so it matches first

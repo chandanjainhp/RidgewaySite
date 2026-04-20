@@ -1,21 +1,35 @@
 "use client";
 
 import { memo } from "react";
-import { motion } from "framer-motion";
 import { formatConfidence } from "@/lib/formatters";
 
-const getBarColor = (value) => {
-  if (value === null || value === undefined) return "#4a5568";
-  if (value > 0.8) return "#22c55e";
-  if (value >= 0.5) return "#f59e0b";
-  if (value >= 0.3) return "#f97316";
-  return "#ef4444";
+const getToneClasses = (value) => {
+  if (value === null || value === undefined) return { bar: "bg-text-muted", text: "text-text-muted" };
+  if (value > 0.8) return { bar: "bg-severity-harmless", text: "text-severity-harmless" };
+  if (value >= 0.5) return { bar: "bg-severity-monitor", text: "text-severity-monitor" };
+  if (value >= 0.3) return { bar: "bg-orange-500", text: "text-orange-500" };
+  return { bar: "bg-severity-escalate", text: "text-severity-escalate" };
+};
+
+const getWidthClass = (value) => {
+  if (value <= 0) return "w-0";
+  if (value <= 0.1) return "w-[10%]";
+  if (value <= 0.2) return "w-[20%]";
+  if (value <= 0.3) return "w-[30%]";
+  if (value <= 0.4) return "w-[40%]";
+  if (value <= 0.5) return "w-1/2";
+  if (value <= 0.6) return "w-[60%]";
+  if (value <= 0.7) return "w-[70%]";
+  if (value <= 0.8) return "w-[80%]";
+  if (value <= 0.9) return "w-[90%]";
+  return "w-full";
 };
 
 const ConfidenceBar = memo(({ confidence, showLabel = true, size = "sm" }) => {
   const isUnknown = confidence === null || confidence === undefined;
   const value = isUnknown ? 0.5 : Math.min(1, Math.max(0, confidence));
-  const color = getBarColor(isUnknown ? null : confidence);
+  const tone = getToneClasses(isUnknown ? null : confidence);
+  const widthClass = getWidthClass(value);
   const trackHeight = size === "md" ? "h-1.5" : "h-1";
 
   const { label } = isUnknown
@@ -25,20 +39,11 @@ const ConfidenceBar = memo(({ confidence, showLabel = true, size = "sm" }) => {
   return (
     <div className="w-full flex flex-col gap-1">
       <div className={`w-full ${trackHeight} bg-surface-3 rounded-full overflow-hidden`}>
-        <motion.div
-          className="h-full rounded-full"
-          style={{ backgroundColor: color }}
-          initial={{ width: 0 }}
-          animate={{ width: `${value * 100}%` }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-        />
+        <div className={`h-full rounded-full transition-all duration-500 ease-out ${tone.bar} ${widthClass}`} />
       </div>
 
       {showLabel && (
-        <span
-          className="font-mono text-[10px] uppercase tracking-widest"
-          style={{ color: isUnknown ? "#4a5568" : color }}
-        >
+        <span className={`font-mono text-[10px] uppercase tracking-widest ${tone.text}`}>
           {label}
         </span>
       )}

@@ -227,6 +227,7 @@ export const getEventPins = async (nightDate = new Date()) => {
       id: event._id.toString(),
       type: event.type,
       coordinates: event.location.coordinates,
+      location: event.location.name,
       severity: event.severity || 'unknown',
       incidentId: event.incidentId ? event.incidentId.toString() : null,
       tooltip: `${formatEventType(event.type)} — ${event.location.name} — ${event.timestamp
@@ -323,7 +324,7 @@ const generateBoundaries = (locations) => {
       id: 'boundary_perimeter',
       name: 'Site Perimeter',
       type: 'perimeter',
-      polygon: perimeter.length > 0 ? perimeter : locations.map((loc) => loc.coordinates),
+      coordinates: perimeter.length > 0 ? perimeter : locations.map((loc) => loc.coordinates),
     },
   ];
 };

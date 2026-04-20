@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import { requestLogger } from './middlewares/requestLogger.middleware.js';
 import { apiLimiter } from './middlewares/rateLimit.middleware.js';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware.js';
@@ -12,6 +13,7 @@ import incidentRouter from './routes/incident.routes.js';
 import investigationRouter from './routes/investigation.routes.js';
 import briefingRouter from './routes/briefing.routes.js';
 import reviewRouter from './routes/review.routes.js';
+import mapRouter from './routes/map.routes.js';
 
 const app = express();
 
@@ -27,6 +29,7 @@ app.use(
 );
 
 // 2. Body parsing (10mb limit for briefing payloads)
+app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -42,8 +45,9 @@ app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/events', eventRouter);
 app.use('/api/v1/incidents', incidentRouter);
 app.use('/api/v1/investigations', investigationRouter);
-app.use('/api/v1/briefing', briefingRouter);
+app.use('/api/v1/briefings', briefingRouter);
 app.use('/api/v1/reviews', reviewRouter);
+app.use('/api/v1/map', mapRouter);
 
 // 404 handler for unmatched routes
 app.use(notFoundHandler);

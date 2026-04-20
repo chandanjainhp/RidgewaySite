@@ -19,7 +19,7 @@ const AgentFeedItem = memo(({ item }) => {
     accentClass = "border-agent-blue";
     ContentComponent = (
       <>
-        <div className="flex gap-3">
+        <div className="flex gap-4">
           <Wrench className="w-4 h-4 text-agent-blue mt-0.5 shrink-0" />
           <div className="flex-1">
             <span className="text-text-primary text-sm block">{formatToolName(data?.toolName)}</span>
@@ -32,7 +32,7 @@ const AgentFeedItem = memo(({ item }) => {
   } else if (type === "tool_result") {
     accentClass = "border-agent-blue-dim";
     ContentComponent = (
-      <div className="flex gap-3 pl-4 opacity-90">
+      <div className="flex gap-4 pl-4 opacity-90">
         <CheckCircle2 className="w-4 h-4 text-agent-blue-dim mt-0.5 shrink-0" />
         <div className="flex-1">
           <span className="text-text-primary text-sm block">{truncateText(item.summary, 80)}</span>
@@ -42,7 +42,7 @@ const AgentFeedItem = memo(({ item }) => {
     );
   } else if (type === "reasoning") {
     ContentComponent = (
-      <div className="flex gap-3 pl-4">
+      <div className="flex gap-4 pl-4">
         <div className="flex-1 text-text-secondary italic text-xs leading-relaxed border-l-2 border-border pl-3 ml-2">
           {item.summary}
         </div>
@@ -54,7 +54,7 @@ const AgentFeedItem = memo(({ item }) => {
     accentClass = `border-[${severityConfig.color}]`;
 
     ContentComponent = (
-      <div className="flex gap-3 mt-2 bg-surface-3 border border-border p-3 rounded-sm relative overflow-hidden">
+      <div className="flex gap-4 mt-2 bg-surface-3 border border-border p-4 rounded-sm relative overflow-hidden">
         <div className={`absolute top-0 left-0 w-1 h-full ${severityConfig.bgClass}`}></div>
         <div className="pl-2 w-full flex-1">
           <div className="flex justify-between items-start mb-2">
@@ -73,7 +73,7 @@ const AgentFeedItem = memo(({ item }) => {
   } else if (type === "error") {
      accentClass = "border-severity-escalate";
      ContentComponent = (
-       <div className="flex gap-3 text-severity-escalate bg-severity-escalate/10 p-2 border border-severity-escalate/30 rounded-sm">
+      <div className="flex gap-4 text-severity-escalate bg-severity-escalate/10 p-4 border border-severity-escalate/30 rounded-sm">
          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
          <div className="flex-1 text-xs">
            <span className="font-bold uppercase tracking-wider block mb-1">Runtime Fault</span>

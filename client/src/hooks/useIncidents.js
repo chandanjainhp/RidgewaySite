@@ -8,15 +8,34 @@ export function useIncidents(filters = {}, options = {}) {
     queryKey: ["incidents", filters],
     queryFn: () => getIncidents(filters),
     select: (data) => {
+      const incidents = Array.isArray(data) ? data : [];
       return {
-        incidents: data,
-        escalations: data.filter((i) => i.severity === "escalate"),
-        monitored: data.filter((i) => i.severity === "monitor"),
-        harmless: data.filter((i) => i.severity === "harmless"),
-        pending: data.filter((i) => i.status !== "resolved")
+        incidents,
+        escalations: incidents.filter((i) => i.severity === "escalate"),
+        monitored: incidents.filter((i) => i.severity === "monitor"),
+        uncertain: incidents.filter((i) => i.severity === "uncertain"),
+        harmless: incidents.filter((i) => i.severity === "harmless"),
+        unclassified: incidents.filter(
+          (i) => !i.severity || i.severity === "unknown"
+        ),
+        pending: incidents.filter(
+          (i) => i.status !== "resolved" && i.status !== "complete"
+        ),
       };
     },
     staleTime: 15 * 1000,
+    retry: (failureCount, error) => {
+      // Fail fast on auth/permission errors so the UI can show actionable state.
+      if (error?.statusCode === 401 || error?.statusCode === 403) {
+        return false;
+      }
+
+      if (!error?.statusCode) {
+        return failureCount < 2;
+      }
+      return failureCount < 1;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     ...options
   });
 }
@@ -48,11 +67,11 @@ export function useApplyReview(options = {}) {
     mutationFn: ({ eventId, reviewData }) => applyMayaReview(eventId, reviewData),
     onSuccess: (result, variables, context) => {
       if (confirmReview) confirmReview(variables.eventId, variables.reviewData);
-      
+
       // Enforce cross-store synchronization across queries
       queryClient.invalidateQueries({ queryKey: ["incidents"] });
       queryClient.invalidateQueries({ queryKey: ["briefing"] });
-      
+
       toast.success("Review saved");
       if (options.onSuccess) options.onSuccess(result, variables, context);
     },

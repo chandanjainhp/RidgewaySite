@@ -36,7 +36,7 @@ export const formatNightLabel = (dateOrString) => {
 
 export const formatDuration = (ms) => {
   if (!ms || isNaN(ms) || ms < 0) return "0s";
-  
+
   const totalSeconds = Math.floor(ms / 1000);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -72,7 +72,7 @@ export const truncateText = (text, maxLength = 120) => {
 
 export const formatToolName = (toolName) => {
   if (!toolName) return "Executing tool";
-  
+
   const mappings = {
     "get_overnight_alerts": "Fetching overnight alerts",
     "get_drone_patrol_log": "Reading drone patrol log",
@@ -84,7 +84,7 @@ export const formatToolName = (toolName) => {
   };
 
   if (mappings[toolName]) return mappings[toolName];
-  
+
   // Fallback dynamic parsing for unmapped tools (e.g. "some_random_tool" -> "Some random tool")
   const clean = toolName.replace(/_/g, " ");
   return clean.charAt(0).toUpperCase() + clean.slice(1);
@@ -93,23 +93,24 @@ export const formatToolName = (toolName) => {
 export const formatAgentFeedSummary = (progressEvent) => {
   if (!progressEvent) return "Unknown sequence";
 
-  const { type, payload } = progressEvent;
+  const { type } = progressEvent;
+  const payload = progressEvent.payload || progressEvent.data || {};
 
   switch (type) {
     case "tool_called":
       return formatToolName(payload?.toolName);
     case "tool_result":
-      return `Acquired data from system... ${payload?.dataLength ? `${payload.dataLength} bytes` : ""}`.trim();
+      return payload?.summary || `Acquired data from system... ${payload?.dataLength ? `${payload.dataLength} bytes` : ""}`.trim();
     case "reasoning":
       return payload?.thought ? truncateText(payload.thought, 70) : "Evaluating data points...";
     case "classification":
-      return `Incident classified as: ${formatSeverityLabel(payload?.severity)}`;
+      return `Incident classified as: ${formatSeverityLabel(payload?.severity || payload?.classification?.severity)}`;
     case "connected":
       return "Agent connection established.";
     case "complete":
       return "Investigation job finalized.";
     case "failed":
-      return `Analysis failed: ${payload?.error || "System error"}`;
+      return `Analysis failed: ${payload?.message || payload?.error || "System error"}`;
     default:
       return "Processing...";
   }

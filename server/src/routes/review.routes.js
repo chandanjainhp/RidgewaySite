@@ -14,6 +14,7 @@ router.use(verifyJWT);
 router.post('/', validate(reviewValidator.createReviewSchema), asyncHandler(createReview));
 
 // GET /reviews/night/:date
+router.get('/', asyncHandler(getReviewsForNight));
 router.get('/night/:date', asyncHandler(getReviewsForNight));
 
 export default router;

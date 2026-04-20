@@ -17,18 +17,19 @@ const generateId = () => {
 // Initial state object for reset capability
 const initialState = {
   jobId: null,
+  jobIds: [],
   jobStatus: "idle", // 'idle' | 'connecting' | 'running' | 'complete' | 'failed'
-  
+
   feedItems: [],
   classifiedIncidents: {},
-  
+
   investigationStats: {
     totalIncidents: 0,
     resolvedIncidents: 0,
     escalationCount: 0,
     overallConfidence: null,
   },
-  
+
   error: null,
   connectedAt: null,
 };
@@ -39,10 +40,11 @@ export const useInvestigationStore = create(
       ...initialState,
 
       setJobId: (jobId) => set({ jobId }, false, "setJobId"),
-      
-      setJobStatus: (status) => set({ 
+      setJobIds: (jobIds = []) => set({ jobIds }, false, "setJobIds"),
+
+      setJobStatus: (status) => set({
         jobStatus: status,
-        connectedAt: status === "connecting" || status === "running" ? new Date() : get().connectedAt 
+        connectedAt: status === "connecting" || status === "running" ? new Date() : get().connectedAt
       }, false, "setJobStatus"),
 
       addFeedItem: (progressEvent) =>
@@ -120,18 +122,18 @@ export const useInvestigationStore = create(
 );
 
 // Derived Selectors
-export const useIsInvestigating = () => 
+export const useIsInvestigating = () =>
   useInvestigationStore((state) => state.jobStatus === "running" || state.jobStatus === "connecting");
 
-export const useProgressPercent = () => 
+export const useProgressPercent = () =>
   useInvestigationStore((state) => {
     const { resolvedIncidents, totalIncidents } = state.investigationStats;
     if (totalIncidents === 0) return 0;
     return (resolvedIncidents / totalIncidents) * 100;
   });
 
-export const useEscalationCount = () => 
+export const useEscalationCount = () =>
   useInvestigationStore((state) => state.investigationStats.escalationCount);
 
-export const useNewFeedCount = () => 
+export const useNewFeedCount = () =>
   useInvestigationStore((state) => state.feedItems.filter((i) => i.isNew).length);

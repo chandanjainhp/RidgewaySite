@@ -12,7 +12,7 @@ const SECTION_ORDER = [
 function SectionSkeleton() {
   return (
     <div className="animate-pulse py-8 px-8 border-b border-border">
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-4 mb-4">
         <div className="w-5 h-5 rounded-sm bg-surface-3"></div>
         <div className="h-4 w-48 bg-surface-3 rounded-sm"></div>
       </div>
@@ -26,6 +26,8 @@ function SectionSkeleton() {
 }
 
 export default function BriefingDocument({ briefing, isApproved }) {
+  const typographyClass = 'text-base leading-7';
+
   return (
     <>
       {/* Print head — invisible on screen */}
@@ -35,8 +37,7 @@ export default function BriefingDocument({ briefing, isApproved }) {
       </div>
 
       <article
-        className="bg-surface-2 min-h-full divide-y divide-border print:bg-white print:divide-gray-200"
-        style={{ fontSize: "16px", lineHeight: "1.75" }}
+        className={`bg-surface-2 min-h-full divide-y divide-border print:bg-white print:divide-gray-200 ${typographyClass}`}
       >
         {briefing === null ? (
           SECTION_ORDER.map((key) => <SectionSkeleton key={key} />)

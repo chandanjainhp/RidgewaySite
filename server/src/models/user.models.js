@@ -1,5 +1,5 @@
 import mongoose, { Schema } from "mongoose";
-import brcypt from "bcrypt";
+import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 
@@ -66,12 +66,12 @@ const userSchema = new Schema(
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
 
-  this.password = await brcypt.hash(this.password, 10);
+  this.password = await bcrypt.hash(this.password, 10);
   next();
 });
 
 userSchema.methods.isPasswordCorrect = async function (password) {
-  return await brcypt.compare(password, this.password);
+  return await bcrypt.compare(password, this.password);
 };
 
 userSchema.methods.generateAccessToken = function () {
@@ -81,8 +81,8 @@ userSchema.methods.generateAccessToken = function () {
       email: this.email,
       username: this.username,
     },
-    process.env.ACCESS_TOKEN_SECRET,
-    { expiresIn: process.env.ACCESS_TOKEN_EXPIRY },
+    process.env.ACCESS_TOKEN_SECRET || "default-secret-key",
+    { expiresIn: process.env.ACCESS_TOKEN_EXPIRY || "15m" },
   );
 };
 
@@ -91,8 +91,8 @@ userSchema.methods.generateRefreshToken = function () {
     {
       _id: this._id,
     },
-    process.env.REFRESH_TOKEN_SECRET,
-    { expiresIn: process.env.REFRESH_TOKEN_EXPIRY },
+    process.env.REFRESH_TOKEN_SECRET || "default-refresh-secret",
+    { expiresIn: process.env.REFRESH_TOKEN_EXPIRY || "7d" },
   );
 };
 
