@@ -3,6 +3,7 @@ import Event from "../models/event.model.js";
 import Investigation from "../models/investigation.model.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
+import { triggerWebhook } from "../services/webhook.service.js";
 
 const startAndEndOfNight = (nightDate) => {
   const start = new Date(nightDate);
@@ -27,6 +28,47 @@ const toIncidentSummary = (incident) => ({
   raghavsNote: incident.raghavsNote,
 });
 
+const mapSignificanceToConfidence = (significance) => {
+  if (significance === "critical") return "high";
+  if (significance === "supporting") return "medium";
+  if (significance === "inconclusive") return "low";
+  return "low";
+};
+
+const summarizeToolResult = (toolName, toolResult) => {
+  const result = toolResult || {};
+
+  if (typeof result === "string") {
+    return result;
+  }
+
+  if (result?.message) return result.message;
+  if (result?.reasoning) return result.reasoning;
+  if (result?.summary) return result.summary;
+  if (result?.error) return `Tool returned error: ${result.error}`;
+
+  if (result?.success === false) {
+    return `${toolName} returned an unsuccessful result.`;
+  }
+
+  return `${toolName} executed and contributed evidence to the investigation.`;
+};
+
+export const createIncident = async (req, res) => {
+  const incident = new Incident({ ...req.body, orgId: req.orgId });
+  const savedIncident = await incident.save();
+
+  // Webhook integration
+  triggerWebhook(req.user.orgId, "incident.created", {
+    incidentId: savedIncident._id,
+    severity: savedIncident.severity,
+    summary: savedIncident.title || savedIncident.description,
+    timestamp: savedIncident.createdAt,
+  });
+
+  return res.status(201).json(new ApiResponse(201, savedIncident, "Incident reported successfully"));
+};
+
 export const getIncidents = async (req, res) => {
   const { nightDate, status, severity } = req.query;
   const query = {};
@@ -44,6 +86,8 @@ export const getIncidents = async (req, res) => {
     query.$or = [{ finalSeverity: severity }, { severity }];
   }
 
+  Object.assign(query, req.orgFilter);
+
   const incidents = await Incident.find(query).sort({
     priority: 1,
     createdAt: -1,
@@ -59,19 +103,26 @@ export const getIncidents = async (req, res) => {
 };
 
 export const getIncidentById = async (req, res) => {
-  const incident = await Incident.findById(req.params.id).lean();
+  const incident = await Incident.findOne({ _id: req.params.id, ...req.orgFilter })
+    .populate("investigationId")
+    .lean();
 
   if (!incident) {
     throw new ApiError(404, "Incident not found");
   }
 
-  const [events, investigation] = await Promise.all([
-    Event.find({ _id: { $in: incident.eventIds || [] } }).sort({ timestamp: 1 }).lean(),
-    Investigation.findOne({ incidentId: incident._id }).sort({ createdAt: -1 }).lean(),
+  const [events, fallbackInvestigation] = await Promise.all([
+    Event.find({ _id: { $in: incident.eventIds || [] }, ...req.orgFilter }).sort({ timestamp: 1 }).lean(),
+    incident.investigationId
+      ? Promise.resolve(null)
+      : Investigation.findOne({ incidentId: incident._id, ...req.orgFilter }).sort({ createdAt: -1 }).lean(),
   ]);
+
+  const investigation = incident.investigationId || fallbackInvestigation || null;
 
   const detail = {
     ...toIncidentSummary(incident),
+    investigationId: investigation,
     entities: incident.entityInvolved ? [incident.entityInvolved] : [],
     rawEvents: events.map((event) => ({
       id: event._id.toString(),
@@ -87,6 +138,12 @@ export const getIncidentById = async (req, res) => {
       reasoning: incident.agentSummary || "",
       uncertainties: [],
     },
+    agentClassification: investigation?.finalClassification || {
+      severity: incident.finalSeverity || incident.severity || "unknown",
+      confidence: 0,
+      reasoning: incident.agentSummary || "",
+      uncertainties: [],
+    },
   };
 
   res
@@ -95,29 +152,48 @@ export const getIncidentById = async (req, res) => {
 };
 
 export const getIncidentEvidenceGraph = async (req, res) => {
-  const incident = await Incident.findById(req.params.id).lean();
+  const incident = await Incident.findOne({ _id: req.params.id, ...req.orgFilter })
+    .populate("investigationId")
+    .lean();
 
   if (!incident) {
     throw new ApiError(404, "Incident not found");
   }
 
-  const investigation = await Investigation.findOne({ incidentId: incident._id })
-    .sort({ createdAt: -1 })
-    .lean();
+  const fallbackInvestigation = incident.investigationId
+    ? null
+    : await Investigation.findOne({ incidentId: incident._id, ...req.orgFilter })
+        .sort({ createdAt: -1 })
+        .lean();
+
+  const investigation = incident.investigationId || fallbackInvestigation || null;
+
+  const evidenceFromChain =
+    investigation?.evidenceChain?.map((step) => ({
+      id: `${req.params.id}-${step.step}`,
+      step: step.step,
+      source: step.source,
+      finding: step.finding,
+      confidence: step.confidence,
+      title: step.source,
+      summary: step.finding,
+    })) || [];
+
+  const evidenceFromToolCalls =
+    investigation?.toolCallSequence?.map((call, index) => ({
+      id: `${req.params.id}-tool-${index + 1}`,
+      step: index + 1,
+      finding: summarizeToolResult(call.toolName, call.toolResult),
+      source: call.toolName,
+      confidence: mapSignificanceToConfidence(call.significance),
+      title: call.toolName,
+      summary: summarizeToolResult(call.toolName, call.toolResult),
+    })) || [];
 
   const graph = {
-    steps:
-      investigation?.evidenceChain?.map((step) => ({
-        id: `${req.params.id}-${step.step}`,
-        step: step.step,
-        source: step.source,
-        finding: step.finding,
-        confidence: step.confidence,
-        // Keep compatibility for any existing clients using title/summary
-        title: step.source,
-        summary: step.finding,
-      })) || [],
+    steps: evidenceFromChain.length > 0 ? evidenceFromChain : evidenceFromToolCalls,
     classification: investigation?.finalClassification || null,
+    investigationId: investigation?._id || null,
   };
 
   res

@@ -8,9 +8,16 @@ export default function DroneRoute({ siteMapData }) {
   const droneCurrentPosition = useMapStore(
     (state) => state.droneCurrentPosition
   );
-  const droneRoute = useMapStore(
+  const rawDroneRoute = useMapStore(
     (state) => state.droneRoute
   );
+
+  // Store shape can be either a plain array or an object with a waypoints array.
+  const droneRoute = Array.isArray(rawDroneRoute)
+    ? rawDroneRoute
+    : Array.isArray(rawDroneRoute?.waypoints)
+      ? rawDroneRoute.waypoints
+      : [];
 
   if (!droneRoute || droneRoute.length === 0) return null;
 

@@ -1,0 +1,20 @@
+<!doctype html><html><head><meta charset="utf-8"/>
+<link rel="stylesheet" href="../colors_and_type.css"/>
+<style>
+html,body{margin:0;background:var(--bg-surface-1);}
+.wrap{padding:20px 24px;width:700px;box-sizing:border-box;display:flex;flex-direction:column;gap:10px;}
+.label{margin-bottom:4px;}
+.track{position:relative;height:28px;background:var(--bg-surface-2);border:1px solid var(--border-default);overflow:hidden;}
+.dot{position:absolute;top:50%;transform:translateY(-50%);width:14px;height:14px;background:var(--accent);border-radius:50%;animation-duration:2s;animation-iteration-count:infinite;animation-timing-function:cubic-bezier(.2,.7,.3,1);}
+@keyframes slide{0%{left:2px;}45%{left:calc(100% - 16px);}55%{left:calc(100% - 16px);}100%{left:2px;}}
+.dot{animation-name:slide;}
+.meta{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:10px;color:var(--fg-3);}
+</style></head><body><div class="wrap">
+<div class="label">Motion · fast, mechanical, deterministic</div>
+<div class="track"><div class="dot" style="animation-duration:.12s;"></div></div>
+<div class="meta"><span>ease-out · 120ms</span><span>hover, press</span></div>
+<div class="track"><div class="dot" style="animation-duration:.22s;"></div></div>
+<div class="meta"><span>ease-inout · 220ms</span><span>panel, modal</span></div>
+<div class="track"><div class="dot" style="animation-duration:.4s;"></div></div>
+<div class="meta"><span>ease-out · 400ms</span><span>pin classify · the one moment that earns theater</span></div>
+</div></body></html>

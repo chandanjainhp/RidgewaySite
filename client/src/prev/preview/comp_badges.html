@@ -1,0 +1,40 @@
+<!doctype html><html><head><meta charset="utf-8"/>
+<link rel="stylesheet" href="../colors_and_type.css"/>
+<style>
+html,body{margin:0;background:var(--bg-surface-1);}
+.wrap{padding:20px 24px;width:700px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px;}
+.label{font-family:var(--font-sans);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--fg-3);margin-bottom:2px;}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.badge{font-family:var(--font-sans);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;padding:3px 8px;border-radius:2px;}
+.b-serious{background:var(--sev-serious-bg);color:var(--sev-serious);border:1px solid var(--sev-serious-dim);}
+.b-minor{background:var(--sev-minor-bg);color:var(--sev-minor);border:1px solid var(--sev-minor-dim);}
+.b-harmless{background:var(--sev-harmless-bg);color:var(--sev-harmless);border:1px solid var(--sev-harmless-dim);}
+.b-unknown{background:var(--sev-unknown-bg);color:var(--fg-2);border:1px solid var(--border-default);}
+.pill{font-family:var(--font-sans);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;padding:5px 12px;border-radius:999px;border:1px solid var(--border-default);background:var(--bg-surface-2);color:var(--fg-2);cursor:pointer;}
+.pill.active{background:var(--bg-surface-3);color:var(--fg-1);border-color:var(--border-strong);}
+.pill .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:1px;}
+.conf{display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:11px;color:var(--fg-2);}
+.cbar{width:80px;height:4px;background:var(--bg-surface-3);border-radius:1px;overflow:hidden;}
+.cbar > i{display:block;height:100%;background:var(--accent);}
+</style></head><body><div class="wrap">
+<div class="label">Severity badges</div>
+<div class="row">
+  <span class="badge b-serious">SERIOUS</span>
+  <span class="badge b-minor">MINOR</span>
+  <span class="badge b-harmless">HARMLESS</span>
+  <span class="badge b-unknown">UNKNOWN</span>
+</div>
+<div class="label" style="margin-top:4px;">Filter pills</div>
+<div class="row">
+  <span class="pill active"><i class="dot" style="background:var(--sev-serious)"></i>SERIOUS · 1</span>
+  <span class="pill active"><i class="dot" style="background:var(--sev-minor)"></i>MINOR · 2</span>
+  <span class="pill"><i class="dot" style="background:var(--sev-harmless)"></i>HARMLESS · 4</span>
+  <span class="pill"><i class="dot" style="background:var(--sev-unknown)"></i>UNKNOWN · 0</span>
+</div>
+<div class="label" style="margin-top:4px;">Confidence</div>
+<div class="row">
+  <span class="conf"><span class="cbar"><i style="width:91%"></i></span>0.91</span>
+  <span class="conf"><span class="cbar"><i style="width:64%"></i></span>0.64</span>
+  <span class="conf"><span class="cbar"><i style="width:23%"></i></span>0.23</span>
+</div>
+</div></body></html>

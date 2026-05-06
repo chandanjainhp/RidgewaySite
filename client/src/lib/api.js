@@ -1,4 +1,5 @@
 import axios from "axios";
+import { toast } from "sonner";
 
 const getApiBaseUrl = () => {
   // In the browser, always use same-origin API paths so Next rewrites/proxy handle routing.
@@ -98,6 +99,13 @@ api.interceptors.request.use((config) => {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    // Attach org ID for server-side logging (not used for security)
+    try {
+      const { useAuthStore } = require("@/store/authStore");
+      const orgId = useAuthStore.getState().orgId;
+      if (orgId) config.headers["X-Org-ID"] = orgId;
+    } catch (_) {}
+
     if (SHOULD_LOG_API) {
       const method = (config.method || "GET").toUpperCase();
       console.info("[API] request", method, config.baseURL + config.url);
@@ -156,6 +164,27 @@ api.interceptors.response.use(
       errorType = ERROR_TYPES.VALIDATION_ERROR;
     else if (statusCode >= 500) errorType = ERROR_TYPES.SERVER_ERROR;
 
+    // Intercept 403 globally and redirect
+    if (statusCode === 403 && typeof window !== "undefined") {
+      const code = error.response?.data?.code;
+      if (code === 'ORG_SUSPENDED') {
+        window.location.href = "/suspended";
+      } else {
+        window.location.href = "/forbidden";
+      }
+    }
+
+    // Network error: toast + retry once after 5s
+    if (isNetworkFailure && !originalRequest._retried && typeof window !== "undefined") {
+      originalRequest._retried = true;
+      toast.error("Connection lost. Trying to reconnect…");
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          api.request(originalRequest).then(resolve).catch(reject);
+        }, 5000);
+      });
+    }
+
     // Check if response has 'data' property (ApiResponse wrapper)
     const responseData = error.response?.data?.data || error.response?.data;
 
@@ -163,7 +192,8 @@ api.interceptors.response.use(
     if (statusCode === 401 && originalRequest._retry) {
       clearClientAuthSession();
       if (typeof window !== "undefined") {
-        window.location.href = "/login";
+        const isSessionEnded = message.toLowerCase().includes('invalidated') || message.toLowerCase().includes('expired');
+        window.location.href = `/login?reason=${isSessionEnded ? 'session_ended' : 'expired'}`;
       }
       const expiredError = new Error("Session expired — please log in again");
       expiredError.type = ERROR_TYPES.UNAUTHORIZED;
@@ -194,14 +224,15 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       const refreshToken = localStorage.getItem("ridgeway_refresh_token");
-      if (!refreshToken) {
-        processQueue(new Error("No refresh token available"), null);
+      if (!refreshToken || message.toLowerCase().includes('invalid access token')) {
+        // If the token itself is invalid (not just expired), don't try to refresh
+        processQueue(new Error("No refresh token available or token invalid"), null);
         isRefreshing = false;
         clearClientAuthSession();
         if (typeof window !== "undefined") {
-          window.location.href = "/login";
+          window.location.href = "/login?reason=session_ended";
         }
-        const enrichedError = new Error("Session expired — please log in again");
+        const enrichedError = new Error("Session ended — please log in again");
         enrichedError.type = ERROR_TYPES.UNAUTHORIZED;
         enrichedError.statusCode = 401;
         throw enrichedError;
@@ -256,8 +287,21 @@ api.interceptors.response.use(
 export const loginUser = async (email, password) =>
   api.post("/auth/login", { email, password });
 
+export const getCurrentUser = async () => api.get("/auth/current-user");
+
+export const changePassword = async ({ currentPassword, newPassword }) =>
+  api.post("/auth/change-password", { currentPassword, newPassword });
+
 export const registerUser = async ({ email, username, password }) =>
   api.post("/auth/register", { email, username, password });
+
+export const verifyEmail = async (otp) => api.post("/auth/verify-email", { otp });
+
+export const forgotPassword = async (email) => api.post("/auth/forgot-password", { email });
+
+export const resetPassword = async (otp, newPassword) => api.post("/auth/reset-password", { otp, newPassword });
+
+export const resendEmailVerification = async () => api.post("/auth/resend-email-verification");
 
 export const logoutUser = async () => {
   try {
@@ -312,5 +356,64 @@ export const getDroneStateAtTime = async (patrolId, targetTime) =>
   api.get(`/map/drones/${patrolId}/state`, { params: { time: targetTime } });
 export const simulateFollowUpMission = async (flaggedLocations) =>
   api.post("/map/drones/simulate-mission", { locations: flaggedLocations });
+
+// Auth / Invite
+export const getInviteDetails = (token) => api.get(`/auth/invite/${token}`);
+export const acceptInvite = (token, password) => api.post("/auth/accept-invite", { token, password });
+
+// Admin — Orgs
+export const listAdminOrgs = (params) => api.get("/admin/orgs", { params });
+export const createAdminOrg = (data) => api.post("/admin/orgs", data);
+export const updateAdminOrgStatus = (orgId, status) => api.patch(`/admin/orgs/${orgId}/status`, { status });
+export const getAdminOrg = (orgId) => api.get(`/admin/orgs/${orgId}`);
+export const updateAdminOrg = (orgId, data) => api.patch(`/admin/orgs/${orgId}`, data);
+export const updateAdminOrgConfig = (orgId, data) => api.patch(`/admin/orgs/${orgId}/config`, data);
+export const inviteToOrg = (orgId, data) => api.post(`/admin/orgs/${orgId}/invite`, data);
+export const resendOrgInvite = (orgId, userId) => api.post(`/admin/orgs/${orgId}/resend-invite/${userId}`);
+
+// Admin — Users
+export const listAdminUsers = (params) => api.get("/admin/users", { params });
+export const updateUserRole = (userId, role) => api.patch(`/admin/users/${userId}/role`, { role });
+export const updateUserStatus = (userId, isActive) => api.patch(`/admin/users/${userId}/status`, { isActive });
+export const deleteUserSessions = (userId) => api.delete(`/admin/users/${userId}/sessions`);
+
+// Admin — API Keys
+export const listAdminApiKeys = (params) => api.get("/admin/api-keys", { params });
+export const revokeAdminApiKey = (keyId) => api.delete(`/admin/api-keys/${keyId}`);
+
+// Admin — Jobs
+export const getAdminJobStats = () => api.get("/admin/jobs");
+export const listFailedJobs = () => api.get("/admin/jobs/failed");
+export const retryAdminJob = (queueName, jobId) => api.post(`/admin/jobs/${queueName}/${jobId}/retry`);
+export const deleteAdminJob = (queueName, jobId) => api.delete(`/admin/jobs/${queueName}/${jobId}`);
+
+// Admin — Audit
+export const getAuditLog = (params) => api.get("/admin/audit", { params });
+export const exportAuditLog = (params) =>
+  api.get("/admin/audit", { params: { ...params, format: "csv" }, responseType: "blob" });
+
+// Org Settings
+export const getOrgMe = () => api.get("/org/me");
+export const updateOrgConfig = (data) => api.patch("/org/me/config", data);
+export const listOrgUsers = () => api.get("/org/users");
+export const inviteOrgUser = (data) => api.post("/org/users/invite", data);
+export const deactivateOrgUser = (userId) => api.patch(`/admin/users/${userId}/status`, { isActive: false });
+export const resendOrgUserInvite = (userId) => api.post(`/org/users/${userId}/resend-invite`);
+
+// Org API Keys
+export const listOrgApiKeys = () => api.get("/org/api-keys");
+export const createOrgApiKey = (data) => api.post("/org/api-keys", data);
+export const revokeOrgApiKey = (keyId) => api.delete(`/org/api-keys/${keyId}`);
+
+// Org Webhooks
+export const getOrgWebhooks = () => api.get("/org/webhooks");
+export const getWebhookDeliveries = (params) => api.get("/org/webhooks/deliveries", { params });
+export const testWebhook = () => api.post("/org/webhooks/test");
+export const rotateWebhookSecret = () => api.post("/org/webhooks/rotate-secret");
+export const retryWebhookDelivery = (id) => api.post(`/org/webhooks/deliveries/${id}/retry`);
+
+// MCP
+export const getMcpHealth = () => api.get("/mcp/health");
+export const getMcpActivity = (params) => api.get("/org/mcp/activity", { params });
 
 export default api;

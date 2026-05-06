@@ -14,6 +14,8 @@ import investigationRouter from './routes/investigation.routes.js';
 import briefingRouter from './routes/briefing.routes.js';
 import reviewRouter from './routes/review.routes.js';
 import mapRouter from './routes/map.routes.js';
+import adminRouter from './routes/admin.routes.js';
+import orgRouter from './routes/org.routes.js';
 
 const app = express();
 
@@ -48,6 +50,8 @@ app.use('/api/v1/investigations', investigationRouter);
 app.use('/api/v1/briefings', briefingRouter);
 app.use('/api/v1/reviews', reviewRouter);
 app.use('/api/v1/map', mapRouter);
+app.use('/api/v1/admin', adminRouter);
+app.use('/api/v1/org', orgRouter);
 
 // 404 handler for unmatched routes
 app.use(notFoundHandler);

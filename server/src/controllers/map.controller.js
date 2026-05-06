@@ -60,6 +60,7 @@ export const getDroneRoute = async (req, res) => {
 
   const patrolEvent = await Event.findOne({
     type: "drone_observation",
+    ...req.orgFilter,
     $or: [
       { "rawData.patrolId": patrolId },
       { "rawData.droneId": patrolId },

@@ -16,12 +16,13 @@ const getNightRange = (nightDate) => {
   return { start, end };
 };
 
-export const startNightInvestigation = async (nightDate) => {
+export const startNightInvestigation = async (nightDate, orgFilter = {}) => {
   try {
     const { start, end } = getNightRange(nightDate);
 
     const existingJobs = await Investigation.find({
       nightDate: { $gte: start, $lte: end },
+      ...orgFilter
     }).lean();
 
     const activeJobs = existingJobs.filter(
@@ -40,6 +41,7 @@ export const startNightInvestigation = async (nightDate) => {
     const incidents = await Incident.find({
       nightDate: { $gte: start, $lte: end },
       status: "pending",
+      ...orgFilter
     }).lean();
 
     if (incidents.length === 0) {
@@ -87,6 +89,7 @@ export const startNightInvestigation = async (nightDate) => {
           reasoning: "Investigation queued; classification pending.",
           uncertainties: [],
         },
+        orgId: orgFilter.orgId || undefined,
       });
 
       const job = await dispatchInvestigation(
@@ -96,6 +99,7 @@ export const startNightInvestigation = async (nightDate) => {
         {
           investigationId: investigation._id.toString(),
           nightDate,
+          orgId: orgFilter.orgId || undefined,
         }
       );
 
@@ -182,11 +186,12 @@ export const getInvestigationWithEvidence = async (investigationId) => {
   }
 };
 
-export const checkNightComplete = async (nightDate) => {
+export const checkNightComplete = async (nightDate, orgFilter = {}) => {
   try {
     const { start, end } = getNightRange(nightDate);
     const incidents = await Incident.find({
       nightDate: { $gte: start, $lte: end },
+      ...orgFilter
     }).lean();
 
     if (incidents.length === 0) {

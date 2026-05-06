@@ -3,6 +3,11 @@ import mongoose from 'mongoose';
 const incidentSchema = new mongoose.Schema(
   {
     // Night and timing
+    orgId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Organisation',
+      index: true,
+    },
     nightDate: {
       type: Date,
       required: true,

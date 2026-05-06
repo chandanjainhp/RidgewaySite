@@ -1,12 +1,14 @@
 import express from 'express';
 import { getIncidents, getIncidentById, getIncidentEvidenceGraph } from '../controllers/incident.controller.js';
-import { verifyJWT } from '../middlewares/auth.middleware.js';
+import { authenticateRequest, requireRole, scopeToOrg } from '../middlewares/auth.middleware.js';
 import { asyncHandler } from '../utils/async-handler.js';
 
 const router = express.Router();
 
 // All routes are protected by auth
-router.use(verifyJWT);
+router.use(authenticateRequest);
+router.use(requireRole('super_admin', 'org_admin', 'operator'));
+router.use(scopeToOrg);
 
 // GET /incidents?nightDate=YYYY-MM-DD&status=&severity=
 router.get('/', asyncHandler(getIncidents));

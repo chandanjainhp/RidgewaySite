@@ -156,24 +156,24 @@ const sendTestEmail = async (testEmail) => {
 /**
  * Generate email verification content
  * @param {string} username - User's name
- * @param {string} verificationUrl - Email verification link
+ * @param {string} otp - One-Time Password
  * @returns {Object} Mailgen email content
  */
-const emailVerificationMailgenContent = (username, verificationUrl) => {
+const emailVerificationMailgenContent = (username, otp) => {
   return {
     body: {
       name: username,
       intro: "Welcome to Ridgeway OIP! We're excited to have you on board.",
       action: {
-        instructions: "To verify your email address, please click the button below",
+        instructions: "To verify your email address, please enter this One-Time Password (OTP) in the application:",
         button: {
           color: "#22BC66",
-          text: "Verify Email Address",
-          link: verificationUrl,
+          text: otp,
+          link: "#",
         },
       },
       outro:
-        "Need help? Reply to this email or contact our support team. We're here to help!",
+        "This OTP is valid for 20 minutes. Need help? Reply to this email or contact our support team. We're here to help!",
     },
   };
 };
@@ -181,25 +181,25 @@ const emailVerificationMailgenContent = (username, verificationUrl) => {
 /**
  * Generate password reset email content
  * @param {string} username - User's name
- * @param {string} passwordResetUrl - Password reset link
+ * @param {string} otp - One-Time Password
  * @returns {Object} Mailgen email content
  */
-const forgotPasswordMailgenContent = (username, passwordResetUrl) => {
+const forgotPasswordMailgenContent = (username, otp) => {
   return {
     body: {
       name: username,
       intro: "We received a request to reset your account password.",
       action: {
         instructions:
-          "To reset your password, please click the button below. This link will expire in 24 hours.",
+          "To reset your password, please use the following One-Time Password (OTP):",
         button: {
           color: "#22BC66",
-          text: "Reset Password",
-          link: passwordResetUrl,
+          text: otp,
+          link: "#",
         },
       },
       outro:
-        "If you didn't request this password reset, please ignore this email.",
+        "If you didn't request this password reset, please ignore this email. This OTP is valid for 20 minutes.",
     },
   };
 };
@@ -220,10 +220,36 @@ const accountConfirmationMailgenContent = (username) => {
   };
 };
 
+/**
+ * Generate invitation email content
+ * @param {string} email - Invitee's email
+ * @param {string} orgName - Organisation name
+ * @param {string} inviteUrl - The URL to accept the invite
+ * @returns {Object} Mailgen email content
+ */
+const inviteMailgenContent = (email, orgName, inviteUrl) => {
+  return {
+    body: {
+      name: email,
+      intro: `You've been invited to join the ${orgName} organisation on Ridgeway.`,
+      action: {
+        instructions: "Please click the button below to set up your account and password:",
+        button: {
+          color: "#4F46E5", // Indigo-600 to match platform
+          text: "Set up your account",
+          link: inviteUrl,
+        },
+      },
+      outro: `If the button doesn't work, you can copy and paste this link into your browser:\n${inviteUrl}\n\nThis invitation expires in 48 hours.`,
+    },
+  };
+};
+
 export {
   emailVerificationMailgenContent,
   forgotPasswordMailgenContent,
   accountConfirmationMailgenContent,
+  inviteMailgenContent,
   sendEmail,
   sendTestEmail,
   verifyEmailConnection,

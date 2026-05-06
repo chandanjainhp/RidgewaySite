@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<title>Night Watch — Dashboard</title>
+<link rel="stylesheet" href="../../colors_and_type.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<style>
+  html,body{height:100%;margin:0;overflow:hidden;}
+  body{display:grid;grid-template-rows:48px 1fr;background:var(--bg-base);}
+
+  /* ---------- Header ---------- */
+  header{
+    display:flex;align-items:center;gap:14px;
+    padding:0 20px;background:var(--bg-surface-1);
+    border-bottom:1px solid var(--border-default);
+  }
+  header .logo{width:22px;height:22px;color:var(--accent);}
+  header .wm{font-size:11px;font-weight:600;letter-spacing:.14em;color:var(--fg-1);text-transform:uppercase;}
+  header .sep{width:1px;height:16px;background:var(--border-default);}
+  header .crumb{font-size:11px;color:var(--fg-3);letter-spacing:.06em;text-transform:uppercase;}
+  header .crumb b{color:var(--fg-1);font-weight:600;}
+  header .spacer{flex:1;}
+  header .stat{display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:11px;color:var(--fg-3);}
+  header .stat .pulse{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px rgba(184,212,232,.6);animation:p 1.6s infinite;}
+  @keyframes p{0%,100%{opacity:.4;}50%{opacity:1;}}
+  header .clock{font-family:var(--font-mono);color:var(--accent);font-size:13px;}
+  header .user{font-family:var(--font-mono);font-size:11px;color:var(--fg-2);padding:4px 10px;border:1px solid var(--border-default);border-radius:2px;}
+
+  /* ---------- Three columns ---------- */
+  main{
+    display:grid;
+    grid-template-columns: 380px 1fr 380px;
+    gap:1px;background:var(--border-default);
+    overflow:hidden;
+  }
+  .col{background:var(--bg-base);display:flex;flex-direction:column;overflow:hidden;min-height:0;}
+  .col-head{
+    display:flex;align-items:center;gap:10px;
+    padding:10px 16px;background:var(--bg-surface-1);
+    border-bottom:1px solid var(--border-default);flex:0 0 auto;
+  }
+  .col-head .t{font-size:10px;font-weight:600;letter-spacing:.14em;color:var(--fg-1);text-transform:uppercase;}
+  .col-head .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px rgba(184,212,232,.6);animation:p 1.6s infinite;}
+  .col-head .spacer{flex:1;}
+  .col-head .sub{font-family:var(--font-mono);font-size:10px;color:var(--fg-3);}
+
+  /* ---------- LEFT · Terminal ---------- */
+  .term{flex:1;background:var(--bg-terminal);padding:12px 16px;overflow-y:auto;font-family:var(--font-mono);font-size:11.5px;line-height:1.7;}
+  .term .ln{display:grid;grid-template-columns:68px 60px 1fr;gap:8px;padding:1px 0;}
+  .term .ts{color:var(--term-dim);}
+  .term .typ{font-size:10px;text-transform:uppercase;letter-spacing:.08em;}
+  .term .tool .typ{color:var(--term-tool);}
+  .term .result .typ{color:var(--term-result);}
+  .term .classify .typ{color:var(--term-classify);}
+  .term .uncert .typ{color:var(--term-uncertain);}
+  .term .error .typ{color:var(--term-error);}
+  .term .tool .msg{color:var(--term-tool);}
+  .term .result .msg{color:var(--term-result);}
+  .term .classify .msg{color:var(--term-classify);font-weight:500;}
+  .term .uncert .msg{color:var(--term-uncertain);}
+  .term .error .msg{color:var(--term-error);}
+  .term .arrow{color:var(--term-dim);}
+  .term .cursor::after{content:'▮';color:var(--accent);margin-left:4px;animation:blink 1s steps(2,end) infinite;}
+  @keyframes blink{50%{opacity:0;}}
+
+  /* ---------- CENTER · Map ---------- */
+  .center{position:relative;display:flex;flex-direction:column;min-height:0;}
+  .map{flex:1;position:relative;overflow:hidden;min-height:0;background:#05070a;}
+  .map .leaf{position:absolute;inset:0;background:#05070a;}
+  .map .leaf .leaflet-control-attribution{background:rgba(11,14,19,.8);color:var(--fg-4);font-family:var(--font-mono);font-size:9px;border:0;}
+  .map .leaf .leaflet-control-attribution a{color:var(--fg-3);}
+  .map .zlabel{font-family:var(--font-mono);font-size:10px;color:var(--fg-3);text-transform:uppercase;letter-spacing:.1em;text-shadow:0 0 4px #000,0 0 4px #000;white-space:nowrap;transform:translate(-50%,-50%);pointer-events:none;}
+  .map .pin{
+    width:16px;height:16px;border-radius:50%;
+    cursor:pointer;position:relative;
+    transition:background var(--dur-slow) var(--ease-out), box-shadow var(--dur-slow) var(--ease-out);
+  }
+  .map .pin .halo{
+    position:absolute;inset:-6px;border-radius:50%;
+    border:1px solid currentColor;opacity:.25;
+  }
+  .map .pin.serious{background:var(--sev-serious);color:var(--sev-serious);box-shadow:0 0 14px rgba(255,56,56,.6);}
+  .map .pin.minor{background:var(--sev-minor);color:var(--sev-minor);box-shadow:0 0 10px rgba(232,154,43,.45);}
+  .map .pin.harmless{background:var(--sev-harmless);color:var(--sev-harmless);box-shadow:0 0 8px rgba(125,138,106,.35);}
+  .map .pin.unknown{background:var(--sev-unknown);color:var(--sev-unknown);}
+  .map .pin .plab{
+    position:absolute;left:20px;top:-2px;white-space:nowrap;
+    font-family:var(--font-mono);font-size:10px;color:var(--fg-2);
+    background:rgba(11,14,19,.85);padding:2px 6px;border:1px solid var(--border-default);border-radius:2px;
+  }
+  .map .drone{
+    width:12px;height:12px;border-radius:50%;
+    background:var(--accent);
+    box-shadow:0 0 0 3px rgba(184,212,232,.2), 0 0 16px rgba(184,212,232,.7);
+  }
+  .leaflet-div-icon{background:transparent;border:0;}
+  .map .overlay-tl{position:absolute;top:14px;left:14px;display:flex;gap:6px;}
+  .map .chip{font-family:var(--font-mono);font-size:10px;color:var(--fg-2);padding:4px 8px;background:rgba(11,14,19,.85);border:1px solid var(--border-default);border-radius:2px;text-transform:uppercase;letter-spacing:.1em;}
+  .map .overlay-tr{position:absolute;top:14px;right:14px;display:flex;flex-direction:column;gap:6px;align-items:flex-end;}
+  .map .legend{font-family:var(--font-mono);font-size:10px;color:var(--fg-3);display:flex;gap:10px;background:rgba(11,14,19,.85);padding:6px 10px;border:1px solid var(--border-default);border-radius:2px;text-transform:uppercase;letter-spacing:.08em;}
+  .map .legend span{display:flex;align-items:center;gap:4px;}
+  .map .legend i{width:7px;height:7px;border-radius:50%;}
+
+  /* scrubber */
+  .scrub{
+    flex:0 0 auto;height:56px;padding:0 16px;display:flex;align-items:center;gap:14px;
+    background:var(--bg-surface-1);border-top:1px solid var(--border-default);
+  }
+  .scrub .btn-ic{width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border-default);border-radius:2px;background:var(--bg-surface-2);color:var(--fg-2);cursor:pointer;}
+  .scrub .btn-ic:hover{background:var(--bg-surface-3);color:var(--fg-1);}
+  .scrub .btn-ic svg{width:14px;height:14px;stroke-width:1.5;}
+  .scrub .t{font-family:var(--font-mono);font-size:11px;color:var(--fg-3);min-width:54px;}
+  .scrub .t.end{color:var(--fg-3);text-align:right;}
+  .scrub .track{flex:1;position:relative;height:4px;background:var(--bg-surface-3);border-radius:2px;cursor:pointer;}
+  .scrub .filled{position:absolute;left:0;top:0;bottom:0;background:var(--accent-dim);border-radius:2px;}
+  .scrub .tick{position:absolute;top:-3px;bottom:-3px;width:1px;background:var(--fg-4);}
+  .scrub .tick.serious{background:var(--sev-serious);}
+  .scrub .tick.harmless{background:var(--sev-harmless);}
+  .scrub .tick.minor{background:var(--sev-minor);}
+  .scrub .handle{position:absolute;top:50%;transform:translate(-50%,-50%);width:12px;height:12px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px rgba(184,212,232,.2), 0 0 12px rgba(184,212,232,.5);pointer-events:none;}
+  .scrub .now{font-family:var(--font-mono);font-size:11px;color:var(--accent);min-width:70px;text-align:right;}
+
+  /* ---------- RIGHT · Events ---------- */
+  .filters{display:flex;gap:6px;padding:10px 16px;border-bottom:1px solid var(--border-hairline);background:var(--bg-surface-1);flex-wrap:wrap;}
+  .pill{font-family:var(--font-sans);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;padding:4px 10px;border-radius:999px;border:1px solid var(--border-default);background:var(--bg-surface-2);color:var(--fg-3);cursor:pointer;display:flex;align-items:center;gap:6px;user-select:none;transition:all var(--dur-fast);}
+  .pill.on{color:var(--fg-1);background:var(--bg-surface-3);border-color:var(--border-strong);}
+  .pill .d{width:6px;height:6px;border-radius:50%;}
+  .events{flex:1;overflow-y:auto;background:var(--bg-base);}
+  .group{border-bottom:1px solid var(--border-hairline);}
+  .group.hidden{display:none;}
+  .ghdr{display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--bg-base);position:sticky;top:0;z-index:1;}
+  .ghdr .dot{width:8px;height:8px;border-radius:50%;}
+  .ghdr .n{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;}
+  .ghdr .c{font-family:var(--font-mono);font-size:10px;color:var(--fg-3);margin-left:auto;}
+  .row{display:grid;grid-template-columns:54px 1fr auto;align-items:center;padding:10px 16px;gap:10px;border-top:1px solid var(--border-hairline);cursor:pointer;text-decoration:none;transition:background var(--dur-fast);}
+  .row:first-of-type{border-top:0;}
+  .row:hover{background:var(--bg-surface-1);}
+  .row.active{background:var(--bg-surface-1);border-left:2px solid var(--accent);padding-left:14px;}
+  .row .ts{font-family:var(--font-mono);font-size:11px;color:var(--fg-3);}
+  .row .nm{font-size:12.5px;color:var(--fg-1);font-weight:500;line-height:1.3;}
+  .row .meta{font-size:10.5px;color:var(--fg-3);margin-top:2px;line-height:1.3;}
+  .badge{font-family:var(--font-sans);font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;padding:2px 7px;border-radius:2px;}
+  .badge.serious{background:var(--sev-serious-bg);color:var(--sev-serious);border:1px solid var(--sev-serious-dim);}
+  .badge.minor{background:var(--sev-minor-bg);color:var(--sev-minor);border:1px solid var(--sev-minor-dim);}
+  .badge.harmless{background:var(--sev-harmless-bg);color:var(--sev-harmless);border:1px solid var(--sev-harmless-dim);}
+  .badge.unknown{background:var(--sev-unknown-bg);color:var(--fg-2);border:1px solid var(--border-default);}
+  .g-serious .n{color:var(--sev-serious);} .g-serious .dot{background:var(--sev-serious);}
+  .g-minor .n{color:var(--sev-minor);} .g-minor .dot{background:var(--sev-minor);}
+  .g-harmless .n{color:var(--sev-harmless);} .g-harmless .dot{background:var(--sev-harmless);}
+  .g-unknown .n{color:var(--fg-2);} .g-unknown .dot{background:var(--sev-unknown);}
+
+  ::-webkit-scrollbar{width:6px;height:6px;}
+  ::-webkit-scrollbar-thumb{background:var(--border-default);}
+  ::-webkit-scrollbar-track{background:transparent;}
+</style>
+</head><body>
+
+<header>
+  <svg class="logo" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 2 L28 6 V15 C28 22 22.5 27.5 16 30 C9.5 27.5 4 22 4 15 V6 Z"/><circle cx="16" cy="16" r="4.5"/><path d="M16 9.5 V13 M16 19 V22.5 M9.5 16 H13 M19 16 H22.5"/></svg>
+  <span class="wm">Ridgeway Night Watch</span>
+  <div class="sep"></div>
+  <span class="crumb">Site <b>Ridgeway</b> · Shift <b>22:00 – 08:00</b></span>
+  <div class="spacer"></div>
+  <div class="stat"><span class="pulse"></span>AGENT · LIVE</div>
+  <div class="sep"></div>
+  <span class="clock num" id="clk">04:17:32</span>
+  <div class="sep"></div>
+  <span class="user">M. ORTEGA</span>
+</header>
+
+<main>
+  <!-- LEFT · Terminal -->
+  <section class="col">
+    <div class="col-head">
+      <span class="dot"></span>
+      <span class="t">Agent Activity</span>
+      <div class="spacer"></div>
+      <span class="sub">5 incidents · 23 tool calls</span>
+    </div>
+    <div class="term" id="term"></div>
+  </section>
+
+  <!-- CENTER · Map + scrubber -->
+  <section class="col center">
+    <div class="col-head">
+      <span class="t">Site Map</span>
+      <div class="spacer"></div>
+      <span class="sub">RIDGEWAY · 14.2 HA · 6 ZONES</span>
+    </div>
+    <div class="map">
+      <div class="leaf" id="leaf"></div>
+
+      <div class="overlay-tl">
+        <span class="chip">ZONES 6</span>
+        <span class="chip">CAMS 14 / 16 ONLINE</span>
+        <span class="chip">DRONE RWY-03</span>
+      </div>
+      <div class="overlay-tr">
+        <div class="legend">
+          <span><i style="background:var(--sev-serious)"></i>Serious</span>
+          <span><i style="background:var(--sev-minor)"></i>Minor</span>
+          <span><i style="background:var(--sev-harmless)"></i>Harmless</span>
+          <span><i style="background:var(--sev-unknown)"></i>Unknown</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="scrub">
+      <button class="btn-ic" id="playbtn" title="Play"><svg data-lucide="play"></svg></button>
+      <span class="t">22:00</span>
+      <div class="track" id="track">
+        <div class="filled" id="filled"></div>
+        <div class="tick harmless" style="left:22%"></div>
+        <div class="tick minor" style="left:35%"></div>
+        <div class="tick minor" style="left:54%"></div>
+        <div class="tick harmless" style="left:72%"></div>
+        <div class="tick serious" style="left:91%"></div>
+        <div class="handle" id="handle"></div>
+      </div>
+      <span class="t end">04:17</span>
+      <span class="now num" id="now">03:52:14</span>
+    </div>
+  </section>
+
+  <!-- RIGHT · Events -->
+  <section class="col">
+    <div class="col-head">
+      <span class="t">Events</span>
+      <div class="spacer"></div>
+      <span class="sub">5 logged · 1 awaiting review</span>
+    </div>
+    <div class="filters">
+      <span class="pill on" data-sev="serious"><span class="d" style="background:var(--sev-serious)"></span>SERIOUS · 1</span>
+      <span class="pill on" data-sev="minor"><span class="d" style="background:var(--sev-minor)"></span>MINOR · 2</span>
+      <span class="pill on" data-sev="harmless"><span class="d" style="background:var(--sev-harmless)"></span>HARMLESS · 2</span>
+      <span class="pill" data-sev="unknown"><span class="d" style="background:var(--sev-unknown)"></span>UNKNOWN · 0</span>
+    </div>
+    <div class="events">
+
+      <div class="group g-serious" data-sev="serious">
+        <div class="ghdr"><span class="dot"></span><span class="n">Serious</span><span class="c">1 INCIDENT</span></div>
+        <a class="row active" href="../incident/index.html">
+          <span class="ts">04:17</span>
+          <div>
+            <div class="nm">North Fence — unexplained motion</div>
+            <div class="meta">zone 3 · cam 7 offline during window · conf 0.64</div>
+          </div>
+          <span class="badge serious">SERIOUS</span>
+        </a>
+      </div>
+
+      <div class="group g-minor" data-sev="minor">
+        <div class="ghdr"><span class="dot"></span><span class="n">Minor</span><span class="c">2 INCIDENTS</span></div>
+        <a class="row" href="../incident/index.html">
+          <span class="ts">03:04</span>
+          <div><div class="nm">Process Hall — door held open</div><div class="meta">zone 2 · bay 4 · 47s · scheduled?</div></div>
+          <span class="badge minor">MINOR</span>
+        </a>
+        <a class="row" href="../incident/index.html">
+          <span class="ts">01:38</span>
+          <div><div class="nm">North Yard — vehicle signature</div><div class="meta">zone 1 · drone pass · unknown plate</div></div>
+          <span class="badge minor">MINOR</span>
+        </a>
+      </div>
+
+      <div class="group g-harmless" data-sev="harmless">
+        <div class="ghdr"><span class="dot"></span><span class="n">Harmless</span><span class="c">2 OF 2</span></div>
+        <a class="row" href="../incident/index.html">
+          <span class="ts">03:42</span>
+          <div><div class="nm">North Fence — motion (wind)</div><div class="meta">zone 3 · 14 m/s gust · cleared</div></div>
+          <span class="badge harmless">HARMLESS</span>
+        </a>
+        <a class="row" href="../incident/index.html">
+          <span class="ts">02:11</span>
+          <div><div class="nm">Loading Bay — door cycled</div><div class="meta">zone 4 · scheduled delivery · cleared</div></div>
+          <span class="badge harmless">HARMLESS</span>
+        </a>
+      </div>
+
+      <div class="group g-unknown hidden" data-sev="unknown">
+        <div class="ghdr"><span class="dot"></span><span class="n">Unknown</span><span class="c">0</span></div>
+      </div>
+
+    </div>
+  </section>
+</main>
+
+<script>
+  // ---------- Clock ----------
+  function tick(){
+    const d=new Date(), p=n=>String(n).padStart(2,'0');
+    document.getElementById('clk').textContent=p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+  }
+  tick();setInterval(tick,1000);
+
+  // ---------- Terminal feed ----------
+  const lines = [
+    ['04:16:52','tool','query_cameras(zone=3, 03:35..03:45)','→'],
+    ['04:16:53','result','14 frames · cam 7 offline 03:38–03:44',''],
+    ['04:16:54','tool','query_weather(03:35..03:45)','→'],
+    ['04:16:55','result','wind 14 m/s NW gust @ 03:42',''],
+    ['04:16:56','tool','query_motion(zone=3)','→'],
+    ['04:16:57','result','trigger 03:38:12, duration 14s',''],
+    ['04:16:58','uncert','cam 7 gap overlaps trigger window',''],
+    ['04:17:02','classify','INCIDENT 04 → SERIOUS · conf 0.64',''],
+    ['04:17:03','tool','cross_ref(historical, zone=3, wind>10)','→'],
+    ['04:17:04','result','18/23 prior matches classified harmless',''],
+    ['04:17:05','uncert','low confidence: prior base rate argues harmless',''],
+    ['04:17:06','classify','HOLD FOR REVIEW · incident_04',''],
+    ['04:17:07','tool','query_drone(route=rwy-03, 03:50..04:00)','→'],
+    ['04:17:08','result','patrol nominal · no visual on fence',''],
+    ['04:17:09','tool','summarize_incident(04)','→'],
+    ['04:17:11','result','draft assessment 184 tok',''],
+  ];
+  const term=document.getElementById('term');
+  let i=0;
+  function push(){
+    if(i>=lines.length){
+      const cur=document.createElement('div');
+      cur.className='ln';
+      cur.innerHTML=`<span class="ts">${lines[lines.length-1][0].slice(0,5)}:${String(new Date().getSeconds()).padStart(2,'0')}</span><span class="typ">idle</span><span class="msg cursor" style="color:var(--term-dim)">awaiting input</span>`;
+      term.appendChild(cur);term.scrollTop=term.scrollHeight;i++;return;
+    }
+    const [ts,typ,msg,arrow]=lines[i++];
+    const el=document.createElement('div');
+    el.className='ln '+typ;
+    el.innerHTML=`<span class="ts">${ts}</span><span class="typ">${typ}</span><span class="msg">${arrow?'<span class=arrow>'+arrow+' </span>':''}${msg}</span>`;
+    term.appendChild(el);
+    term.scrollTop=term.scrollHeight;
+  }
+  // burst in quickly then slow
+  let n=0;const iv=setInterval(()=>{push();n++;if(n>=lines.length+1){clearInterval(iv);}},180);
+
+  // ---------- Filter pills ----------
+  document.querySelectorAll('.pill').forEach(p=>{
+    p.addEventListener('click',()=>{
+      p.classList.toggle('on');
+      const sev=p.dataset.sev;
+      const g=document.querySelector('.group[data-sev="'+sev+'"]');
+      if(g) g.classList.toggle('hidden', !p.classList.contains('on'));
+    });
+  });
+
+  // ---------- Scrubber ----------
+  const track=document.getElementById('track');
+  const handle=document.getElementById('handle');
+  const filled=document.getElementById('filled');
+  const now=document.getElementById('now');
+  // Route lat/lngs (in real coordinates for Leaflet)
+  const route=[
+    [51.7265,-1.2410],[51.7267,-1.2378],[51.7258,-1.2376],
+    [51.7254,-1.2390],[51.7250,-1.2402],[51.7246,-1.2410],
+    [51.7240,-1.2406],[51.7240,-1.2378]
+  ];
+  let droneMarker=null;
+  function setPct(pct){
+    pct=Math.max(0,Math.min(100,pct));
+    handle.style.left=pct+'%';
+    filled.style.width=pct+'%';
+    const seg=pct/100*(route.length-1);
+    const si=Math.floor(seg);
+    const t=seg-si;
+    const a=route[si], b=route[Math.min(si+1,route.length-1)];
+    const lat=a[0]+(b[0]-a[0])*t, lng=a[1]+(b[1]-a[1])*t;
+    if(droneMarker) droneMarker.setLatLng([lat,lng]);
+    // time label — shift runs 22:00 → 04:17 = 6h17m = 377 min
+    const mins=Math.round(377*pct/100);
+    const total=22*60+mins;
+    const hh=Math.floor(total/60)%24, mm=total%60;
+    const ss=Math.floor((377*pct/100*60)%60);
+    now.textContent=String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0');
+  }
+  setPct(82);
+  track.addEventListener('click',e=>{
+    const r=track.getBoundingClientRect();
+    setPct(((e.clientX-r.left)/r.width)*100);
+  });
+  let dragging=false;
+  track.addEventListener('mousedown',()=>{dragging=true;});
+  window.addEventListener('mouseup',()=>{dragging=false;});
+  window.addEventListener('mousemove',e=>{
+    if(!dragging)return;
+    const r=track.getBoundingClientRect();
+    setPct(((e.clientX-r.left)/r.width)*100);
+  });
+
+  // ---------- Leaflet map · CartoDB Dark Matter ----------
+  const MAP_CENTER=[51.7252,-1.2392];
+  const leafEl=document.getElementById('leaf');
+  const map=L.map(leafEl,{zoomControl:false,attributionControl:true,preferCanvas:true,fadeAnimation:false})
+    .setView(MAP_CENTER,16);
+  // Ensure tiles fill once layout settles
+  requestAnimationFrame(()=>map.invalidateSize());
+  setTimeout(()=>map.invalidateSize(),250);
+  new ResizeObserver(()=>map.invalidateSize()).observe(leafEl);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{
+    maxZoom:19,attribution:'&copy; OpenStreetMap &copy; CARTO',
+    subdomains:'abcd'
+  }).addTo(map);
+  L.control.zoom({position:'bottomright'}).addTo(map);
+
+  // Site boundary
+  L.polygon([[51.7272,-1.2420],[51.7272,-1.2365],[51.7236,-1.2365],[51.7236,-1.2420]],
+    {color:'#aab4c2',weight:1,opacity:.35,fillOpacity:.02,dashArray:'4 4'}).addTo(map);
+
+  // Zone labels
+  const zlabels=[
+    ['Zone 1 · North Yard',51.7267,-1.2405],
+    ['Zone 2 · Process Hall',51.7266,-1.2380],
+    ['Zone 3 · North Fence',51.7258,-1.2413],
+    ['Zone 4 · Load Bay',51.7252,-1.2390],
+    ['Zone 5 · South Perim.',51.7243,-1.2378],
+  ];
+  zlabels.forEach(([t,la,ln])=>{
+    L.marker([la,ln],{icon:L.divIcon({className:'zlabel',html:t,iconSize:null}),interactive:false}).addTo(map);
+  });
+
+  // Patrol route
+  L.polyline(route,{color:'#b8d4e8',weight:1.5,opacity:.45,dashArray:'4 4'}).addTo(map);
+
+  // Event pins
+  function pin(sev,la,ln,label){
+    const html=`<div class="pin ${sev}"><div class="halo"></div>${label?`<div class="plab">${label}</div>`:''}</div>`;
+    return L.marker([la,ln],{icon:L.divIcon({className:'',html,iconSize:[16,16],iconAnchor:[8,8]})}).addTo(map);
+  }
+  const seriousPin=pin('serious',51.7248,-1.2408,'04 · NORTH FENCE');
+  pin('harmless',51.7252,-1.2388);
+  pin('harmless',51.7244,-1.2373);
+  pin('minor',51.7264,-1.2382);
+  pin('minor',51.7262,-1.2402);
+
+  // Drone marker
+  droneMarker=L.marker(route[4],{icon:L.divIcon({className:'',html:'<div class="drone"></div>',iconSize:[12,12],iconAnchor:[6,6]})}).addTo(map);
+  setPct(82); // re-apply now that drone exists
+
+  setTimeout(()=>{
+    const el=seriousPin.getElement()?.querySelector('.pin');
+    if(el) el.animate([{transform:'scale(1)'},{transform:'scale(1.6)'},{transform:'scale(1)'}],{duration:800,easing:'cubic-bezier(.2,.7,.3,1)'});
+  },2000);
+
+  lucide.createIcons();
+</script>
+</body></html>

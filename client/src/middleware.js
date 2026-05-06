@@ -11,7 +11,11 @@ import { NextResponse } from 'next/server';
  */
 
 // Routes that require authentication
-const PROTECTED_PREFIXES = ['/investigate', '/briefing', '/incident'];
+const PROTECTED_PREFIXES = ['/investigate', '/briefing', '/incident', '/settings', '/admin', '/dashboard'];
+
+// Role requirements
+const ADMIN_PATHS = ['/admin'];
+const SETTINGS_PATHS = ['/settings'];
 
 // Routes that bypass authentication checks
 const PUBLIC_PATHS = ['/', '/login', '/register'];
@@ -40,6 +44,22 @@ export function middleware(request) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('from', encodeURIComponent(pathname));
     return NextResponse.redirect(loginUrl);
+  }
+
+  // Role checks for authenticated users
+  if (isAuthenticated) {
+    const roleCookie = request.cookies.get('ridgeway_role');
+    const userRole = roleCookie?.value;
+
+    const isAdminPath = ADMIN_PATHS.some((path) => pathname.startsWith(path));
+    if (isAdminPath && userRole !== 'super_admin') {
+      return NextResponse.redirect(new URL('/forbidden', request.url));
+    }
+
+    const isSettingsPath = SETTINGS_PATHS.some((path) => pathname.startsWith(path));
+    if (isSettingsPath && !['super_admin', 'org_admin'].includes(userRole)) {
+      return NextResponse.redirect(new URL('/forbidden', request.url));
+    }
   }
 
   // Redirect already-authenticated users away from auth routes and landing page

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 export function useStartInvestigation(options = {}) {
   const setJobId = useInvestigationStore((state) => state.setJobId);
   const setJobIds = useInvestigationStore((state) => state.setJobIds);
+  const setJobStatus = useInvestigationStore((state) => state.setJobStatus);
   const setInvestigationStats = useInvestigationStore((state) => state.setInvestigationStats);
 
   return useMutation({
@@ -27,6 +28,7 @@ export function useStartInvestigation(options = {}) {
     },
     onSuccess: (result, variables, context) => {
       console.log('[MUTATION] SUCCESS - Got result:', result);
+
       if (result.jobIds && result.jobIds.length > 0) {
         console.log('[MUTATION] Setting jobId:', result.jobIds[0]);
         setJobIds(result.jobIds);
@@ -35,21 +37,37 @@ export function useStartInvestigation(options = {}) {
         setJobIds([]);
         setJobId(null);
       }
+
+      // Server tells us there is nothing to investigate — stay idle, don't open SSE.
+      if (result.status === "no_incidents") {
+        setJobStatus("idle");
+        toast.success("No incidents to investigate for this night.");
+        if (options.onSuccess) options.onSuccess(result, variables, context);
+        return;
+      }
+
       if (result.totalJobs !== undefined) {
         console.log('[MUTATION] Setting stats - totalJobs:', result.totalJobs);
         setInvestigationStats({ totalIncidents: result.totalJobs });
       }
-      toast.success("Investigation protocol initiated.");
+
+      const toastMessages = {
+        already_running:  "Investigation already running — connecting to stream.",
+        already_complete: "Night already investigated — loading results.",
+      };
+      toast.success(toastMessages[result.status] || "Investigation protocol initiated.");
       if (options.onSuccess) options.onSuccess(result, variables, context);
     },
     onError: (error, variables, context) => {
-      console.error('[MUTATION] ERROR:', {
+      console.error('[MUTATION] ERROR raw:', error);
+      console.error('[MUTATION] ERROR details:', {
         message: error?.message,
+        name: error?.name,
         type: error?.type,
         statusCode: error?.statusCode,
         variables,
       });
-      toast.error(`Investigation failed to initialize: ${error.message}`);
+      toast.error(`Investigation failed to initialize: ${error?.message || String(error) || 'Unknown error'}`);
       if (options.onError) options.onError(error, variables, context);
     },
     ...options,

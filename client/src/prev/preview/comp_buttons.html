@@ -1,0 +1,24 @@
+<!doctype html><html><head><meta charset="utf-8"/>
+<link rel="stylesheet" href="../colors_and_type.css"/>
+<style>
+html,body{margin:0;background:var(--bg-surface-1);}
+.wrap{padding:20px 24px;width:700px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px;}
+.label{font-family:var(--font-sans);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--fg-3);}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.btn{font-family:var(--font-sans);font-size:12px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;padding:9px 16px;border-radius:2px;border:1px solid var(--border-strong);background:var(--bg-surface-2);color:var(--fg-1);cursor:pointer;transition:all var(--dur-fast) var(--ease-out);}
+.btn:hover{background:var(--bg-surface-3);}
+.btn-primary{background:var(--sev-minor);color:#2a1c0a;border-color:var(--sev-minor);font-weight:600;}
+.btn-primary:hover{filter:brightness(1.08);}
+.btn-danger{background:transparent;color:var(--sev-serious);border-color:var(--sev-serious-dim);}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--fg-2);}
+.btn-accent{background:transparent;border-color:var(--accent-dim);color:var(--accent);}
+</style></head><body><div class="wrap">
+<div class="label">Buttons</div>
+<div class="row">
+  <button class="btn btn-primary">APPROVE BRIEFING</button>
+  <button class="btn">AGREE</button>
+  <button class="btn btn-accent">OVERRIDE</button>
+  <button class="btn btn-danger">FLAG FOR FOLLOW-UP</button>
+  <button class="btn btn-ghost">CANCEL</button>
+</div>
+</div></body></html>

@@ -19,7 +19,7 @@ const userLoginValidator = () => [
 const userForgotPasswordValidator = () => [body("email").isEmail()];
 
 const userResetForgotPasswordValidator = () => [
-  param("resetToken").isString().notEmpty(),
+  body("otp").isString().notEmpty(),
   body("newPassword").isString().isLength({ min: 8 }),
 ];
 

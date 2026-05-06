@@ -2,114 +2,105 @@
 
 import React, { memo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import { useMapStore } from "@/store/mapStore";
 import { useReviewStore } from "@/store/reviewStore";
-import { SEVERITY_CONFIG } from "@/config/constants";
 import { formatNightLabel, formatTime } from "@/lib/formatters";
-import { CheckCircle2 } from "lucide-react";
+
+/* severity → Night Watch design tokens */
+const SEV_TOKENS = {
+  escalate:  { text: "var(--sev-serious)",  bg: "var(--sev-serious-bg)",  border: "var(--sev-serious-dim)",  label: "ESCALATE" },
+  monitor:   { text: "var(--sev-minor)",    bg: "var(--sev-minor-bg)",    border: "var(--sev-minor-dim)",    label: "MONITOR" },
+  harmless:  { text: "var(--sev-harmless)", bg: "var(--sev-harmless-bg)", border: "var(--sev-harmless-dim)", label: "HARMLESS" },
+  uncertain: { text: "var(--sev-unknown)",  bg: "var(--sev-unknown-bg)",  border: "var(--border-default)",   label: "UNCERTAIN" },
+  unknown:   { text: "var(--fg-3)",         bg: "var(--bg-surface-1)",    border: "var(--border-default)",   label: "UNKNOWN" },
+};
+
+const TYPE_LABELS = {
+  spatial:    "SPATIAL CLUSTER",
+  temporal:   "TEMPORAL PATTERN",
+  entity:     "ENTITY MATCH",
+  cross_type: "MULTI SIGNAL",
+};
 
 const EventCard = memo(({ incident }) => {
-  const router = useRouter();
-  const cardRef = useRef(null);
+  const router   = useRouter();
+  const cardRef  = useRef(null);
 
-  // Cross store tracking
-  const selectPin = useMapStore(state => state.selectPin);
-  const selectedPinId = useMapStore(state => state.selectedPinId);
-  const isReviewed = useReviewStore(state => state.isReviewed);
+  const selectPin     = useMapStore((s) => s.selectPin);
+  const selectedPinId = useMapStore((s) => s.selectedPinId);
+  const isReviewed    = useReviewStore((s) => s.isReviewed);
 
-  // Correct field extraction from incident object
-  const incidentId = incident?._id || incident?.id || incident?.incidentId;
-  const correlationType = incident.correlationType;
-  const primaryLocation = incident.primaryLocation || incident.location;
-  const severity = incident.finalSeverity || incident.agentClassification?.severity || incident.severity || 'unknown';
+  const id       = incident?._id || incident?.id || incident?.incidentId;
+  const severity = incident.finalSeverity || incident.agentClassification?.severity || incident.severity || "unknown";
+  const tok      = SEV_TOKENS[severity] || SEV_TOKENS.unknown;
+
+  const isSelected = selectedPinId === id;
+  const reviewed   = isReviewed ? isReviewed(id) : false;
+
+  const typeLabel = TYPE_LABELS[incident.correlationType] || "INCIDENT";
+  const location  = incident.primaryLocation?.name || incident.location?.name || incident.title || "Unknown Location";
   const nightDate = incident.nightDate;
-  const raghavsNote = incident.raghavsNote;
-
-  const isSelected = selectedPinId === incidentId;
-  const hasReview = isReviewed ? isReviewed(incidentId) : false;
-
-  // Type labels mapping from correlationType
-  const typeLabels = {
-    spatial: 'SPATIAL CLUSTER',
-    temporal: 'TEMPORAL PATTERN',
-    entity: 'ENTITY MATCH',
-    cross_type: 'MULTI SIGNAL',
-  };
-  const typeLabel = typeLabels[correlationType] || 'INCIDENT';
-
-  // Configuration mapping
-  const severityData = SEVERITY_CONFIG[severity] || SEVERITY_CONFIG['unknown'];
-
-  // Sync scroll detection when Map Pins fire dynamically
-  useEffect(() => {
-    if (isSelected && cardRef.current) {
-      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  }, [isSelected]);
-
-  const handleClick = () => {
-    selectPin(incidentId);
-    router.push(`/incident/${incidentId}`);
-  };
-
-  const locationLabel = primaryLocation?.name || incident.title || 'Unknown Location';
   const timeLabel = nightDate
     ? formatNightLabel(nightDate)
     : incident?.firstEventTime
     ? formatTime(incident.firstEventTime)
     : "Night";
 
+  useEffect(() => {
+    if (isSelected) cardRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [isSelected]);
+
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
+    <div
       ref={cardRef}
-      onClick={handleClick}
-      className={`p-4 rounded-md border border-border border-l-[3px] cursor-pointer mb-2 ${
-        isSelected ? 'bg-surface-3' : 'bg-surface-2'
-      } ${severityData.borderClass}`}
+      onClick={() => { selectPin(id); router.push(`/incident/${id}`); }}
+      style={{
+        display: "grid", gridTemplateColumns: "54px 1fr auto",
+        alignItems: "center", padding: "10px 16px", gap: "10px",
+        borderTop: "1px solid var(--border-hairline)",
+        borderLeft: isSelected ? `2px solid var(--accent)` : "2px solid transparent",
+        paddingLeft: isSelected ? "14px" : "16px",
+        background: isSelected ? "var(--bg-surface-1)" : "transparent",
+        cursor: "pointer",
+        transition: "background var(--dur-fast)",
+      }}
+      onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = "var(--bg-surface-1)"; }}
+      onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}
     >
-      {/* Header: Type and Date */}
-      <div className="flex justify-between items-start mb-2">
-        <span className="text-[10px] text-text-muted font-mono tracking-[0.05em]">
+      {/* timestamp */}
+      <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--fg-3)" }}>
+        {timeLabel}
+      </span>
+
+      {/* name + meta */}
+      <div>
+        <div style={{ fontSize: "12.5px", color: "var(--fg-1)", fontWeight: 500, lineHeight: 1.3, marginBottom: "2px" }}>
+          {location}
+        </div>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "10.5px", color: "var(--fg-3)", lineHeight: 1.3 }}>
           {typeLabel}
-        </span>
-        <span className="text-[10px] text-text-muted font-mono">
-          {timeLabel}
-        </span>
-      </div>
-
-      {/* Primary Location Title */}
-      <div className="text-[13px] font-medium text-text-primary mb-2">
-        {locationLabel}
-      </div>
-
-      {/* Footer: Severity badge and indicators */}
-      <div className="flex items-center justify-between">
-        <div className={`text-[10px] font-mono px-2 py-1 rounded uppercase font-semibold tracking-[0.05em] border ${severityData.bgClass} ${severityData.textClass} ${severityData.borderClass}`}>
-          {severityData.label}
-        </div>
-
-        <div className="flex gap-2 items-center">
-          {raghavsNote && (
-            <span className="text-[10px] text-severity-monitor font-mono uppercase font-semibold">
-              RAGHAV FLAGGED
-            </span>
+          {incident.raghavsNote && (
+            <span style={{ marginLeft: "8px", color: "var(--sev-minor)" }}>· FLAGGED</span>
           )}
-
-          {hasReview && (
-            <div className="flex items-center gap-1 text-[9px] text-severity-harmless font-mono uppercase font-semibold border border-severity-harmless/50 bg-severity-harmless/10 px-2 py-1 rounded">
-              <CheckCircle2 className="w-3 h-3" /> Reviewed
-            </div>
+          {reviewed && (
+            <span style={{ marginLeft: "8px", color: "var(--sev-harmless)" }}>· REVIEWED</span>
           )}
         </div>
       </div>
-    </motion.div>
+
+      {/* severity badge */}
+      <span style={{
+        fontFamily: "var(--font-sans)", fontSize: "9px", fontWeight: 600,
+        textTransform: "uppercase", letterSpacing: "0.1em",
+        padding: "2px 7px", borderRadius: "2px",
+        background: tok.bg, color: tok.text, border: `1px solid ${tok.border}`,
+        flexShrink: 0,
+      }}>
+        {tok.label}
+      </span>
+    </div>
   );
 });
 
 EventCard.displayName = "EventCard";
-
 export default EventCard;

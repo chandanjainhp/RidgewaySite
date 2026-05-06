@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<title>Night Watch — Briefing 22 Apr</title>
+<link rel="stylesheet" href="../../colors_and_type.css"/>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<style>
+  html,body{height:100%;margin:0;}
+  body{background:var(--bg-base);display:grid;grid-template-rows:48px 1fr;overflow:hidden;}
+  header{display:flex;align-items:center;gap:14px;padding:0 20px;background:var(--bg-surface-1);border-bottom:1px solid var(--border-default);}
+  header .logo{width:22px;height:22px;color:var(--accent);}
+  header .wm{font-size:11px;font-weight:600;letter-spacing:.14em;color:var(--fg-1);text-transform:uppercase;}
+  header .sep{width:1px;height:16px;background:var(--border-default);}
+  header a.back{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--fg-2);text-decoration:none;text-transform:uppercase;letter-spacing:.1em;}
+  header a.back svg{width:14px;height:14px;stroke-width:1.5;}
+  header .spacer{flex:1;}
+  header .clock{font-family:var(--font-mono);color:var(--accent);font-size:13px;}
+
+  main{overflow-y:auto;padding:28px 40px 80px;display:flex;flex-direction:column;align-items:center;gap:22px;background:
+    radial-gradient(ellipse at 50% -20%, #0d1219 0%, #07090c 60%);}
+  .toolbar{width:100%;max-width:720px;display:flex;align-items:center;gap:14px;}
+  .status{display:flex;align-items:center;gap:10px;}
+  .pill{font-family:var(--font-sans);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;padding:4px 10px;border-radius:2px;}
+  .pill.draft{background:var(--sev-unknown-bg);color:var(--fg-2);border:1px solid var(--border-default);}
+  .pill.approved{background:var(--sev-harmless-bg);color:var(--sev-harmless);border:1px solid var(--sev-harmless-dim);}
+  .meta{font-family:var(--font-mono);font-size:11px;color:var(--fg-3);}
+
+  .countdown{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;}
+  .countdown .v{font-family:var(--font-mono);font-size:28px;font-weight:500;color:var(--accent);letter-spacing:-.015em;line-height:1;}
+  .countdown .l{font-family:var(--font-sans);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--fg-3);margin-top:4px;}
+
+  /* Paper document */
+  .doc{
+    width:100%;max-width:720px;
+    background:var(--bg-briefing);color:var(--bg-briefing-ink);
+    padding:48px 56px 40px;border-radius:2px;
+    box-shadow:0 30px 80px rgba(0,0,0,.55), 0 0 0 1px #d8d2c3;
+    font-family:var(--font-serif);
+  }
+  .dhead{display:flex;align-items:flex-end;gap:12px;padding-bottom:14px;border-bottom:1px solid #c9c1ac;margin-bottom:24px;}
+  .dhead .logo{width:22px;height:22px;color:#1a1814;}
+  .dhead .wm{font-family:var(--font-sans);font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#5a5240;}
+  .dhead .when{font-family:var(--font-sans);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#6a6357;margin-left:auto;}
+  .dtitle{font-family:var(--font-serif);font-size:30px;font-weight:600;letter-spacing:-.01em;margin:0 0 8px;line-height:1.15;}
+  .dsub{font-family:var(--font-serif);font-size:15px;color:#4a4434;font-style:italic;margin:0 0 24px;}
+
+  .sect{padding:16px 0;border-top:1px solid #d3cbb6;}
+  .sect:first-of-type{border-top:0;padding-top:0;}
+  .sect h2{font-family:var(--font-sans);font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#6a5a1e;margin:0 0 10px;}
+  .sect p{font-family:var(--font-serif);font-size:14.5px;line-height:1.7;margin:0 0 10px;color:#1a1814;}
+  .sect p:last-child{margin-bottom:0;}
+  .sect ul{margin:0;padding-left:20px;}
+  .sect li{font-family:var(--font-serif);font-size:14.5px;line-height:1.75;color:#1a1814;}
+  .sect li b{font-weight:600;}
+
+  .tally{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:6px 0 6px;}
+  .t-cell{border-left:2px solid #c9c1ac;padding:4px 0 4px 10px;}
+  .t-cell .n{font-family:var(--font-mono);font-size:24px;font-weight:500;color:#1a1814;line-height:1;}
+  .t-cell .k{font-family:var(--font-sans);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:#6a6357;margin-top:6px;}
+  .t-cell.serious{border-left-color:#b22a2a;} .t-cell.serious .n{color:#8a1e1e;}
+  .t-cell.minor{border-left-color:#b07320;} .t-cell.minor .n{color:#8a5a18;}
+  .t-cell.harmless{border-left-color:#4a8a5e;} .t-cell.harmless .n{color:#2a6140;}
+  .t-cell.unknown{border-left-color:#8a8578;}
+
+  .sign{display:flex;justify-content:space-between;margin-top:28px;padding-top:14px;border-top:1px solid #c9c1ac;font-family:var(--font-sans);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6a6357;}
+
+  /* Approve bar */
+  .approve-bar{width:100%;max-width:720px;display:flex;align-items:center;gap:14px;padding:16px 18px;background:var(--bg-surface-1);border:1px solid var(--border-default);border-radius:2px;}
+  .approve-bar .note{color:var(--fg-3);font-size:11.5px;line-height:1.5;flex:1;}
+  .approve-btn{font-family:var(--font-sans);font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;padding:14px 22px;background:var(--sev-minor);color:#2a1c0a;border:0;border-radius:2px;cursor:pointer;display:flex;align-items:center;gap:10px;box-shadow:0 0 0 0 rgba(232,154,43,.4);transition:all var(--dur-med);}
+  .approve-btn:hover{filter:brightness(1.08);box-shadow:0 0 24px rgba(232,154,43,.35);}
+  .approve-btn svg{width:16px;height:16px;stroke-width:2;}
+  .approve-btn.done{background:var(--sev-harmless);color:#072014;}
+</style>
+</head><body>
+
+<header>
+  <svg class="logo" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 2 L28 6 V15 C28 22 22.5 27.5 16 30 C9.5 27.5 4 22 4 15 V6 Z"/><circle cx="16" cy="16" r="4.5"/><path d="M16 9.5 V13 M16 19 V22.5 M9.5 16 H13 M19 16 H22.5"/></svg>
+  <span class="wm">Ridgeway Night Watch</span>
+  <div class="sep"></div>
+  <a class="back" href="../dashboard/index.html"><svg data-lucide="chevron-left"></svg>Back to ops</a>
+  <div class="spacer"></div>
+  <span class="clock num" id="clk">07:24:18</span>
+</header>
+
+<main>
+  <div class="toolbar">
+    <div class="status">
+      <span class="pill draft" id="statuspill">DRAFT</span>
+      <span class="meta">Briefing · 22 Apr · last updated 07:24</span>
+    </div>
+    <div class="countdown">
+      <span class="v num" id="cd">00:35:42</span>
+      <span class="l">Until 08:00 AM</span>
+    </div>
+  </div>
+
+  <article class="doc">
+    <div class="dhead">
+      <svg class="logo" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 2 L28 6 V15 C28 22 22.5 27.5 16 30 C9.5 27.5 4 22 4 15 V6 Z"/><circle cx="16" cy="16" r="4.5"/><path d="M16 9.5 V13 M16 19 V22.5 M9.5 16 H13 M19 16 H22.5"/></svg>
+      <span class="wm">Ridgeway Night Watch</span>
+      <span class="when">Overnight · 22 Apr 2026 · 22:00 – 08:00</span>
+    </div>
+
+    <h1 class="dtitle">Overnight Briefing</h1>
+    <p class="dsub">Prepared by M. Ortega for N. Shah · 08:00 handoff</p>
+
+    <div class="sect">
+      <h2>Summary</h2>
+      <p>Five incidents were logged between 22:00 and 04:00. Four have been
+      classified and cleared; one — <b>North Fence, 04 — unexplained motion</b>
+      — requires a human decision before handoff. Weather was clear with a
+      light NW wind and a single gust at 03:42 that appears relevant.</p>
+      <div class="tally">
+        <div class="t-cell serious"><div class="n">1</div><div class="k">Serious</div></div>
+        <div class="t-cell minor"><div class="n">2</div><div class="k">Minor</div></div>
+        <div class="t-cell harmless"><div class="n">2</div><div class="k">Harmless</div></div>
+        <div class="t-cell unknown"><div class="n">0</div><div class="k">Unknown</div></div>
+      </div>
+    </div>
+
+    <div class="sect">
+      <h2>Open Items</h2>
+      <ul>
+        <li><b>Incident 04 · North Fence.</b> Motion trigger during camera 7
+        maintenance window. Wind gust coincident. No visual confirmation.
+        Holding pending review.</li>
+        <li><b>Incident 02 · Process Hall door.</b> Held open 47s at 03:04.
+        Cross-reference with delivery schedule outstanding.</li>
+      </ul>
+    </div>
+
+    <div class="sect">
+      <h2>Cleared Overnight</h2>
+      <ul>
+        <li><b>03:42 · North Fence motion.</b> Cleared via wind-log
+        correlation (14 m/s gust).</li>
+        <li><b>02:11 · Loading Bay door.</b> Matches scheduled delivery
+        window.</li>
+        <li><b>01:38 · North Yard vehicle.</b> Plate matched contractor log,
+        re-classified minor pending morning confirm.</li>
+      </ul>
+    </div>
+
+    <div class="sect">
+      <h2>System Health</h2>
+      <p>All sensors online at handoff. Camera 7 completed scheduled reboot at
+      03:44 and is streaming. Drone RWY-03 completed three patrol passes;
+      battery at 41% entering day shift. Weather expected clear through the
+      morning; wind dropping after 06:00.</p>
+    </div>
+
+    <div class="sect">
+      <h2>Recommendation</h2>
+      <p>Day shift should physically inspect north fence, zone 3, before
+      09:00 to confirm no damage. No other site actions recommended. Agent
+      will remain on call.</p>
+    </div>
+
+    <div class="sign">
+      <span>M. Ortega · Overnight Analyst</span>
+      <span>— · N. Shah · Day Shift</span>
+    </div>
+  </article>
+
+  <div class="approve-bar">
+    <div class="note">Approving locks this document and delivers it to the
+      8:00 AM distribution list. Incident 04 is marked open and carried
+      forward to day shift.</div>
+    <button class="approve-btn" id="approve"><svg data-lucide="lock"></svg>Approve briefing for 8:00 AM</button>
+  </div>
+</main>
+
+<script>
+  // Header live clock
+  function tick(){const d=new Date(),p=n=>String(n).padStart(2,'0');document.getElementById('clk').textContent=p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());}
+  tick();setInterval(tick,1000);
+
+  // Countdown — static demo: 35:42 → amber when < 30 → red when < 10
+  let secs = 35*60+42;
+  const cd=document.getElementById('cd');
+  function cdTick(){
+    secs=Math.max(0,secs-1);
+    const h=Math.floor(secs/3600), m=Math.floor((secs%3600)/60), s=secs%60;
+    const pad=n=>String(n).padStart(2,'0');
+    cd.textContent=pad(h)+':'+pad(m)+':'+pad(s);
+    if(secs<600){cd.style.color='var(--sev-serious)';cd.style.textShadow='0 0 20px rgba(255,56,56,.4)';}
+    else if(secs<1800){cd.style.color='var(--sev-minor)';cd.style.textShadow='0 0 18px rgba(232,154,43,.3)';}
+  }
+  setInterval(cdTick,1000);
+
+  document.getElementById('approve').addEventListener('click',()=>{
+    const ok=confirm('Lock and deliver this briefing at 8:00 AM?');
+    if(!ok)return;
+    const b=document.getElementById('approve');
+    b.innerHTML='<svg data-lucide="check"></svg>APPROVED · 07:24';
+    b.classList.add('done');
+    const sp=document.getElementById('statuspill');
+    sp.className='pill approved';sp.textContent='APPROVED';
+    lucide.createIcons();
+  });
+
+  lucide.createIcons();
+</script>
+</body></html>

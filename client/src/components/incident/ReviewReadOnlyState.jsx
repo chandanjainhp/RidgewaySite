@@ -2,32 +2,88 @@
 
 import { Check, Edit3, Flag } from "lucide-react";
 
+const DECISION_STYLE = {
+  agreed: {
+    border: "var(--sev-harmless)", color: "var(--sev-harmless)",
+    background: "var(--sev-harmless-bg)",
+  },
+  overridden: {
+    border: "var(--sev-minor)", color: "var(--sev-minor)",
+    background: "var(--sev-minor-bg)",
+  },
+  flagged: {
+    border: "#6366f1", color: "#6366f1",
+    background: "rgba(99,102,241,0.06)",
+  },
+};
+
 export default function ReviewReadOnlyState({ currentReview, onChangeDecision }) {
-  const wrapperClass = currentReview.decision === 'agreed'
-    ? 'bg-severity-harmless/10 border-severity-harmless text-green-400'
-    : currentReview.decision === 'overridden'
-      ? 'bg-amber-500/10 border-amber-500 text-amber-500'
-      : 'bg-indigo-500/10 border-indigo-500 text-indigo-400';
+  const ds = DECISION_STYLE[currentReview.decision] || DECISION_STYLE.agreed;
 
   return (
-    <div className={`p-4 border rounded-sm w-full font-mono text-sm uppercase tracking-widest ${wrapperClass}`}>
-      {currentReview.decision === 'agreed' && (
-        <div className="flex items-center gap-2"><Check className="w-4 h-4" /> You agreed with the agent's classification</div>
-      )}
-      {currentReview.decision === 'overridden' && (
-        <div className="flex flex-col gap-2">
-          <span className="flex items-center gap-2"><Edit3 className="w-4 h-4" /> You overridden to {currentReview.override?.newSeverity}</span>
-          <span className="text-text-muted text-[10px] break-all italic">{currentReview.override?.reason}</span>
-        </div>
-      )}
-      {currentReview.decision === 'flagged' && (
-        <div className="flex flex-col gap-2">
-          <span className="flex items-center gap-2"><Flag className="w-4 h-4" /> Flagged for follow-up</span>
-          {currentReview.flagDetails?.note && <span className="text-text-muted text-[10px] break-all italic">{currentReview.flagDetails.note}</span>}
+    <div style={{
+      padding: "16px",
+      border: `1px solid ${ds.border}`,
+      background: ds.background,
+      color: ds.color,
+      width: "100%",
+      fontFamily: "var(--font-mono)", fontSize: "12px",
+      textTransform: "uppercase", letterSpacing: "0.12em",
+    }}>
+      {currentReview.decision === "agreed" && (
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <Check size={14} />
+          You agreed with the agent's classification
         </div>
       )}
 
-      <button onClick={onChangeDecision} className="mt-4 text-[10px] text-text-muted hover:text-white underline">
+      {currentReview.decision === "overridden" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <Edit3 size={14} />
+            You overridden to {currentReview.override?.newSeverity}
+          </span>
+          {currentReview.override?.reason && (
+            <span style={{
+              color: "var(--fg-4)", fontSize: "10px",
+              fontStyle: "italic", wordBreak: "break-all",
+            }}>
+              {currentReview.override.reason}
+            </span>
+          )}
+        </div>
+      )}
+
+      {currentReview.decision === "flagged" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <Flag size={14} />
+            Flagged for follow-up
+          </span>
+          {currentReview.flagDetails?.note && (
+            <span style={{
+              color: "var(--fg-4)", fontSize: "10px",
+              fontStyle: "italic", wordBreak: "break-all",
+            }}>
+              {currentReview.flagDetails.note}
+            </span>
+          )}
+        </div>
+      )}
+
+      <button
+        onClick={onChangeDecision}
+        style={{
+          marginTop: "12px", display: "block",
+          background: "none", border: "none", cursor: "pointer",
+          fontFamily: "var(--font-mono)", fontSize: "10px",
+          textDecoration: "underline", color: "var(--fg-4)",
+          textTransform: "uppercase", letterSpacing: "0.10em",
+          padding: 0,
+        }}
+        onMouseEnter={e => e.currentTarget.style.color = "var(--fg-1)"}
+        onMouseLeave={e => e.currentTarget.style.color = "var(--fg-4)"}
+      >
         Change decision
       </button>
     </div>

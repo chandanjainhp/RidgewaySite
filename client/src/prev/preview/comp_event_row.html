@@ -1,0 +1,44 @@
+<!doctype html><html><head><meta charset="utf-8"/>
+<link rel="stylesheet" href="../colors_and_type.css"/>
+<style>
+html,body{margin:0;background:var(--bg-surface-1);}
+.wrap{padding:16px 0;width:700px;box-sizing:border-box;}
+.label{font-family:var(--font-sans);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--fg-3);padding:0 24px 10px;}
+.group{border-top:1px solid var(--border-hairline);border-bottom:1px solid var(--border-hairline);}
+.ghdr{display:flex;align-items:center;gap:10px;padding:8px 24px;background:var(--bg-base);}
+.ghdr .dot{width:8px;height:8px;border-radius:50%;}
+.ghdr .n{font-family:var(--font-sans);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;}
+.ghdr .c{font-family:var(--font-mono);font-size:11px;color:var(--fg-3);margin-left:auto;}
+.row{display:grid;grid-template-columns:64px 1fr auto;align-items:center;padding:10px 24px;gap:12px;border-top:1px solid var(--border-hairline);cursor:pointer;transition:background var(--dur-fast);}
+.row:first-child{border-top:0;}
+.row:hover{background:var(--bg-surface-2);}
+.row.active{background:var(--bg-surface-2);border-left:2px solid var(--accent);padding-left:22px;}
+.ts{font-family:var(--font-mono);font-size:11px;color:var(--fg-3);}
+.nm{font-size:13px;color:var(--fg-1);font-weight:500;}
+.meta{font-size:11px;color:var(--fg-3);margin-top:2px;}
+.badge{font-family:var(--font-sans);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;padding:3px 8px;border-radius:2px;background:var(--sev-serious-bg);color:var(--sev-serious);border:1px solid var(--sev-serious-dim);}
+.badge.h{background:var(--sev-harmless-bg);color:var(--sev-harmless);border-color:var(--sev-harmless-dim);}
+</style></head><body>
+<div class="label" style="padding-top:4px;">Event list row · grouped by severity</div>
+<div class="group">
+  <div class="ghdr"><span class="dot" style="background:var(--sev-serious)"></span><span class="n" style="color:var(--sev-serious)">Serious</span><span class="c">1 incident</span></div>
+  <div class="row active">
+    <span class="ts">04:17</span>
+    <div><div class="nm">North Fence — unexplained motion</div><div class="meta">zone 3 · cam 7 offline during window</div></div>
+    <span class="badge">SERIOUS</span>
+  </div>
+</div>
+<div class="group" style="border-top:0;">
+  <div class="ghdr"><span class="dot" style="background:var(--sev-harmless)"></span><span class="n" style="color:var(--sev-harmless)">Harmless</span><span class="c">2 of 4</span></div>
+  <div class="row">
+    <span class="ts">03:42</span>
+    <div><div class="nm">North Fence — motion (wind)</div><div class="meta">zone 3 · 14 m/s wind gust</div></div>
+    <span class="badge h">HARMLESS</span>
+  </div>
+  <div class="row">
+    <span class="ts">02:11</span>
+    <div><div class="nm">Loading Bay — door cycled</div><div class="meta">bay 2 · scheduled delivery</div></div>
+    <span class="badge h">HARMLESS</span>
+  </div>
+</div>
+</body></html>

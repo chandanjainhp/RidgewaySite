@@ -1,0 +1,20 @@
+<!doctype html><html><head><meta charset="utf-8"/>
+<link rel="stylesheet" href="../colors_and_type.css"/>
+<style>
+html,body{margin:0;background:var(--bg-base);}
+.wrap{padding:20px 24px;width:700px;box-sizing:border-box;}
+.label{margin-bottom:14px;}
+.row{display:flex;gap:12px;}
+.lvl{flex:1;height:110px;padding:12px;box-sizing:border-box;border:1px solid var(--border-default);display:flex;flex-direction:column;justify-content:space-between;}
+.nm{font-family:var(--font-mono);font-size:10px;color:var(--fg-3);}
+.v{font-size:11px;color:var(--fg-2);line-height:1.4;}
+</style></head><body><div class="wrap">
+<div class="label">Elevation · rank-up, not shadow</div>
+<div class="row">
+  <div class="lvl" style="background:var(--bg-base);"><div class="nm">L0 · base</div><div class="v">Page</div></div>
+  <div class="lvl" style="background:var(--bg-surface-1);box-shadow:var(--inner-highlight);"><div class="nm">L1 · surface-1</div><div class="v">Panel (default)</div></div>
+  <div class="lvl" style="background:var(--bg-surface-2);box-shadow:var(--inner-highlight);"><div class="nm">L2 · surface-2</div><div class="v">Raised / input</div></div>
+  <div class="lvl" style="background:var(--bg-surface-3);box-shadow:var(--inner-highlight);"><div class="nm">L3 · surface-3</div><div class="v">Hover / active row</div></div>
+  <div class="lvl" style="background:var(--bg-surface-2);box-shadow:0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px var(--border-default);"><div class="nm">Modal</div><div class="v">Only real shadow in the app</div></div>
+</div>
+</div></body></html>

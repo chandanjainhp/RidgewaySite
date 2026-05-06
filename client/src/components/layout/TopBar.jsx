@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useAuthStore } from "@/store/authStore";
+
 export default function TopBar() {
   const [time, setTime] = useState("");
   const [nightLabel, setNightLabel] = useState("Night of --");
-  const [currentUser, setCurrentUser] = useState(null);
+  const { user: currentUser, role: userRole } = useAuthStore();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -23,12 +25,8 @@ export default function TopBar() {
     };
 
     const loadCurrentUser = () => {
-      try {
-        const stored = localStorage.getItem("ridgeway_user");
-        if (stored) setCurrentUser(JSON.parse(stored));
-      } catch (e) {
-        console.log("Could not read user from storage");
-      }
+      // Zustand handles the initial state loading automatically with persist middleware,
+      // but if we need a sync read we can still check localStorage as fallback if needed.
     };
 
     const updateNightLabel = () => {
@@ -55,12 +53,17 @@ export default function TopBar() {
 
   const investigateActive = pathname?.startsWith("/investigate") || pathname?.startsWith("/incident");
   const briefingActive = pathname?.startsWith("/briefing");
+  const profileActive = pathname?.startsWith("/profile");
+  const adminActive = pathname?.startsWith("/admin");
+  const settingsActive = pathname?.startsWith("/settings");
 
   async function handleLogout() {
     localStorage.removeItem("ridgeway_token");
     localStorage.removeItem("ridgeway_refresh_token");
     localStorage.removeItem("ridgeway_user");
+    useAuthStore.getState().clearUser();
     document.cookie = "ridgeway_auth=; path=/; max-age=0; SameSite=Lax";
+    document.cookie = "ridgeway_role=; path=/; max-age=0; SameSite=Lax";
     router.push("/login");
   }
 
@@ -130,6 +133,46 @@ export default function TopBar() {
           >
             BRIEFING
           </Link>
+          <Link
+            href="/profile"
+            style={{
+              fontFamily: "var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+              fontSize: "11px",
+              color: profileActive ? "#e2e8f0" : "#4a5568",
+              textDecoration: "none",
+              letterSpacing: "0.08em",
+            }}
+          >
+            PROFILE
+          </Link>
+          {['super_admin', 'org_admin'].includes(userRole) && (
+            <Link
+              href="/settings"
+              style={{
+                fontFamily: "var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                fontSize: "11px",
+                color: settingsActive ? "#e2e8f0" : "#4a5568",
+                textDecoration: "none",
+                letterSpacing: "0.08em",
+              }}
+            >
+              SETTINGS
+            </Link>
+          )}
+          {userRole === 'super_admin' && (
+            <Link
+              href="/admin"
+              style={{
+                fontFamily: "var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                fontSize: "11px",
+                color: adminActive ? "#e2e8f0" : "#4a5568",
+                textDecoration: "none",
+                letterSpacing: "0.08em",
+              }}
+            >
+              ADMIN
+            </Link>
+          )}
         </nav>
       </div>
 
@@ -147,20 +190,23 @@ export default function TopBar() {
 
       <div style={{ flex: "none", display: "flex", alignItems: "center", gap: "16px" }}>
         {displayUser ? (
-          <span
+          <Link
+            href="/profile"
             style={{
               fontFamily: "var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
               fontSize: "10px",
-              color: "#4a5568",
+              color: profileActive ? "#8892a4" : "#4a5568",
               maxWidth: "150px",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
+              textDecoration: "none",
+              transition: "color 0.15s ease",
             }}
             title={displayUser}
           >
             {displayUser}
-          </span>
+          </Link>
         ) : null}
         <span
           style={{
@@ -171,28 +217,30 @@ export default function TopBar() {
         >
           {time}
         </span>
-        <button
-          type="button"
-          onClick={handleLogout}
-          style={{
-            fontFamily: "var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-            fontSize: "10px",
-            color: "#4a5568",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            padding: 0,
-            transition: "color 0.15s ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = "#e2e8f0";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = "#4a5568";
-          }}
-        >
-          SIGN OUT
-        </button>
+        {currentUser && (
+          <button
+            type="button"
+            onClick={handleLogout}
+            style={{
+              fontFamily: "var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+              fontSize: "10px",
+              color: "#4a5568",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: 0,
+              transition: "color 0.15s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = "#e2e8f0";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = "#4a5568";
+            }}
+          >
+            SIGN OUT
+          </button>
+        )}
       </div>
     </header>
   );

@@ -3,6 +3,11 @@ import mongoose from 'mongoose';
 const investigationSchema = new mongoose.Schema(
   {
     // Incident being investigated
+    orgId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Organisation',
+      index: true,
+    },
     incidentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Incident',

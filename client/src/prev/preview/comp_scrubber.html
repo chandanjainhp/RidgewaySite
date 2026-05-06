@@ -1,0 +1,30 @@
+<!doctype html><html><head><meta charset="utf-8"/>
+<link rel="stylesheet" href="../colors_and_type.css"/>
+<style>
+html,body{margin:0;background:var(--bg-canvas);}
+.wrap{width:700px;padding:24px;box-sizing:border-box;}
+.label{font-family:var(--font-sans);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--fg-3);margin-bottom:12px;}
+.bar{display:flex;align-items:center;gap:14px;padding:12px 16px;background:var(--bg-surface-1);border:1px solid var(--border-default);border-radius:2px;}
+.t{font-family:var(--font-mono);font-size:12px;color:var(--fg-2);min-width:62px;}
+.t.end{color:var(--fg-3);text-align:right;}
+.track{flex:1;position:relative;height:4px;background:var(--bg-surface-3);border-radius:2px;}
+.filled{position:absolute;inset:0;width:42%;background:var(--accent-dim);border-radius:2px;}
+.tick{position:absolute;top:-4px;bottom:-4px;width:1px;background:var(--fg-4);}
+.handle{position:absolute;top:50%;left:42%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px rgba(184,212,232,.15), 0 0 14px rgba(184,212,232,.5);}
+.plus{color:var(--fg-3);font-family:var(--font-mono);font-size:11px;white-space:nowrap;}
+</style></head><body><div class="wrap">
+<div class="label">Drone replay scrubber · feels like rewinding a recording</div>
+<div class="bar">
+  <span class="t">22:00</span>
+  <div class="track">
+    <div class="filled"></div>
+    <div class="tick" style="left:10%"></div>
+    <div class="tick" style="left:25%"></div>
+    <div class="tick" style="left:58%"></div>
+    <div class="tick" style="left:77%"></div>
+    <div class="handle"></div>
+  </div>
+  <span class="t end">04:17</span>
+  <span class="plus">+ 6h 17m</span>
+</div>
+</div></body></html>

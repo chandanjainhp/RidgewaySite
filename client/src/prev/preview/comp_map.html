@@ -1,0 +1,36 @@
+<!doctype html><html><head><meta charset="utf-8"/>
+<link rel="stylesheet" href="../colors_and_type.css"/>
+<style>
+html,body{margin:0;background:var(--bg-canvas);}
+.wrap{width:700px;padding:24px;box-sizing:border-box;position:relative;}
+.label{font-family:var(--font-sans);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--fg-3);margin-bottom:14px;}
+.map{position:relative;height:170px;background:
+  radial-gradient(ellipse at 30% 40%, rgba(184,212,232,0.04), transparent 60%),
+  linear-gradient(180deg, #0a1220 0%, #070a13 100%);
+  border:1px solid var(--border-default);overflow:hidden;}
+.grid{position:absolute;inset:0;background-image:
+  linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px),
+  linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px);background-size:40px 40px;}
+.boundary{position:absolute;inset:18px;border:1px dashed rgba(170,180,194,.18);}
+.zone{position:absolute;border:1px solid rgba(170,180,194,.1);background:rgba(170,180,194,.03);}
+.pin{position:absolute;width:14px;height:14px;border-radius:50%;transform:translate(-50%,-50%);}
+.pin.p-serious{background:var(--sev-serious);box-shadow:0 0 14px rgba(255,56,56,.7), 0 0 0 3px rgba(255,56,56,.15);}
+.pin.p-minor{background:var(--sev-minor);box-shadow:0 0 10px rgba(232,154,43,.5);}
+.pin.p-harmless{background:var(--sev-harmless);box-shadow:0 0 8px rgba(125,138,106,.4);}
+.pin.p-unknown{background:var(--sev-unknown);}
+.drone{position:absolute;width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px rgba(184,212,232,.25), 0 0 14px rgba(184,212,232,.5);transform:translate(-50%,-50%);}
+</style></head><body><div class="wrap">
+<div class="label">Map · dark canvas, severity-coded pins, drone marker</div>
+<div class="map">
+  <div class="grid"></div>
+  <div class="boundary"></div>
+  <div class="zone" style="left:22%;top:25%;width:26%;height:38%;"></div>
+  <div class="zone" style="left:55%;top:42%;width:30%;height:38%;"></div>
+  <div class="pin p-serious" style="left:32%;top:38%;"></div>
+  <div class="pin p-harmless" style="left:70%;top:55%;"></div>
+  <div class="pin p-harmless" style="left:60%;top:68%;"></div>
+  <div class="pin p-minor" style="left:48%;top:30%;"></div>
+  <div class="pin p-unknown" style="left:80%;top:38%;"></div>
+  <div class="drone" style="left:42%;top:60%;"></div>
+</div>
+</div></body></html>

@@ -7,6 +7,7 @@ import {
   startNightInvestigation,
   getInvestigationWithEvidence,
 } from "../services/investigation.service.js";
+import { logAudit } from "../utils/audit.js";
 
 const normalizeProgressEvent = (event, investigation) => {
   const payload = event.data ?? event.payload ?? {};
@@ -31,7 +32,9 @@ const normalizeProgressEvent = (event, investigation) => {
 export const startInvestigation = async (req, res) => {
   const nightDate =
     req.body?.nightDate || new Date().toISOString().split("T")[0];
-  const result = await startNightInvestigation(nightDate);
+  const result = await startNightInvestigation(nightDate, req.orgFilter);
+
+  logAudit(req, "investigation.started", { type: "Investigation", id: result.investigationId || "unknown" }, { nightDate });
 
   res
     .status(202)
@@ -48,7 +51,7 @@ export const getInvestigation = async (req, res) => {
 
 export const streamInvestigationProgress = async (req, res) => {
   const { jobId } = req.params;
-  const investigation = await Investigation.findOne({ jobId }).lean();
+  const investigation = await Investigation.findOne({ jobId, ...req.orgFilter }).lean();
 
   if (!investigation) {
     throw new ApiError(404, "Investigation stream not found");
@@ -60,19 +63,37 @@ export const streamInvestigationProgress = async (req, res) => {
   res.setHeader("X-Accel-Buffering", "no");
   res.flushHeaders();
 
+  // Status-transition events use named SSE format so client addEventListener fires.
+  // Data events (tool_called, reasoning, etc.) use generic format handled by onmessage.
+  const STATUS_EVENTS = new Set(["connected", "complete", "failed"]);
+
   const write = (event) => {
     if (!res.writableEnded) {
       const normalized = normalizeProgressEvent(event, investigation);
-      res.write(`data: ${JSON.stringify(normalized)}\n\n`);
+      const type = normalized.type;
+      const prefix = STATUS_EVENTS.has(type) ? `event: ${type}\n` : "";
+      res.write(`${prefix}data: ${JSON.stringify(normalized)}\n\n`);
     }
   };
 
   // Replay any previously emitted events for reconnect support.
+  let history = [];
   try {
-    const history = await getAgentEvents(jobId);
+    history = await getAgentEvents(jobId);
     history.forEach((event) => write(event));
   } catch (error) {
     write({ type: "failed", jobId, data: { message: error.message } });
+  }
+
+  // If investigation is already complete but Redis TTL has expired (no history),
+  // emit a synthetic complete so the client doesn't get stuck in connecting state.
+  const historyHasComplete = history.some((e) => e.type === "complete");
+  if (!historyHasComplete && investigation.status === "complete") {
+    write({
+      type: "complete",
+      jobId,
+      data: { investigationId: investigation._id.toString(), summary: "Investigation already complete" },
+    });
   }
 
   registerStream(jobId, write);

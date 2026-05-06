@@ -4,163 +4,346 @@ import { use } from "react";
 import Link from "next/link";
 import { ArrowLeft, AlertTriangle } from "lucide-react";
 import { useIncidentById, useIncidentEvidenceGraph } from "@/hooks/useIncidents";
-import { SEVERITY_CONFIG } from "@/config/constants";
-import AppShell from "@/components/layout/AppShell";
 import EvidenceChain from "@/components/incident/EvidenceChain";
 import AgentReasoning from "@/components/incident/AgentReasoning";
 import ReviewControls from "@/components/incident/ReviewControls";
-// Assuming dynamic resolution for mapping component to dodge SSR window errors
 import dynamic from "next/dynamic";
-const IncidentMiniMap = dynamic(() => import("@/components/incident/IncidentMiniMap"), { ssr: false, loading: () => <div className="h-64 bg-surface-3 animate-pulse border border-border w-full flex items-center justify-center font-mono text-xs text-text-muted">Loading Map...</div> });
+
+const IncidentMiniMap = dynamic(
+  () => import("@/components/incident/IncidentMiniMap"),
+  {
+    ssr: false,
+    loading: () => (
+      <div style={{
+        height: "256px", width: "100%", display: "flex",
+        alignItems: "center", justifyContent: "center",
+        background: "var(--bg-surface-3)",
+        border: "1px solid var(--border-default)",
+        fontFamily: "var(--font-mono)", fontSize: "10px",
+        color: "var(--fg-4)",
+      }}>
+        Loading Map...
+      </div>
+    ),
+  }
+);
+
+const SEV_STYLE = {
+  harmless:  { border: "var(--sev-harmless)",  color: "var(--sev-harmless)",  background: "var(--sev-harmless-bg)",  label: "Harmless"  },
+  monitor:   { border: "var(--sev-minor)",     color: "var(--sev-minor)",     background: "var(--sev-minor-bg)",     label: "Monitor"   },
+  escalate:  { border: "var(--sev-serious)",   color: "var(--sev-serious)",   background: "var(--sev-serious-bg)",   label: "Escalate"  },
+  uncertain: { border: "#6366f1",              color: "#6366f1",              background: "rgba(99,102,241,0.08)",   label: "Uncertain" },
+  unknown:   { border: "var(--fg-4)",          color: "var(--fg-4)",          background: "var(--bg-surface-3)",     label: "Unknown"   },
+};
+
+function LoadingSkeleton() {
+  const block = (h, w = "100%", mt = 0) => ({
+    height: h, width: w,
+    background: "var(--bg-surface-3)",
+    marginTop: mt,
+    borderRadius: "2px",
+  });
+
+  return (
+    <div style={{
+      position: "fixed", top: "56px", left: 0, right: 0, bottom: 0,
+      display: "flex", flexDirection: "row",
+      background: "var(--bg-base)",
+    }}>
+      <div style={{ flex: 1, padding: "32px", display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div style={block("12px", "128px")} />
+        <div style={block("32px", "380px", 16)} />
+        <div style={block("20px", "200px")} />
+        <div style={{ ...block("100%"), marginTop: 32, flex: 1 }} />
+      </div>
+      <div style={{
+        width: "380px", flexShrink: 0,
+        borderLeft: "1px solid var(--border-default)",
+        background: "var(--bg-surface-2)",
+        padding: "24px", display: "flex", flexDirection: "column", gap: "16px",
+      }}>
+        <div style={block("256px")} />
+        <div style={{ ...block("100%"), flex: 1 }} />
+      </div>
+    </div>
+  );
+}
 
 export default function IncidentDetailView({ params }) {
-  const unwrappedParams = use(params);
-  const { id } = unwrappedParams;
+  const { id } = use(params);
 
   const { data: incidentResponse, isLoading: isLoadingIncident } = useIncidentById(id);
   const { data: evidenceGraphResponse, isLoading: isLoadingGraph } = useIncidentEvidenceGraph(id);
 
   if (isLoadingIncident || isLoadingGraph) {
-    return (
-      <AppShell variant="detail">
-        <div className="flex-1 p-8 animate-pulse flex flex-col gap-6">
-          <div className="h-4 w-32 bg-surface-3 rounded-sm"></div>
-          <div className="h-10 w-96 bg-surface-3 rounded-sm mt-4"></div>
-          <div className="h-6 w-48 bg-surface-3 rounded-sm"></div>
-          <div className="flex-1 bg-surface-3 mt-8 rounded-sm"></div>
-        </div>
-        <div className="w-95 p-6 border-l border-border bg-surface-2 animate-pulse flex flex-col gap-6">
-          <div className="h-64 bg-surface-3 rounded-sm"></div>
-          <div className="flex-1 bg-surface-3 rounded-sm"></div>
-        </div>
-      </AppShell>
-    );
+    return <LoadingSkeleton />;
   }
 
   const incident = incidentResponse?.data || incidentResponse || {};
   const evidenceGraph = evidenceGraphResponse?.data || evidenceGraphResponse || {};
 
-  // Safe extraction of nested structures from standard API layouts
   const title = incident.title || incident.description || "Unidentified Alert Sequence";
   const severity = incident.finalClassification?.severity || incident.severity || "unknown";
-  const severityData = SEVERITY_CONFIG[severity] || SEVERITY_CONFIG.unknown;
+  const sevStyle = SEV_STYLE[severity] || SEV_STYLE.unknown;
 
-  const classification =
-    incident.finalClassification || evidenceGraph.classification || {};
-  const confidencePercent = Math.round((classification.confidence || 0) * 100);
-  const confidenceWidthClass =
-    confidencePercent <= 0 ? 'w-0' :
-    confidencePercent <= 10 ? 'w-[10%]' :
-    confidencePercent <= 20 ? 'w-[20%]' :
-    confidencePercent <= 30 ? 'w-[30%]' :
-    confidencePercent <= 40 ? 'w-[40%]' :
-    confidencePercent <= 50 ? 'w-1/2' :
-    confidencePercent <= 60 ? 'w-[60%]' :
-    confidencePercent <= 70 ? 'w-[70%]' :
-    confidencePercent <= 80 ? 'w-[80%]' :
-    confidencePercent <= 90 ? 'w-[90%]' :
-    'w-full';
+  const confidence =
+    incident?.investigationId?.finalClassification?.confidence ||
+    incident?.agentClassification?.confidence ||
+    incident?.finalClassification?.confidence ||
+    evidenceGraph?.classification?.confidence ||
+    0;
+
+  const reasoning =
+    incident?.investigationId?.finalClassification?.reasoning ||
+    incident?.agentClassification?.reasoning ||
+    incident?.finalClassification?.reasoning ||
+    evidenceGraph?.classification?.reasoning ||
+    "No reasoning attached by agent.";
+
+  const uncertainties =
+    incident?.investigationId?.finalClassification?.uncertainties ||
+    incident?.agentClassification?.uncertainties ||
+    incident?.finalClassification?.uncertainties ||
+    evidenceGraph?.classification?.uncertainties ||
+    [];
+
+  const classification = {
+    ...(evidenceGraph.classification || {}),
+    ...(incident.finalClassification || {}),
+    ...(incident.agentClassification || {}),
+    ...(incident.investigationId?.finalClassification || {}),
+    confidence,
+    reasoning,
+    uncertainties,
+  };
+
+  const confidencePercent = Math.round((confidence || 0) * 100);
 
   return (
-    <AppShell variant="detail">
-      {/* 1. Main Logical Thread & Context Analysis */}
-      <div className="flex-1 p-8 overflow-y-auto flex flex-col items-start w-full">
+    <div style={{
+      position: "fixed", top: "56px", left: 0, right: 0, bottom: 0,
+      display: "flex", flexDirection: "row",
+      background: "var(--bg-base)",
+    }}>
+
+      {/* ── Left: main content ──────────────────────────── */}
+      <div style={{
+        flex: 1, overflowY: "auto",
+        padding: "32px", display: "flex", flexDirection: "column",
+      }}>
+
         <Link
           href="/investigate"
-          className="text-text-muted hover:text-white transition-colors flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest mb-8"
+          style={{
+            display: "inline-flex", alignItems: "center", gap: "6px",
+            fontFamily: "var(--font-mono)", fontSize: "10px",
+            textTransform: "uppercase", letterSpacing: "0.14em",
+            color: "var(--fg-4)", textDecoration: "none",
+            marginBottom: "32px",
+            transition: "color 120ms",
+          }}
+          onMouseEnter={e => e.currentTarget.style.color = "var(--fg-1)"}
+          onMouseLeave={e => e.currentTarget.style.color = "var(--fg-4)"}
         >
-          <ArrowLeft className="w-3 h-3" /> Back to Investigation
+          <ArrowLeft size={12} />
+          Back to Investigation
         </Link>
 
         {incident.raghavsNote && (
-          <div className="mb-6 bg-amber-500/10 border border-amber-500/50 text-amber-500 px-4 py-2 flex items-center gap-2 font-mono text-xs uppercase tracking-widest w-full">
-            <AlertTriangle className="w-4 h-4" /> Raghav flagged this area
+          <div style={{
+            display: "flex", alignItems: "center", gap: "8px",
+            padding: "8px 16px", marginBottom: "24px", width: "100%",
+            border: "1px solid rgba(232,154,43,0.5)",
+            background: "rgba(232,154,43,0.08)",
+            fontFamily: "var(--font-mono)", fontSize: "11px",
+            textTransform: "uppercase", letterSpacing: "0.12em",
+            color: "var(--sev-minor)",
+          }}>
+            <AlertTriangle size={14} />
+            Raghav flagged this area
           </div>
         )}
 
-        <h1 className="text-2xl font-bold text-white mb-4 leading-tight">
+        <h1 style={{
+          fontSize: "var(--text-2xl)", fontWeight: 500,
+          color: "var(--fg-1)", lineHeight: "var(--lh-tight)",
+          marginBottom: "16px", letterSpacing: "var(--tracking-tight)",
+        }}>
           {title}
         </h1>
 
-        <div className="flex items-center gap-6 mb-12 w-full">
-          <span className={`px-3 py-1 text-xs font-mono uppercase tracking-widest ${severityData.bgClass} ${severityData.textClass} border ${severityData.borderClass}`}>
-            {severityData.label}
+        {/* Severity badge + confidence bar */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: "24px",
+          marginBottom: "48px", flexWrap: "wrap",
+        }}>
+          <span style={{
+            padding: "3px 12px",
+            fontFamily: "var(--font-mono)", fontSize: "10px",
+            textTransform: "uppercase", letterSpacing: "0.12em",
+            border: `1px solid ${sevStyle.border}`,
+            color: sevStyle.color,
+            background: sevStyle.background,
+          }}>
+            {sevStyle.label}
           </span>
-          <div className="flex items-center gap-4 bg-surface-2 px-4 py-1 border border-border">
-            <span className="font-mono text-xs text-text-muted uppercase tracking-widest">Confidence</span>
-            <div className="h-1.5 w-24 bg-surface rounded-sm relative overflow-hidden">
-              <div className={`absolute top-0 left-0 h-full ${confidencePercent > 80 ? 'bg-green-500' : 'bg-amber-500'} ${confidenceWidthClass}`}></div>
+
+          <div style={{
+            display: "flex", alignItems: "center", gap: "12px",
+            padding: "4px 16px",
+            background: "var(--bg-surface-2)",
+            border: "1px solid var(--border-default)",
+          }}>
+            <span style={{
+              fontFamily: "var(--font-mono)", fontSize: "10px",
+              textTransform: "uppercase", letterSpacing: "0.12em",
+              color: "var(--fg-4)",
+            }}>
+              Confidence
+            </span>
+            <div style={{
+              height: "4px", width: "96px",
+              background: "var(--bg-surface-3)",
+              borderRadius: "2px", overflow: "hidden", position: "relative",
+            }}>
+              <div style={{
+                position: "absolute", top: 0, left: 0, height: "100%",
+                width: `${confidencePercent}%`,
+                background: confidencePercent > 80 ? "#22c55e" : "var(--sev-minor)",
+                borderRadius: "2px",
+                transition: "width 400ms var(--ease-out)",
+              }} />
             </div>
-            <span className="font-mono text-xs text-white">{confidencePercent}%</span>
+            <span style={{
+              fontFamily: "var(--font-mono)", fontSize: "11px",
+              color: "var(--fg-1)", fontVariantNumeric: "tabular-nums",
+            }}>
+              {confidencePercent}%
+            </span>
           </div>
         </div>
 
-        {/* Evidence Chain Flow */}
-        <section className="w-full mb-12">
-          <h3 className="font-mono text-sm text-white uppercase tracking-widest border-b border-border/50 pb-2 mb-6">Evidence Chain</h3>
+        {/* Evidence Chain */}
+        <section style={{ width: "100%", marginBottom: "48px" }}>
+          <div style={{
+            fontFamily: "var(--font-mono)", fontSize: "11px",
+            textTransform: "uppercase", letterSpacing: "0.14em",
+            color: "var(--fg-1)", fontWeight: 600,
+            borderBottom: "1px solid var(--border-hairline)",
+            paddingBottom: "8px", marginBottom: "24px",
+          }}>
+            Evidence Chain
+          </div>
           <EvidenceChain steps={evidenceGraph.steps || []} finalClassification={classification} />
         </section>
 
-        {/* Generative Explanations */}
-        <section className="w-full mb-12">
-           <AgentReasoning
-             reasoning={classification.reasoning || "No reasoning attached by agent."}
-             uncertainties={classification.uncertainties || []}
-           />
+        {/* Agent Reasoning */}
+        <section style={{ width: "100%", marginBottom: "48px" }}>
+          <AgentReasoning
+            reasoning={reasoning}
+            uncertainties={uncertainties}
+            confidence={confidence}
+          />
         </section>
 
-        {/* Operational Guard Rails */}
-        <section className="w-full">
-           <ReviewControls
-             incidentId={id}
-             agentClassification={classification}
-             incidentLocation={incident.primaryLocation || incident.location}
-           />
+        {/* Review Controls */}
+        <section style={{ width: "100%" }}>
+          <ReviewControls
+            incidentId={id}
+            agentClassification={classification}
+            incidentLocation={incident.primaryLocation || incident.location}
+          />
         </section>
       </div>
 
-      {/* 2. Map and Entity Context Window */}
-      <div className="w-95 h-full border-l border-border bg-surface-2 flex flex-col p-6 overflow-y-auto shrink-0">
+      {/* ── Right: sidebar ──────────────────────────────── */}
+      <div style={{
+        width: "380px", flexShrink: 0,
+        borderLeft: "1px solid var(--border-default)",
+        background: "var(--bg-surface-2)",
+        display: "flex", flexDirection: "column",
+        overflowY: "auto", padding: "24px", gap: "24px",
+      }}>
         <IncidentMiniMap
           incidentId={id}
           location={incident.primaryLocation || incident.location}
         />
 
-        <div className="mt-6 flex flex-col gap-6 w-full">
-           <div className="bg-surface rounded-sm border border-border p-4">
-              <h4 className="font-mono text-xs text-text-secondary uppercase tracking-widest mb-3">Involved Entities</h4>
-              <div className="text-sm text-text-primary">
-                 {/* Generic Mock for requested involved entities list */}
-                 {(incident.entities || []).length > 0 ? (
-                    incident.entities.map((ent, i) => (
-                      <div key={i} className="flex justify-between border-b border-border/50 last:border-0 py-2">
-                        <span>{ent.type}</span>
-                        <span className="text-text-muted">{ent.id}</span>
-                      </div>
-                    ))
-                 ) : (
-                    <span className="text-text-muted italic">No specific entities detected</span>
-                 )}
+        {/* Involved Entities */}
+        <div style={{
+          background: "var(--bg-surface-1)",
+          border: "1px solid var(--border-default)",
+          padding: "16px",
+        }}>
+          <div style={{
+            fontFamily: "var(--font-mono)", fontSize: "10px",
+            textTransform: "uppercase", letterSpacing: "0.14em",
+            color: "var(--fg-3)", marginBottom: "12px",
+          }}>
+            Involved Entities
+          </div>
+          {(incident.entities || []).length > 0 ? (
+            incident.entities.map((ent, i) => (
+              <div key={i} style={{
+                display: "flex", justifyContent: "space-between",
+                padding: "8px 0",
+                borderBottom: i < incident.entities.length - 1
+                  ? "1px solid var(--border-hairline)" : "none",
+                fontSize: "12px",
+              }}>
+                <span style={{ color: "var(--fg-2)" }}>{ent.type}</span>
+                <span style={{ color: "var(--fg-4)", fontFamily: "var(--font-mono)" }}>{ent.id}</span>
               </div>
-           </div>
+            ))
+          ) : (
+            <span style={{
+              fontSize: "12px", color: "var(--fg-4)",
+              fontStyle: "italic",
+            }}>
+              No specific entities detected
+            </span>
+          )}
+        </div>
 
-           <div className="bg-surface rounded-sm border border-border p-4">
-              <h4 className="font-mono text-xs text-text-secondary uppercase tracking-widest mb-3">Raw Events</h4>
-              <div className="flex flex-col gap-4">
-                 {(incident.rawEvents || []).length > 0 ? (
-                   incident.rawEvents.map((evt, i) => (
-                     <div key={i} className="flex items-start gap-2">
-                       <span className="font-mono text-[10px] text-text-muted shrink-0 mt-0.5">{evt.time}</span>
-                       <p className="text-xs text-text-primary leading-snug">{evt.description}</p>
-                     </div>
-                   ))
-                 ) : (
-                   <span className="text-xs text-text-muted">No raw logs attached</span>
-                 )}
-              </div>
-           </div>
+        {/* Raw Events */}
+        <div style={{
+          background: "var(--bg-surface-1)",
+          border: "1px solid var(--border-default)",
+          padding: "16px",
+        }}>
+          <div style={{
+            fontFamily: "var(--font-mono)", fontSize: "10px",
+            textTransform: "uppercase", letterSpacing: "0.14em",
+            color: "var(--fg-3)", marginBottom: "12px",
+          }}>
+            Raw Events
+          </div>
+          {(incident.rawEvents || []).length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              {incident.rawEvents.map((evt, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
+                  <span style={{
+                    fontFamily: "var(--font-mono)", fontSize: "10px",
+                    color: "var(--fg-4)", flexShrink: 0, marginTop: "2px",
+                  }}>
+                    {evt.time}
+                  </span>
+                  <p style={{
+                    fontSize: "12px", color: "var(--fg-2)",
+                    lineHeight: "var(--lh-snug)", margin: 0,
+                  }}>
+                    {evt.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <span style={{ fontSize: "12px", color: "var(--fg-4)" }}>
+              No raw logs attached
+            </span>
+          )}
         </div>
       </div>
-    </AppShell>
+    </div>
   );
 }

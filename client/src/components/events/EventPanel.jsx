@@ -3,144 +3,218 @@
 import { useState } from "react";
 import { useIncidents } from "@/hooks/useIncidents";
 import { useMapStore } from "@/store/mapStore";
-import { SEVERITY_CONFIG } from "@/config/constants";
 import EventCard from "./EventCard";
-import { ChevronDown, ChevronRight } from "lucide-react";
 
-const EventGroup = ({ title, severityKey, events, count }) => {
-  const [isExpanded, setIsExpanded] = useState(true); // Default open as specified
-  const severityData = SEVERITY_CONFIG[severityKey];
-
-  if (!events || events.length === 0) return null;
-
-  return (
-    <div className="mb-4">
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between py-2 border-b border-border/50 hover:bg-surface/50 transition-colors px-2 mb-2"
-      >
-        <div className="flex items-center gap-2">
-           {isExpanded ? <ChevronDown className="w-4 h-4 text-text-muted"/> : <ChevronRight className="w-4 h-4 text-text-muted"/>}
-           <span className={`font-mono text-xs uppercase font-bold tracking-widest ${severityData?.textClass || 'text-white'}`}>{title}</span>
-        </div>
-        <span className="font-mono text-[10px] text-text-muted bg-surface px-2 py-0.5 rounded-sm border border-border">
-          {count}
-        </span>
-      </button>
-
-      {isExpanded && (
-        <div className="flex flex-col gap-4 px-2">
-            {events.map(event => (
-              <EventCard key={event.id} incident={event} />
-            ))}
-        </div>
-      )}
-    </div>
-  );
+const PILL_CONFIG = {
+  escalate:  { label: "Serious",   dot: "var(--sev-serious)",  dataKey: "escalations"  },
+  monitor:   { label: "Minor",     dot: "var(--sev-minor)",    dataKey: "monitored"    },
+  harmless:  { label: "Harmless",  dot: "var(--sev-harmless)", dataKey: "harmless"     },
+  uncertain: { label: "Uncertain", dot: "var(--sev-unknown)",  dataKey: "uncertain"    },
 };
 
-export default function EventPanel() {
-  // Use yesterday's date to match server seed data (same as investigate/page.js)
-  const nightDate = (() => {
+const GROUPINGS = [
+  { title: "Serious",   key: "escalate",  dataKey: "escalations"  },
+  { title: "Minor",     key: "monitor",   dataKey: "monitored"    },
+  { title: "Uncertain", key: "uncertain", dataKey: "uncertain"    },
+  { title: "Harmless",  key: "harmless",  dataKey: "harmless"     },
+  { title: "Unknown",   key: "unknown",   dataKey: "unclassified" },
+];
+
+const GROUP_DOT_COLOR = {
+  escalate:  "var(--sev-serious)",
+  monitor:   "var(--sev-minor)",
+  uncertain: "var(--sev-unknown)",
+  harmless:  "var(--sev-harmless)",
+  unknown:   "var(--fg-4)",
+};
+
+const GROUP_TITLE_COLOR = {
+  escalate:  "var(--sev-serious)",
+  monitor:   "var(--sev-minor)",
+  uncertain: "var(--fg-3)",
+  harmless:  "var(--sev-harmless)",
+  unknown:   "var(--fg-4)",
+};
+
+function SeverityGroup({ title, severityKey, events }) {
+  const [open, setOpen] = useState(true);
+  if (!events?.length) return null;
+
+  const dotColor   = GROUP_DOT_COLOR[severityKey]   || "var(--fg-4)";
+  const titleColor = GROUP_TITLE_COLOR[severityKey] || "var(--fg-3)";
+
+  return (
+    <div style={{ borderBottom: "1px solid var(--border-hairline)" }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          width: "100%", display: "flex", alignItems: "center", gap: "10px",
+          padding: "8px 16px",
+          background: "var(--bg-base)",
+          border: "none", textAlign: "left", cursor: "pointer",
+          position: "sticky", top: 0, zIndex: 1,
+        }}
+      >
+        <span style={{
+          width: "8px", height: "8px", borderRadius: "50%",
+          background: dotColor, flexShrink: 0,
+        }} />
+        <span style={{
+          fontFamily: "var(--font-sans)", fontSize: "10px", fontWeight: 600,
+          textTransform: "uppercase", letterSpacing: "0.14em",
+          color: titleColor,
+        }}>
+          {title}
+        </span>
+        <span style={{
+          marginLeft: "auto",
+          fontFamily: "var(--font-mono)", fontSize: "10px",
+          color: "var(--fg-3)",
+          fontVariantNumeric: "tabular-nums",
+        }}>
+          {events.length}
+        </span>
+        <span style={{
+          fontFamily: "var(--font-mono)", fontSize: "10px",
+          color: "var(--fg-4)",
+          transform: open ? "rotate(90deg)" : "rotate(0deg)",
+          transition: "transform 150ms",
+          lineHeight: 1,
+        }}>›</span>
+      </button>
+
+      {open && events.map((ev) => (
+        <EventCard key={ev.id || ev._id} incident={ev} />
+      ))}
+    </div>
+  );
+}
+
+export default function EventPanel({ nightDate: nightDateProp }) {
+  const nightDate = nightDateProp || (() => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
-    return d.toISOString().split('T')[0];
+    return d.toISOString().split("T")[0];
   })();
 
   const { data, isLoading, isError, error } = useIncidents({ nightDate });
-  const activeSeverityFilters = useMapStore(state => state.activeSeverityFilters);
-  const toggleSeverityFilter = useMapStore(state => state.toggleSeverityFilter);
-
-  // Group sorting definitions
-  const groupings = [
-    { title: "Require Escalation", key: "escalate", dataKey: "escalations" },
-    { title: "Target Monitored", key: "monitor", dataKey: "monitored" },
-    { title: "Uncertain Events", key: "uncertain", dataKey: "uncertain" },
-    { title: "Harmless/Cleared", key: "harmless", dataKey: "harmless" },
-    { title: "Unknown / Pending", key: "unknown", dataKey: "unclassified" }
-  ];
+  const activeSeverityFilters = useMapStore((s) => s.activeSeverityFilters);
+  const toggleSeverityFilter  = useMapStore((s) => s.toggleSeverityFilter);
 
   if (isLoading) {
-    return <div className="p-6 font-mono text-xs text-text-muted uppercase text-center animate-pulse">Loading Event Matrix...</div>;
+    return (
+      <div style={{
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        height: "100%", gap: "8px",
+      }}>
+        <span style={{
+          display: "inline-block",
+          width: "6px", height: "6px", borderRadius: "50%",
+          background: "var(--accent)",
+          animation: "status-pulse 1.4s ease-in-out infinite",
+        }} />
+        <span style={{
+          fontFamily: "var(--font-mono)", fontSize: "10px",
+          color: "var(--fg-4)", letterSpacing: "0.12em", textTransform: "uppercase",
+        }}>Loading event matrix…</span>
+      </div>
+    );
   }
 
   if (isError) {
-    const failureReason = error?.message || "Unknown request error";
     return (
-      <div className="p-6 text-center">
-        <div className="text-xs text-severity-escalate font-mono tracking-wide uppercase mb-2">
-          ERROR LOADING EVENT DATA
-        </div>
-        <div className="text-[10px] text-text-muted font-mono mb-1">
-          PLEASE CHECK YOUR NETWORK OR SESSION
-        </div>
-        <div className="text-[10px] text-amber-300 font-mono wrap-break-word">
-          {failureReason}
+      <div style={{ padding: "20px 16px" }}>
+        <div style={{
+          padding: "10px 14px",
+          background: "var(--sev-serious-bg)",
+          border: "1px solid var(--sev-serious-dim)",
+          borderRadius: "2px",
+        }}>
+          <div style={{
+            fontFamily: "var(--font-mono)", fontSize: "10px",
+            color: "var(--sev-serious)", letterSpacing: "0.1em", textTransform: "uppercase",
+            marginBottom: "4px",
+          }}>Error loading event data</div>
+          <div style={{
+            fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--fg-4)",
+          }}>{error?.message || "Unknown error"}</div>
         </div>
       </div>
     );
   }
 
   const allIncidents = data?.incidents || [];
-  const filteredEvents = allIncidents.filter(inc => activeSeverityFilters.includes(inc.severity || "unknown"));
 
   return (
-    <div className="flex flex-col h-full overflow-hidden shrink-0 w-full bg-surface-2">
-      {/* Panel Header */}
-      <div className="px-4 py-4 border-b border-border flex justify-between items-center shrink-0">
-        <span className="font-display uppercase text-[11px] tracking-[0.12em] text-text-secondary">
-          OVERNIGHT EVENTS
-        </span>
-        <div className="font-mono bg-surface text-text-secondary text-[11px] px-2 py-1 rounded-full border border-border">
-          {allIncidents?.length || 0} events
-        </div>
-      </div>
+    <div style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-      {/* Severity Filter Pills — ONLY instance - responsive */}
-      <div className="flex flex-wrap gap-2 p-4 border-b border-border shrink-0">
-        {['harmless', 'monitor', 'escalate', 'uncertain'].map(severity => {
-          const isActive = activeSeverityFilters.includes(severity);
-          const config = SEVERITY_CONFIG[severity];
+      {/* ── Filter pills ──────────────────────────────── */}
+      <div style={{
+        display: "flex", gap: "6px", padding: "10px 16px", flexWrap: "wrap",
+        borderBottom: "1px solid var(--border-hairline)",
+        background: "var(--bg-surface-1)", flexShrink: 0,
+      }}>
+        {Object.entries(PILL_CONFIG).map(([key, cfg]) => {
+          const isOn  = activeSeverityFilters.includes(key);
+          const count = (data?.[cfg.dataKey] || []).length;
           return (
             <button
-              key={severity}
-              onClick={() => toggleSeverityFilter(severity)}
-              className={`font-mono whitespace-nowrap text-[10px] font-semibold uppercase tracking-wider px-3 py-1 rounded-full border transition-colors ${
-                isActive
-                  ? `${config.borderClass} ${config.bgClass} ${config.textClass}`
-                  : 'border-border text-text-muted bg-surface'
-              }`}
+              key={key}
+              onClick={() => toggleSeverityFilter(key)}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: "6px",
+                fontFamily: "var(--font-sans)", fontSize: "10px", fontWeight: 600,
+                textTransform: "uppercase", letterSpacing: "0.1em",
+                padding: "4px 10px",
+                borderRadius: "999px",
+                border: `1px solid ${isOn ? "var(--border-strong)" : "var(--border-default)"}`,
+                background: isOn ? "var(--bg-surface-3)" : "var(--bg-surface-2)",
+                color: isOn ? "var(--fg-1)" : "var(--fg-3)",
+                cursor: "pointer",
+                userSelect: "none",
+                transition: "background 100ms, border-color 100ms, color 100ms",
+              }}
             >
-              {severity.toUpperCase()}
+              <span style={{
+                width: "6px", height: "6px", borderRadius: "50%",
+                background: cfg.dot, flexShrink: 0,
+              }} />
+              {count > 0 ? `${cfg.label} · ${count}` : cfg.label}
             </button>
           );
         })}
       </div>
 
-      {/* Scrollable List container - responsive padding */}
-      <div className="flex-1 overflow-y-auto w-full custom-scrollbar scroll-smooth px-4 py-4">
+      {/* ── Scrollable event list ─────────────────────── */}
+      <div style={{ flex: 1, overflowY: "auto", background: "var(--bg-base)" }}>
         {allIncidents.length === 0 && (
-          <div className="py-6 text-center">
-            <div className="text-xs text-text-muted font-mono tracking-wide uppercase mb-2">
-              NO OVERNIGHT EVENTS FOUND
-            </div>
-            <div className="text-xs text-border font-mono">
-              {nightDate}
-            </div>
+          <div style={{
+            padding: "32px 16px", textAlign: "center",
+            display: "flex", flexDirection: "column", gap: "6px", alignItems: "center",
+          }}>
+            <span style={{
+              fontFamily: "var(--font-mono)", fontSize: "10px",
+              color: "var(--fg-4)", letterSpacing: "0.12em", textTransform: "uppercase",
+            }}>No overnight events</span>
+            <span style={{
+              fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--fg-4)",
+            }}>{nightDate}</span>
           </div>
         )}
 
-        {allIncidents.length > 0 && filteredEvents.length === 0 && (
-          <div className="py-6 text-center">
-            <div className="text-xs text-text-muted font-mono tracking-wide uppercase">
-              NO EVENTS MATCH FILTERS
-            </div>
-          </div>
-        )}
-
-        {groupings.map(g => {
-          const groupData = (data?.[g.dataKey] || []).filter(inc => activeSeverityFilters.includes(inc.severity || "unknown"));
-          return <EventGroup key={g.key} title={g.title} severityKey={g.key} events={groupData} count={groupData.length} />;
+        {GROUPINGS.map((g) => {
+          const groupData = (data?.[g.dataKey] || []).filter(
+            (inc) => activeSeverityFilters.includes(inc.severity || "unknown")
+          );
+          return (
+            <SeverityGroup
+              key={g.key}
+              title={g.title}
+              severityKey={g.key}
+              events={groupData}
+            />
+          );
         })}
       </div>
     </div>

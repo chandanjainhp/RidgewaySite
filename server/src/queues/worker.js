@@ -3,7 +3,11 @@ import { Worker } from 'bullmq';
 import { runInvestigation } from '../ai/agent.js';
 import { checkNightComplete } from '../services/investigation.service.js';
 import Investigation from '../models/investigation.model.js';
+import WebhookDelivery from '../models/webhookDelivery.model.js';
+import Organisation from '../models/organisation.model.js';
 import { emitToStream } from '../lib/streamRegistry.js';
+import { triggerWebhook } from '../services/webhook.service.js';
+import crypto from 'crypto';
 
 /**
  * BullMQ Worker for investigation queue
@@ -11,6 +15,7 @@ import { emitToStream } from '../lib/streamRegistry.js';
  */
 
 let investigationWorker = null;
+let webhookWorker = null;
 let workerRedisConnection = null;
 
 /**
@@ -64,7 +69,7 @@ export const startWorker = async () => {
     investigationWorker = new Worker(
       'investigations',
       async (job) => {
-        const { investigationId, incidentId, nightDate } = job.data;
+        const { investigationId, incidentId, nightDate, orgId } = job.data;
         const jobId = job.id;
 
         console.log(
@@ -151,8 +156,17 @@ export const startWorker = async () => {
 
           console.log(`[Worker] Investigation record updated: ${incidentId}`);
 
+          // ========== WEBHOOK TRIGGER ==========
+          triggerWebhook(orgId, "investigation.completed", {
+            investigationId,
+            incidentId,
+            status: "complete",
+            classification: investigationResult.finalClassification,
+            timestamp: new Date()
+          });
+
           // ========== CHECK IF NIGHT IS COMPLETE ==========
-          const nightCheckResult = await checkNightComplete(nightDate);
+          const nightCheckResult = await checkNightComplete(nightDate, { orgId });
           console.log(
             `[Worker] Night completion check:`,
             nightCheckResult
@@ -240,6 +254,116 @@ export const startWorker = async () => {
     });
 
     console.log('[Worker] ✓ Investigation worker started (concurrency: 3, limiter: 5/min)');
+
+    // ==========================================
+    // START WEBHOOK WORKER
+    // ==========================================
+    webhookWorker = new Worker(
+      'webhooks',
+      async (job) => {
+        const { deliveryId } = job.data;
+        console.log(`[WebhookWorker] Processing delivery ${deliveryId}`);
+
+        const delivery = await WebhookDelivery.findById(deliveryId);
+        if (!delivery) {
+          throw new Error(`WebhookDelivery not found: ${deliveryId}`);
+        }
+
+        if (delivery.status === 'delivered') {
+          return { status: 'already_delivered' };
+        }
+
+        const org = await Organisation.findById(delivery.orgId).lean();
+        if (!org || !org.config?.webhookUrl || !org.config?.webhookEnabled) {
+          delivery.status = 'failed';
+          delivery.responseBody = 'Webhook URL not configured or disabled';
+          await delivery.save();
+          return { status: 'skipped' };
+        }
+
+        delivery.attempts += 1;
+        
+        try {
+          // Generate HMAC signature
+          const payloadString = JSON.stringify(delivery.payload);
+          let signature = '';
+          if (org.config.webhookSecret) {
+            signature = crypto
+              .createHmac('sha256', org.config.webhookSecret)
+              .update(payloadString)
+              .digest('hex');
+          }
+
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+          const response = await fetch(org.config.webhookUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Ridgeway-Signature': signature,
+            },
+            body: payloadString,
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeoutId);
+
+          const responseText = await response.text();
+          delivery.responseStatus = response.status;
+          delivery.responseBody = responseText.substring(0, 1000); // Truncate long responses
+
+          if (response.ok) {
+            delivery.status = 'delivered';
+            delivery.deliveredAt = new Date();
+            await delivery.save();
+            console.log(`[WebhookWorker] Successfully delivered ${deliveryId}`);
+            return { status: 'delivered', statusCode: response.status };
+          } else {
+            throw new Error(`HTTP Error ${response.status}: ${responseText}`);
+          }
+
+        } catch (error) {
+          delivery.responseBody = error.message;
+          
+          if (delivery.attempts >= 5) {
+            delivery.status = 'failed';
+            console.error(`[WebhookWorker] Delivery ${deliveryId} failed permanently after 5 attempts`);
+          } else {
+            // Schedule next retry based on BullMQ's exponential backoff
+            // 30s, 60s, 120s, 240s...
+            // To exactly match the prompt: 30s, 2m, 10m, 1h. 
+            // BullMQ exponential backoff defaults to baseDelay * 2^attempt.
+            // We'll let BullMQ handle the exact timing but calculate nextRetryAt
+            const delays = [30000, 120000, 600000, 3600000];
+            const delay = delays[delivery.attempts - 1] || 3600000;
+            delivery.nextRetryAt = new Date(Date.now() + delay);
+          }
+          
+          await delivery.save();
+          
+          if (delivery.status !== 'failed') {
+            throw error; // Throw so BullMQ retries
+          }
+          return { status: 'failed' };
+        }
+      },
+      {
+        connection: workerRedisConnection,
+        concurrency: 3,
+      }
+    );
+
+    webhookWorker.on('completed', (job, result) => {
+      console.log(`[WebhookWorker] ✓ Job completed: ${job.id}`, result);
+    });
+
+    webhookWorker.on('failed', (job, error) => {
+      console.error(`[WebhookWorker] ✗ Job failed: ${job.id} - ${error.message}`);
+    });
+
+    console.log('[Worker] ✓ Webhook worker started (concurrency: 3)');
+
   } catch (error) {
     console.error('[Worker] Failed to start worker:', error);
     throw error;
@@ -257,6 +381,12 @@ export const stopWorker = async () => {
       await investigationWorker.close();
       investigationWorker = null;
       console.log('[Worker] ✓ Investigation worker stopped');
+    }
+
+    if (webhookWorker) {
+      await webhookWorker.close();
+      webhookWorker = null;
+      console.log('[Worker] ✓ Webhook worker stopped');
     }
 
     if (workerRedisConnection) {

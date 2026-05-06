@@ -96,6 +96,16 @@ export function useAgentStream(jobId) {
         isNew: true,
       });
 
+      // Worker emits "started" before the agent begins. Treat it like "connected"
+      // so the UI transitions from "connecting" to "running" even if the named
+      // "connected" SSE event was missed (e.g. race between stream open and first emit).
+      if (eventPayload.type === "started" || eventPayload.type === "connected") {
+        if (isMountedRef.current && !disposed) {
+          reconnectAttemptsRef.current = 0;
+          setJobStatus("running");
+        }
+      }
+
       if (eventPayload.type === "classification") {
         const incidentId = payload?.incidentId;
         const classification = payload?.classification || payload;

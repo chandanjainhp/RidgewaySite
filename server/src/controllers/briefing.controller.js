@@ -5,6 +5,8 @@ import {
   getLatestBriefing as getLatestBriefingService,
   applyBriefingReview,
 } from "../services/briefing.service.js";
+import { logAudit } from "../utils/audit.js";
+import { triggerWebhook } from "../services/webhook.service.js";
 
 const sectionKeyMap = {
   whatHappened: "executive_summary",
@@ -14,8 +16,38 @@ const sectionKeyMap = {
   followUpItems: "follow_up",
 };
 
-const stringify = (value) =>
-  typeof value === "string" ? value : JSON.stringify(value ?? "", null, 2);
+const extractSectionText = (value) => {
+  if (value == null) return "No content available.";
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (typeof parsed === "string") return parsed;
+        if (parsed?.overview) return parsed.overview;
+        if (parsed?.summary) return parsed.summary;
+        if (parsed?.content) return parsed.content;
+        if (parsed?.text) return parsed.text;
+      } catch {
+        return trimmed;
+      }
+    }
+    return trimmed;
+  }
+
+  if (typeof value === "object") {
+    return (
+      value.overview ||
+      value.summary ||
+      value.content ||
+      value.text ||
+      "No content available."
+    );
+  }
+
+  return String(value);
+};
 
 const sectionToClientFormat = (briefing) => {
   const executive = briefing.sections?.executive_summary || {};
@@ -30,32 +62,48 @@ const sectionToClientFormat = (briefing) => {
     approvedAt: briefing.reviewedAt || null,
     sections: {
       whatHappened: {
-        agentDraft: stringify(executive.agentDraft),
-        mayaVersion: executive.mayaVersion ? stringify(executive.mayaVersion) : null,
+        agentDraft: extractSectionText(executive.agentDraft),
+        mayaVersion: executive.mayaVersion
+          ? extractSectionText(executive.mayaVersion)
+          : null,
         isEdited: executive.isEdited || false,
       },
       harmlessEvents: {
-        agentDraft: stringify(incidents.agentDraft?.harmless?.summary || ""),
-        mayaVersion: incidents.mayaVersion ? stringify(incidents.mayaVersion) : null,
+        agentDraft: extractSectionText(
+          incidents.agentDraft?.harmlessEvents ||
+            incidents.agentDraft?.harmless?.summary ||
+            incidents.agentDraft ||
+            ""
+        ),
+        mayaVersion: incidents.mayaVersion
+          ? extractSectionText(incidents.mayaVersion)
+          : null,
         isEdited: incidents.isEdited || false,
       },
       escalations: {
-        items:
-          incidents.agentDraft?.escalations?.items?.map(
-            (item) => `${item.title}: ${item.reasoning || item.requiredAction || item.severity}`
-          ) || [],
-        agentDraft: stringify(incidents.agentDraft?.escalations?.items || []),
-        mayaVersion: incidents.mayaVersion ? stringify(incidents.mayaVersion) : null,
+        items: [],
+        agentDraft: extractSectionText(
+          incidents.agentDraft?.escalations || incidents.agentDraft || ""
+        ),
+        mayaVersion: incidents.mayaVersion
+          ? extractSectionText(incidents.mayaVersion)
+          : null,
         isEdited: incidents.isEdited || false,
       },
       droneFindings: {
-        agentDraft: stringify(anomalies.agentDraft),
-        mayaVersion: anomalies.mayaVersion ? stringify(anomalies.mayaVersion) : null,
+        agentDraft: extractSectionText(anomalies.agentDraft),
+        mayaVersion: anomalies.mayaVersion
+          ? extractSectionText(anomalies.mayaVersion)
+          : null,
         isEdited: anomalies.isEdited || false,
       },
       followUpItems: {
-        agentDraft: stringify(followUp.agentDraft || recommendations.agentDraft || ""),
-        mayaVersion: followUp.mayaVersion ? stringify(followUp.mayaVersion) : null,
+        agentDraft: extractSectionText(
+          followUp.agentDraft || recommendations.agentDraft || ""
+        ),
+        mayaVersion: followUp.mayaVersion
+          ? extractSectionText(followUp.mayaVersion)
+          : null,
         isEdited: followUp.isEdited || false,
       },
     },
@@ -64,7 +112,7 @@ const sectionToClientFormat = (briefing) => {
 
 export const getLatestBriefing = async (req, res) => {
   const nightDate = req.query.nightDate || new Date().toISOString().split("T")[0];
-  const briefing = await getLatestBriefingService(nightDate);
+  const briefing = await getLatestBriefingService(nightDate, req.orgFilter);
 
   if (!briefing) {
     return res
@@ -90,7 +138,7 @@ export const updateBriefingSection = async (req, res) => {
     throw new ApiError(400, "Invalid section name");
   }
 
-  const briefing = await Briefing.findById(id);
+  const briefing = await Briefing.findOne({ _id: id, ...req.orgFilter });
   if (!briefing) {
     throw new ApiError(404, "Briefing not found");
   }
@@ -105,6 +153,8 @@ export const updateBriefingSection = async (req, res) => {
 
   await briefing.save();
 
+  logAudit(req, "briefing.section_updated", { type: "Briefing", id: briefing._id }, { sectionName });
+
   res.status(200).json(
     new ApiResponse(
       200,
@@ -118,8 +168,18 @@ export const approveBriefing = async (req, res) => {
   const updated = await applyBriefingReview(
     req.params.id,
     { decision: "approved", notes: "" },
-    req.user?._id
+    req.user?._id,
+    req.orgFilter
   );
+
+  logAudit(req, "briefing.approved", { type: "Briefing", id: updated._id });
+
+  triggerWebhook(req.user.orgId, "briefing.ready", {
+    briefingId: updated._id,
+    nightDate: updated.nightDate,
+    status: updated.status,
+    timestamp: updated.reviewedAt || new Date(),
+  });
 
   res
     .status(200)

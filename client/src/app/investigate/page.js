@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useInvestigationStore } from "@/store/investigationStore";
+import { useAuth } from "@/hooks/useAuth";
 import { useMapStore } from "@/store/mapStore";
 import { useDroneReplay } from "@/hooks/useDroneReplay";
 import { useIncidents } from "@/hooks/useIncidents";
@@ -11,191 +12,249 @@ import { useStartInvestigation } from "@/hooks/useInvestigation";
 import { useAgentStream } from "@/hooks/useAgentStream";
 import AgentFeed from "@/components/agent/AgentFeed";
 import StatusBar from "@/components/layout/StatusBar";
+import EventPanel from "@/components/events/EventPanel";
+import { useQuery } from "@tanstack/react-query";
+import { clearStoredToken, getEventPins } from "@/lib/api";
+import useSiteMap from "@/hooks/useSiteMap";
+import { toast } from "sonner";
+import { X } from "lucide-react";
+
 const DroneTimeline = dynamic(
   () => import("@/components/map/DroneTimeline"),
   { ssr: false }
 );
-import EventPanel from "@/components/events/EventPanel";
-import { useQuery } from "@tanstack/react-query";
-import { getEventPins } from "@/lib/api";
-import useSiteMap from "@/hooks/useSiteMap";
-import { toast } from "sonner";
 
-// Dynamic import to avoid SSR issues with Leaflet
 const SiteMap = dynamic(
   () => import("@/components/map/SiteMap"),
   {
     ssr: false,
     loading: () => (
-      <div className="h-full w-full bg-surface flex items-center justify-center text-text-muted font-mono text-xs">
-        Loading map...
+      <div style={{
+        height: "100%", width: "100%",
+        background: "var(--bg-canvas)",
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        gap: "8px",
+      }}>
+        <span style={{
+          display: "inline-block", width: "6px", height: "6px", borderRadius: "50%",
+          background: "var(--accent)",
+          animation: "status-pulse 1.4s ease-in-out infinite",
+        }} />
+        <span style={{
+          fontFamily: "var(--font-mono)", fontSize: "10px",
+          color: "var(--fg-4)", letterSpacing: "0.12em", textTransform: "uppercase",
+        }}>Loading map…</span>
       </div>
-    )
+    ),
   }
 );
+
+/* ── column header shared styles ────────────────────── */
+const COL_HEAD = {
+  wrapper: {
+    display: "flex", alignItems: "center", gap: "9px",
+    padding: "0 16px", height: "40px", flexShrink: 0,
+    background: "var(--bg-surface-1)",
+    borderBottom: "1px solid var(--border-default)",
+  },
+  title: {
+    fontFamily: "var(--font-sans)", fontSize: "10px", fontWeight: 600,
+    letterSpacing: "0.14em", color: "var(--fg-1)", textTransform: "uppercase",
+  },
+  sub: {
+    fontFamily: "var(--font-mono)", fontSize: "10px",
+    color: "var(--fg-4)", marginLeft: "auto",
+    fontVariantNumeric: "tabular-nums",
+  },
+  liveDot: {
+    width: "7px", height: "7px", borderRadius: "50%",
+    background: "var(--accent)",
+    boxShadow: "0 0 8px rgba(184,212,232,.6)",
+    animation: "status-pulse 1.6s ease-in-out infinite",
+    flexShrink: 0,
+  },
+};
 
 export default function InvestigationView() {
   const router = useRouter();
   const nightDate = useMemo(() => {
-    if (process.env.NEXT_PUBLIC_SEED_NIGHT_DATE) {
-      return process.env.NEXT_PUBLIC_SEED_NIGHT_DATE;
-    }
+    if (process.env.NEXT_PUBLIC_SEED_NIGHT_DATE) return process.env.NEXT_PUBLIC_SEED_NIGHT_DATE;
     const d = new Date();
     d.setDate(d.getDate() - 1);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }, []);
+
+  const { user } = useAuth();
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && user) {
+      const dismissed = localStorage.getItem('ridgeway_welcome_dismissed');
+      // If user has lastLoginAt within last 5 minutes, show banner
+      const loginTime = new Date(user.lastLoginAt).getTime();
+      const now = new Date().getTime();
+      if (!dismissed && (now - loginTime < 5 * 60 * 1000 || user.firstLogin)) {
+        setShowWelcome(true);
+      }
+    }
+  }, [user]);
+
+  const dismissWelcome = () => {
+    localStorage.setItem('ridgeway_welcome_dismissed', 'true');
+    setShowWelcome(false);
+  };
+
   const hasStartedRef = useRef(false);
 
-  // Investigation store state
-  const jobId = useInvestigationStore((state) => state.jobId);
-  const jobStatus = useInvestigationStore((state) => state.jobStatus);
-  const investigationStats = useInvestigationStore(
-    (state) => state.investigationStats
-  );
+  const jobId     = useInvestigationStore((s) => s.jobId);
+  const jobStatus = useInvestigationStore((s) => s.jobStatus);
+  const stats     = useInvestigationStore((s) => s.investigationStats);
+  const feedItems = useInvestigationStore((s) => s.feedItems);
 
-  // Map store actions
-  const setSiteMapData = useMapStore((state) => state.setSiteMapData);
-  const setEventPins = useMapStore((state) => state.setEventPins);
+  const setSiteMapData = useMapStore((s) => s.setSiteMapData);
+  const setEventPins   = useMapStore((s) => s.setEventPins);
 
-  // Data fetching hooks
-  const {
-    data: incidentsData,
-    isError: isIncidentsError,
-    error: incidentsError,
-  } = useIncidents({ nightDate });
-
+  const { data: incidentsData, isError: isIncidentsError, error: incidentsError } = useIncidents({ nightDate });
   const { mutate: startInvestigation, isPending: isStarting } = useStartInvestigation();
 
-  // SSH stream connection
   useAgentStream(jobId);
-  useDroneReplay('PATROL-2026-04-15-N01');
+  useDroneReplay("PATROL-2026-04-15-N01");
 
-  // Fetch site map and event pins
-  const {
-    data: siteMapData,
-    isLoading: isMapLoading,
-    isError: isMapError,
-    error: mapError,
-  } = useSiteMap();
+  const { data: siteMapData, isLoading: isMapLoading, isError: isMapError, error: mapError } = useSiteMap();
 
   const { data: eventPins, isError: isPinsError, error: pinsError } = useQuery({
-    queryKey: ['eventPins', nightDate],
+    queryKey: ["eventPins", nightDate],
     queryFn: () => getEventPins(nightDate),
     enabled: !!nightDate,
     staleTime: 30000,
-    retry: (failureCount, error) => {
-      if (error?.statusCode === 401 || error?.statusCode === 403) {
-        return false;
-      }
-      if (!error?.statusCode) {
-        return failureCount < 2;
-      }
-      return failureCount < 1;
+    retry: (n, err) => {
+      if (err?.statusCode === 401 || err?.statusCode === 403) return false;
+      return n < (err?.statusCode ? 1 : 2);
     },
-    refetchInterval: jobStatus === 'running' ? 5000 : false
+    refetchInterval: jobStatus === "running" ? 5000 : false,
   });
 
-  // Auto-start: fires once when the store confirms no job is running.
-  // Query state (incidents, errors) is intentionally excluded — the server handles the
-  // case where there is nothing to investigate and returns an appropriate response.
+  /* auto-start */
   useEffect(() => {
-    if (hasStartedRef.current) return;
-    if (jobId) return;
-    if (jobStatus !== "idle") return;
-    if (isStarting) return;
-
+    if (hasStartedRef.current || jobId || jobStatus !== "idle" || isStarting) return;
     hasStartedRef.current = true;
-    console.log("AUTO START FIRING", nightDate);
     startInvestigation({ nightDate });
   }, [jobId, jobStatus, isStarting]);
 
-  // Display error toast if critical data fails
+  /* auth / error toasts */
   useEffect(() => {
+    const authErr = [incidentsError, mapError, pinsError].find(
+      (e) => e?.statusCode === 401 || e?.statusCode === 403 || e?.type === "UNAUTHORIZED"
+    );
+    if (authErr) {
+      clearStoredToken();
+      toast.error("Session expired.");
+      router.replace("/login");
+      return;
+    }
     if (isIncidentsError || isMapError || isPinsError) {
-      const reason =
-        incidentsError?.message || mapError?.message || pinsError?.message || "Unknown error";
-      toast.error(`Failed to load investigation data: ${reason}`);
-
-      console.error("[Investigate] query failure", {
-        nightDate,
-        incidentsError: {
-          message: incidentsError?.message,
-          type: incidentsError?.type,
-          statusCode: incidentsError?.statusCode,
-        },
-        mapError: {
-          message: mapError?.message,
-          type: mapError?.type,
-          statusCode: mapError?.statusCode,
-        },
-        pinsError: {
-          message: pinsError?.message,
-          type: pinsError?.type,
-          statusCode: pinsError?.statusCode,
-        },
-      });
+      toast.error(`Data error: ${incidentsError?.message || mapError?.message || pinsError?.message}`);
     }
-  }, [isIncidentsError, isMapError, isPinsError, incidentsError, mapError, pinsError, nightDate]);
+  }, [isIncidentsError, isMapError, isPinsError, incidentsError, mapError, pinsError, router]);
 
-  // Populate map data when available
-  useEffect(() => {
-    if (siteMapData) {
-      setSiteMapData(siteMapData);
-    }
-  }, [siteMapData, setSiteMapData]);
+  /* populate stores */
+  useEffect(() => { if (siteMapData) setSiteMapData(siteMapData); }, [siteMapData]);
+  useEffect(() => { if (eventPins?.length > 0) setEventPins(eventPins); }, [eventPins]);
 
-  // Populate event pins when available
-  useEffect(() => {
-    if (eventPins?.length > 0) {
-      setEventPins(eventPins);
-    }
-  }, [eventPins, setEventPins]);
+  /* col-head metadata */
+  const toolCallCount = feedItems.filter((i) => i.type === "tool_called").length;
+  const totalEvents   = incidentsData?.incidents?.length ?? 0;
+  const reviewPending = stats.escalationCount ?? 0;
+  const isLive        = jobStatus === "running";
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: "56px",
-        left: 0,
-        right: 0,
-        bottom: 0,
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        backgroundColor: "#0f1117",
-      }}
-    >
-      {/* STATUS BAR — using StatusBar component */}
-      <StatusBar
-        jobStatus={jobStatus}
-        resolvedIncidents={investigationStats.resolvedIncidents}
-        totalIncidents={investigationStats.totalIncidents}
-        escalationCount={investigationStats.escalationCount}
-        diagnosticMessage={
-          incidentsError?.message || mapError?.message || pinsError?.message || null
-        }
-        onReviewBriefing={() => router.push('/briefing')}
-      />
+    <div style={{
+      position: "fixed", top: "56px", left: 0, right: 0, bottom: 0,
+      display: "grid", gridTemplateRows: showWelcome ? "auto auto 1fr" : "auto 1fr",
+      background: "var(--bg-base)", overflow: "hidden",
+    }}>
 
-      {(isIncidentsError || isMapError || isPinsError) && (
-        <div className="px-4 py-2 border-b border-red-500/30 bg-red-500/10 font-mono text-[11px] text-red-300">
-          Investigation data unavailable: {incidentsError?.message || mapError?.message || pinsError?.message}
+      {/* ── WELCOME BANNER ──────────────────────────────── */}
+      {showWelcome && (
+        <div className="bg-indigo-600 px-4 py-3 text-white flex items-center justify-between shadow-md z-10 relative">
+          <div className="flex items-center space-x-3">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20">👋</span>
+            <p className="text-sm font-medium">
+              Welcome to Ridgeway! Your platform is configured and ready. Events recorded tonight will appear here tomorrow morning.
+            </p>
+          </div>
+          <button 
+            onClick={dismissWelcome}
+            className="rounded-md p-1 hover:bg-white/20 transition-colors focus:outline-none"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
       )}
 
-      {/* THREE COLUMN ROW — critical flex layout - responsive */}
-      <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
-        {/* LEFT — Agent Feed */}
-        <div className="order-3 lg:order-1 w-full lg:w-70 xl:w-80 shrink-0 h-52 sm:h-56 md:h-64 lg:h-full overflow-y-auto overflow-x-hidden border-t lg:border-t-0 lg:border-r border-border bg-surface-2">
-          <AgentFeed />
+      {/* ── STATUS BAR ──────────────────────────────────── */}
+      <StatusBar
+        jobStatus={jobStatus}
+        resolvedIncidents={stats.resolvedIncidents}
+        totalIncidents={stats.totalIncidents}
+        escalationCount={stats.escalationCount}
+        diagnosticMessage={
+          incidentsError?.message || mapError?.message || pinsError?.message || null
+        }
+        onReviewBriefing={() => router.push("/briefing")}
+      />
+
+      {/* ── THREE-COLUMN GRID ────────────────────────────── */}
+      {/* Columns separated by 1px border via gap + background trick */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "360px 1fr 360px",
+        gap: "1px",
+        background: "var(--border-default)",
+        overflow: "hidden", minHeight: 0,
+      }}>
+
+        {/* ══ LEFT · Agent Activity ════════════════════════ */}
+        <div style={{
+          background: "var(--bg-base)",
+          display: "flex", flexDirection: "column",
+          overflow: "hidden", minHeight: 0,
+        }}>
+          {/* Column header */}
+          <div style={{
+            ...COL_HEAD.wrapper,
+            borderLeft: isLive ? "2px solid var(--accent)" : "2px solid transparent",
+            paddingLeft: isLive ? "14px" : "16px",
+          }}>
+            {isLive && <span style={COL_HEAD.liveDot} />}
+            <span style={COL_HEAD.title}>Agent Activity</span>
+            <span style={COL_HEAD.sub}>
+              {stats.totalIncidents > 0
+                ? `${stats.resolvedIncidents}/${stats.totalIncidents} · `
+                : ""}
+              {toolCallCount} calls
+            </span>
+          </div>
+          <div style={{ flex: 1, overflow: "hidden", minHeight: 0 }}>
+            <AgentFeed />
+          </div>
         </div>
 
-        {/* CENTER — Map column */}
-        <div className="order-1 lg:order-2 flex-1 min-w-0 min-h-80 sm:min-h-90 lg:h-full flex flex-col overflow-y-auto overflow-x-hidden bg-surface">
-          <div className="flex-1 min-h-0 relative overflow-hidden">
+        {/* ══ CENTER · Site Map ═════════════════════════════ */}
+        <div style={{
+          background: "var(--bg-base)",
+          display: "flex", flexDirection: "column",
+          overflow: "hidden", minHeight: 0,
+        }}>
+          {/* Column header */}
+          <div style={COL_HEAD.wrapper}>
+            <span style={COL_HEAD.title}>Site Map</span>
+            <span style={COL_HEAD.sub}>RIDGEWAY · 6 ZONES · DRONE RWY-03</span>
+          </div>
+
+          {/* Map — takes all remaining vertical space */}
+          <div style={{ flex: 1, position: "relative", overflow: "hidden", minHeight: 0 }}>
             <SiteMap
               siteMapData={siteMapData}
               eventPins={eventPins}
@@ -204,28 +263,50 @@ export default function InvestigationView() {
               errorMessage={mapError?.message}
             />
           </div>
-          <div className="h-20 shrink-0 border-t border-border overflow-x-hidden">
+
+          {/* Drone timeline scrubber — pinned at map bottom */}
+          <div style={{ flexShrink: 0 }}>
             <DroneTimeline />
           </div>
         </div>
 
-        {/* RIGHT — Event Panel */}
-        <div className="order-2 lg:order-3 w-full lg:w-90 xl:w-[24rem] shrink-0 h-72 sm:h-80 md:h-96 lg:h-full overflow-y-auto overflow-x-hidden border-t lg:border-t-0 lg:border-l border-border bg-surface-2">
-          <EventPanel nightDate={nightDate} />
+        {/* ══ RIGHT · Events ════════════════════════════════ */}
+        <div style={{
+          background: "var(--bg-base)",
+          display: "flex", flexDirection: "column",
+          overflow: "hidden", minHeight: 0,
+        }}>
+          {/* Column header */}
+          <div style={{
+            ...COL_HEAD.wrapper,
+            borderLeft: reviewPending > 0 ? "2px solid var(--sev-serious)" : "2px solid transparent",
+            paddingLeft: reviewPending > 0 ? "14px" : "16px",
+          }}>
+            {reviewPending > 0 && (
+              <span style={{
+                width: "7px", height: "7px", borderRadius: "50%",
+                background: "var(--sev-serious)",
+                boxShadow: "var(--glow-serious)",
+                animation: "status-pulse 1.4s ease-in-out infinite",
+                flexShrink: 0,
+              }} />
+            )}
+            <span style={COL_HEAD.title}>Events</span>
+            <span style={COL_HEAD.sub}>
+              {totalEvents} logged
+              {reviewPending > 0 && (
+                <span style={{ color: "var(--sev-serious)", marginLeft: "6px" }}>
+                  · {reviewPending} review
+                </span>
+              )}
+            </span>
+          </div>
+          <div style={{ flex: 1, overflow: "hidden", minHeight: 0 }}>
+            <EventPanel nightDate={nightDate} />
+          </div>
         </div>
+
       </div>
-
-      <button
-        type="button"
-        className="fixed bottom-4 right-4 z-9999 px-5 py-2 rounded-full border border-border bg-surface text-text-primary font-mono text-[11px] uppercase tracking-widest"
-        onClick={() => {
-          console.log("DEBUG manual start", nightDate);
-          startInvestigation({ nightDate });
-        }}
-      >
-        DEBUG START
-      </button>
-
     </div>
   );
 }

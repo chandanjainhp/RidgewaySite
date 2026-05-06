@@ -9,6 +9,7 @@ import {
 } from "../utils/mail.js";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import Organisation from "../models/organisation.model.js";
 
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
@@ -64,7 +65,7 @@ const registerUser = asyncHandler(async (req, res) => {
     subject: "Please verify your email",
     mailgenContent: emailVerificationMailgenContent(
       user.username,
-      `${req.protocol}://${req.get("host")}/api/v1/auth/verify-email/${unHashedToken}`,
+      unHashedToken
     ),
   }).catch((emailError) => {
     console.error("[Auth] Email verification failed but registration succeeded:", emailError.message);
@@ -182,15 +183,15 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 });
 
 const verifyEmail = asyncHandler(async (req, res) => {
-  const { verificationToken } = req.params;
+  const { otp } = req.body;
 
-  if (!verificationToken) {
-    throw new ApiError(400, "Email verification token is missing");
+  if (!otp) {
+    throw new ApiError(400, "OTP is missing");
   }
 
   let hashedToken = crypto
     .createHash("sha256")
-    .update(verificationToken)
+    .update(otp)
     .digest("hex");
 
   const user = await User.findOne({
@@ -242,7 +243,7 @@ const resendEmailVerification = asyncHandler(async (req, res) => {
     subject: "Please verify your email",
     mailgenContent: emailVerificationMailgenContent(
       user.username,
-      `${req.protocol}://${req.get("host")}/api/v1/users/verify-email/${unHashedToken}`,
+      unHashedToken
     ),
   });
 
@@ -324,7 +325,7 @@ const forgotPasswordRequest = asyncHandler(async (req, res) => {
     subject: "Password reset request",
     mailgenContent: forgotPasswordMailgenContent(
       user.username,
-      `${process.env.FORGOT_PASSWORD_REDIRECT_URL}/${unHashedToken}`,
+      unHashedToken
     ),
   });
 
@@ -339,12 +340,11 @@ const forgotPasswordRequest = asyncHandler(async (req, res) => {
     );
 });
 const resetForgotPassword = asyncHandler(async (req, res) => {
-  const { resetToken } = req.params;
-  const { newPassword } = req.body;
+  const { otp, newPassword } = req.body;
 
   let hashedToken = crypto
     .createHash("sha256")
-    .update(resetToken)
+    .update(otp)
     .digest("hex");
 
   const user = await User.findOne({
@@ -385,6 +385,87 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "Password changed successfully"));
 });
 
+const validateInviteToken = asyncHandler(async (req, res) => {
+  const { token } = req.params;
+
+  const hashedToken = crypto
+    .createHash("sha256")
+    .update(token)
+    .digest("hex");
+
+  const user = await User.findOne({
+    inviteToken: hashedToken,
+    inviteTokenExpiry: { $gt: Date.now() },
+  }).populate('orgId', 'name');
+
+  if (!user) {
+    throw new ApiError(400, "Invite token is invalid or has expired");
+  }
+
+  res.status(200).json(new ApiResponse(200, {
+    email: user.email,
+    orgName: user.orgId?.name,
+  }, "Token is valid"));
+});
+
+const acceptInvite = asyncHandler(async (req, res) => {
+  const { token, password } = req.body;
+
+  if (!password) {
+    throw new ApiError(400, "Password is required");
+  }
+
+  const hashedToken = crypto
+    .createHash("sha256")
+    .update(token)
+    .digest("hex");
+
+  const user = await User.findOne({
+    inviteToken: hashedToken,
+    inviteTokenExpiry: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    throw new ApiError(400, "Invite token is invalid or has expired");
+  }
+
+  if (user.isActive) {
+    throw new ApiError(400, "User is already active");
+  }
+
+  user.password = password;
+  user.isActive = true;
+  user.lastLoginAt = new Date();
+  user.inviteToken = undefined;
+  user.inviteTokenExpiry = undefined;
+  await user.save();
+
+  const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
+
+  const options = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+  };
+
+  res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .cookie("ridgeway_role", user.role, { ...options, httpOnly: false })
+    .json(new ApiResponse(200, {
+      user: {
+        _id: user._id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+        orgId: user.orgId
+      },
+      accessToken,
+      refreshToken
+    }, "Invite accepted and logged in successfully"));
+});
+
 export {
   registerUser,
   login,
@@ -396,4 +477,6 @@ export {
   forgotPasswordRequest,
   changeCurrentPassword,
   resetForgotPassword,
+  validateInviteToken,
+  acceptInvite,
 };

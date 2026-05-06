@@ -10,6 +10,8 @@ import {
   resendEmailVerification,
   resetForgotPassword,
   verifyEmail,
+  validateInviteToken,
+  acceptInvite,
 } from "../controllers/auth.controllers.js";
 import { validate } from "../middlewares/validator.middleware.js";
 import {
@@ -26,14 +28,17 @@ const router = Router();
 // unsecured route
 router.route("/register").post(userRegisterValidator(), validate, registerUser);
 router.route("/login").post(userLoginValidator(), validate, login);
-router.route("/verify-email/:verificationToken").get(verifyEmail);
+router.route("/verify-email").post(verifyEmail);
 router.route("/refresh-token").post(refreshAccessToken);
 router
   .route("/forgot-password")
   .post(userForgotPasswordValidator(), validate, forgotPasswordRequest);
 router
-  .route("/reset-password/:resetToken")
+  .route("/reset-password")
   .post(userResetForgotPasswordValidator(), validate, resetForgotPassword);
+
+router.route("/invite/:token").get(validateInviteToken);
+router.route("/accept-invite").post(acceptInvite);
 
 //secure routes
 router.route("/logout").post(verifyJWT, logoutUser);

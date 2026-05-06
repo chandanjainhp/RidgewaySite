@@ -84,7 +84,7 @@ export default function ReviewControls({ incidentId, agentClassification, incide
 
   // --- Render ---
   return (
-    <div className="w-full flex gap-4">
+    <div style={{ width: "100%", display: "flex", gap: "16px" }}>
       {!activeForm && (
         <ReviewActionRow
           isPending={isPending}

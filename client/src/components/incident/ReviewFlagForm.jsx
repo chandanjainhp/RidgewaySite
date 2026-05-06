@@ -10,35 +10,99 @@ export default function ReviewFlagForm({
   onCancel,
   onSubmit,
 }) {
-  const locationName = typeof incidentLocation === 'string'
+  const locationName = typeof incidentLocation === "string"
     ? incidentLocation
-    : incidentLocation?.name || 'this location';
+    : incidentLocation?.name || "this location";
 
   return (
-    <div className="w-full border border-indigo-500/50 bg-indigo-500/5 p-6 rounded-sm">
-      <h4 className="font-mono text-indigo-400 text-xs font-bold uppercase mb-4 flex items-center gap-2"><Flag className="w-4 h-4" /> Schedule Automated Follow-up</h4>
-      <p className="text-sm text-text-secondary mb-4 leading-relaxed tracking-wide">
-        This will queue <strong className="text-indigo-400 font-mono tracking-widest">{locationName}</strong> into the pending drone flight path for standard operating hours validation.
+    <div style={{
+      width: "100%",
+      border: "1px solid rgba(99,102,241,0.4)",
+      background: "rgba(99,102,241,0.04)",
+      padding: "24px",
+    }}>
+      <div style={{
+        display: "flex", alignItems: "center", gap: "8px",
+        marginBottom: "16px",
+        fontFamily: "var(--font-mono)", fontSize: "10px",
+        fontWeight: 700, textTransform: "uppercase",
+        letterSpacing: "0.14em", color: "#6366f1",
+      }}>
+        <Flag size={14} />
+        Schedule Automated Follow-up
+      </div>
+
+      <p style={{
+        fontSize: "13px", lineHeight: "var(--lh-loose)",
+        color: "var(--fg-2)", marginBottom: "16px",
+      }}>
+        This will queue{" "}
+        <strong style={{
+          fontFamily: "var(--font-mono)", letterSpacing: "0.08em",
+          color: "#6366f1",
+        }}>
+          {locationName}
+        </strong>{" "}
+        into the pending drone flight path for standard operating hours validation.
       </p>
 
-      <div className="flex flex-col gap-2 mb-4">
-        <label className="font-mono text-[10px] text-text-muted uppercase">Investigation Note (Optional)</label>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px" }}>
+        <label style={{
+          fontFamily: "var(--font-mono)", fontSize: "10px",
+          textTransform: "uppercase", letterSpacing: "0.12em",
+          color: "var(--fg-4)",
+        }}>
+          Investigation Note (Optional)
+        </label>
         <textarea
           value={flagNote}
-          onChange={(e) => setFlagNote(e.target.value)}
+          onChange={e => setFlagNote(e.target.value)}
           placeholder="Context parameters for the incoming shift..."
-          className="w-full bg-surface-3 border border-border text-white text-sm p-4 font-mono min-h-20 resize-none"
+          style={{
+            width: "100%", minHeight: "80px", resize: "none",
+            background: "var(--bg-surface-3)",
+            border: "1px solid var(--border-strong)",
+            color: "var(--fg-1)",
+            fontFamily: "var(--font-mono)", fontSize: "12px",
+            padding: "12px", lineHeight: "var(--lh-snug)",
+            outline: "none", boxSizing: "border-box",
+          }}
         />
       </div>
 
-      <div className="flex justify-end gap-4 mt-6">
-        <button disabled={isPending} onClick={onCancel} className="text-text-muted hover:text-white font-mono text-[10px] uppercase tracking-widest px-4">Cancel</button>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: "16px", marginTop: "24px" }}>
+        <button
+          disabled={isPending}
+          onClick={onCancel}
+          style={{
+            background: "none", border: "none", cursor: "pointer",
+            fontFamily: "var(--font-mono)", fontSize: "10px",
+            textTransform: "uppercase", letterSpacing: "0.12em",
+            color: "var(--fg-4)", padding: "0 16px",
+          }}
+          onMouseEnter={e => e.currentTarget.style.color = "var(--fg-1)"}
+          onMouseLeave={e => e.currentTarget.style.color = "var(--fg-4)"}
+        >
+          Cancel
+        </button>
         <button
           disabled={isPending}
           onClick={onSubmit}
-          className="bg-indigo-500 hover:bg-indigo-600 text-white font-mono text-xs font-bold tracking-widest uppercase px-6 py-2 rounded-sm flex items-center gap-2 transition-colors border border-indigo-400"
+          style={{
+            display: "flex", alignItems: "center", gap: "8px",
+            padding: "8px 24px",
+            background: "#6366f1",
+            border: "1px solid #818cf8",
+            color: "#ffffff",
+            fontFamily: "var(--font-mono)", fontSize: "11px",
+            fontWeight: 700, textTransform: "uppercase",
+            letterSpacing: "0.12em",
+            cursor: isPending ? "not-allowed" : "pointer",
+            opacity: isPending ? 0.5 : 1,
+          }}
         >
-          {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Add to Follow-up List
+          {isPending && <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />}
+          Add to Follow-up List
         </button>
       </div>
     </div>

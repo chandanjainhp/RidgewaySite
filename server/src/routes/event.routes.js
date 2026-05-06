@@ -1,6 +1,6 @@
 import express from 'express';
 import { getEventsForNight, getEventById, applyMayaReview } from '../controllers/event.controller.js';
-import { verifyJWT } from '../middlewares/auth.middleware.js';
+import { authenticateRequest, requireRole, scopeToOrg } from '../middlewares/auth.middleware.js';
 import validate from '../middlewares/validation.middleware.js';
 import { eventValidator } from '../validators/index.js';
 import { asyncHandler } from '../utils/async-handler.js';
@@ -8,7 +8,9 @@ import { asyncHandler } from '../utils/async-handler.js';
 const router = express.Router();
 
 // All routes are protected by auth
-router.use(verifyJWT);
+router.use(authenticateRequest);
+router.use(requireRole('super_admin', 'org_admin', 'operator'));
+router.use(scopeToOrg);
 
 // GET /events?nightDate=YYYY-MM-DD
 router.get('/', asyncHandler(getEventsForNight));

@@ -13,9 +13,11 @@ import {
   clearStoredToken,
   ERROR_TYPES,
 } from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
 
 export function useAuth() {
   const router = useRouter();
+  const { setUser, clearUser } = useAuthStore();
 
   // Login mutation
   const loginMutation = useMutation({
@@ -31,11 +33,15 @@ export function useAuth() {
 
       if (data?.user) {
         localStorage.setItem("ridgeway_user", JSON.stringify(data.user));
+        setUser(data.user);
       }
 
       // Set auth cookie for middleware
       if (typeof window !== "undefined") {
         document.cookie = `ridgeway_auth=1; path=/; max-age=86400; SameSite=Lax`;
+        if (data?.user?.role) {
+          document.cookie = `ridgeway_role=${data.user.role}; path=/; max-age=86400; SameSite=Lax`;
+        }
       }
 
       toast.success("Welcome back, Maya");
@@ -57,9 +63,11 @@ export function useAuth() {
     mutationFn: () => logoutUser(),
     onSuccess: () => {
       localStorage.removeItem("ridgeway_user");
+      clearUser();
       // Clear auth cookie
       if (typeof window !== "undefined") {
         document.cookie = `ridgeway_auth=; path=/; max-age=0; SameSite=Lax`;
+        document.cookie = `ridgeway_role=; path=/; max-age=0; SameSite=Lax`;
       }
       router.push("/login");
       toast.info("Logged out");
@@ -68,8 +76,10 @@ export function useAuth() {
       // Clear token locally even if server request fails
       clearStoredToken();
       localStorage.removeItem("ridgeway_user");
+      clearUser();
       if (typeof window !== "undefined") {
         document.cookie = `ridgeway_auth=; path=/; max-age=0; SameSite=Lax`;
+        document.cookie = `ridgeway_role=; path=/; max-age=0; SameSite=Lax`;
       }
       router.push("/login");
     },
@@ -88,11 +98,15 @@ export function useAuth() {
       }
       if (data?.user) {
         localStorage.setItem("ridgeway_user", JSON.stringify(data.user));
+        setUser(data.user);
       }
 
       // Set auth cookie
       if (typeof window !== "undefined") {
         document.cookie = `ridgeway_auth=1; path=/; max-age=86400; SameSite=Lax`;
+        if (data?.user?.role) {
+          document.cookie = `ridgeway_role=${data.user.role}; path=/; max-age=86400; SameSite=Lax`;
+        }
       }
 
       toast.success("Account created successfully!");

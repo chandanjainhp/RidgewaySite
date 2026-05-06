@@ -1,20 +1,17 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+/* Design tokens: Ridgeway Night Watch color + type system */
+@import '../colors_and_type.css';
+
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'leaflet/dist/leaflet.css';
 
-/* =============================================
-   DARK MODE VARIANT
-   <html class="dark"> is set in layout.js.
-   Light mode vars are here for future toggle.
-============================================= */
 @custom-variant dark (&:is(.dark *));
 
 /* =============================================
    LIGHT MODE — CSS CUSTOM PROPERTIES
 ============================================= */
 :root {
-  /* --- Primary brand scale (static, same in both modes) --- */
+  /* --- Primary brand scale --- */
   --primary-50:  #eff6ff;
   --primary-100: #dbeafe;
   --primary-200: #bfdbfe;
@@ -43,7 +40,7 @@
   --text-secondary: #475569;
   --text-muted:     #94a3b8;
 
-  /* --- Primary semantic action (theme-aware) --- */
+  /* --- Primary semantic action --- */
   --primary:       #2563eb;
   --primary-hover: #1d4ed8;
   --primary-light: #93c5fd;
@@ -68,7 +65,7 @@
   --danger-light: #fee2e2;
   --danger-text:  #b91c1c;
 
-  /* --- Semantic: error (alias for danger) --- */
+  /* --- Semantic: error --- */
   --error:       #ef4444;
   --error-light: #fee2e2;
   --error-text:  #b91c1c;
@@ -78,7 +75,7 @@
   --info-light: #dbeafe;
   --info-text:  #1d4ed8;
 
-  /* --- Agent / drone (constant across modes) --- */
+  /* --- Agent / drone --- */
   --agent-blue:     #3b82f6;
   --agent-blue-dim: #60a5fa;
   --drone-path:     #38bdf8;
@@ -96,61 +93,72 @@
 }
 
 /* =============================================
-   DARK MODE — CSS CUSTOM PROPERTIES
-   Overrides the :root vars above.
+   DARK MODE — mapped to Ridgeway Night Watch tokens
+   (colors_and_type.css defines: --bg-base, --fg-1,
+   --accent, --sev-serious, --border-default, etc.)
 ============================================= */
 .dark {
   /* --- Neutral surfaces --- */
-  --surface:      #0f1117;
-  --surface-2:    #161b27;
-  --surface-3:    #1e2535;
-  --surface-4:    #0b0f17;
-  --surface-warm: #161b27;
-  --surface-alt:  #1e2535;
-  --surface-dark: #0b0f17;
+  --surface:      var(--bg-surface-1);   /* #11151c */
+  --surface-2:    var(--bg-surface-2);   /* #161b24 */
+  --surface-3:    var(--bg-surface-3);   /* #1c222d */
+  --surface-4:    var(--bg-base);        /* #07090c */
+  --surface-warm: var(--bg-surface-1);
+  --surface-alt:  var(--bg-surface-2);
+  --surface-dark: var(--bg-base);
 
   /* --- Border --- */
-  --border: #2a3347;
+  --border: var(--border-default);       /* #232b38 */
 
   /* --- Text --- */
-  --text-primary:   #e2e8f0;
-  --text-secondary: #8892a4;
-  --text-muted:     #4a5568;
+  --text-primary:   var(--fg-1);         /* #e6ecf3 */
+  --text-secondary: var(--fg-3);         /* #6b7686 */
+  --text-muted:     var(--fg-4);         /* #434d5c */
 
-  /* --- Primary semantic action --- */
-  --primary:       #3b82f6;
-  --primary-hover: #2563eb;
-  --primary-light: #60a5fa;
-  --primary-dark:  #1d4ed8;
+  /* --- Primary → radar blue accent --- */
+  --primary:       var(--accent);        /* #b8d4e8 */
+  --primary-hover: var(--border-focus);  /* #b8d4e8 */
+  --primary-light: var(--accent-dim);    /* #4a6778 */
+  --primary-dark:  var(--accent-deep);   /* #15222b */
 
   /* --- Badge --- */
-  --badge-bg:   #1e2535;
-  --badge-text: #93c5fd;
+  --badge-bg:   var(--bg-surface-2);
+  --badge-text: var(--accent);
 
-  /* --- Semantic: success --- */
+  /* --- Success (keep green) --- */
   --success:       #22c55e;
   --success-light: #052e16;
   --success-text:  #4ade80;
 
-  /* --- Semantic: warning --- */
-  --warning:       #f59e0b;
-  --warning-light: #451a03;
-  --warning-text:  #fbbf24;
+  /* --- Warning → severity minor (amber) --- */
+  --warning:       var(--sev-minor);     /* #e89a2b */
+  --warning-light: var(--sev-minor-bg);  /* #2a1c0a */
+  --warning-text:  var(--sev-minor);
 
-  /* --- Semantic: danger --- */
-  --danger:       #ef4444;
-  --danger-light: #450a0a;
-  --danger-text:  #f87171;
+  /* --- Danger/Error → severity serious (red) --- */
+  --danger:       var(--sev-serious);    /* #ff3838 */
+  --danger-light: var(--sev-serious-bg); /* #2d0d12 */
+  --danger-text:  var(--sev-serious);
+  --error:        var(--sev-serious);
+  --error-light:  var(--sev-serious-bg);
+  --error-text:   var(--sev-serious);
 
-  /* --- Semantic: error (alias for danger) --- */
-  --error:       #ef4444;
-  --error-light: #450a0a;
-  --error-text:  #f87171;
+  /* --- Info → accent blue --- */
+  --info:       var(--accent);
+  --info-light: var(--accent-deep);
+  --info-text:  var(--accent);
 
-  /* --- Semantic: info --- */
-  --info:       #3b82f6;
-  --info-light: #1e3a8a;
-  --info-text:  #93c5fd;
+  /* --- Agent / drone --- */
+  --agent-blue:     var(--accent);
+  --agent-blue-dim: var(--accent-dim);
+  --drone-path:     var(--accent);
+
+  /* --- Severity (mapped to Night Watch severity system) --- */
+  --severity-harmless:  var(--sev-harmless);  /* #7d8a6a */
+  --severity-monitor:   var(--sev-minor);     /* #e89a2b */
+  --severity-escalate:  var(--sev-serious);   /* #ff3838 */
+  --severity-uncertain: var(--sev-unknown);   /* #6b7686 */
+  --severity-unknown:   var(--sev-unknown);
 
   /* --- Shadows --- */
   --shadow-card: 0px 6px 20px rgba(0, 0, 0, 0.45);
@@ -159,26 +167,22 @@
 
 /* =============================================
    TAILWIND V4 THEME MAPPING
-   @theme inline is the v4 equivalent of
-   tailwind.config.js → theme.extend.colors.
-   Each --color-* entry here creates a full set
-   of Tailwind utility classes (bg-*, text-*,
-   border-*, ring-*, etc.).
 ============================================= */
 @theme inline {
-  /* --- Typography --- */
-  --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
-  --font-display: var(--font-display), "Oswald", "Helvetica Neue", Arial, sans-serif;
-  --font-mono: var(--font-jetbrains), "JetBrains Mono", "Fira Code", monospace;
+  /* --- Typography: BMWTypeNext Pro first, then fallbacks --- */
+  --font-sans:    'BMWTypeNext Pro', 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --font-display: "Oswald", "Helvetica Neue", Arial, sans-serif;
+  --font-mono:    'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  --font-serif:   'IBM Plex Serif', Georgia, 'Times New Roman', serif;
 
-  /* --- Letter spacing (Notion-style) --- */
+  /* --- Letter spacing --- */
   --letter-spacing-display: -2.125px;
   --letter-spacing-heading: -1.5px;
   --letter-spacing-sub:     -0.625px;
   --letter-spacing-card:    -0.25px;
   --letter-spacing-badge:   0.125px;
 
-  /* --- Primary brand scale (static hex — no theme switch) --- */
+  /* --- Primary brand scale --- */
   --color-primary-50:  #eff6ff;
   --color-primary-100: #dbeafe;
   --color-primary-200: #bfdbfe;
@@ -190,7 +194,7 @@
   --color-primary-800: #1e40af;
   --color-primary-900: #1e3a8a;
 
-  /* --- Neutral surfaces (theme-aware via CSS var) --- */
+  /* --- Neutral surfaces (theme-aware) --- */
   --color-surface:      var(--surface);
   --color-surface-2:    var(--surface-2);
   --color-surface-3:    var(--surface-3);
@@ -232,7 +236,7 @@
   --color-danger-light: var(--danger-light);
   --color-danger-text:  var(--danger-text);
 
-  /* --- Semantic: error (alias for danger) --- */
+  /* --- Semantic: error --- */
   --color-error:       var(--error);
   --color-error-light: var(--error-light);
   --color-error-text:  var(--error-text);
@@ -279,7 +283,7 @@
   }
 
   html {
-    @apply bg-surface text-text-primary antialiased;
+    @apply bg-surface-4 text-text-primary antialiased;
     font-feature-settings: "lnum" 1, "locl" 1;
   }
 
@@ -290,13 +294,11 @@
 
   * {
     @apply border-border;
-    /* Smooth transition for theme switching */
     transition-property: background-color, border-color, color;
     transition-timing-function: ease;
     transition-duration: 150ms;
   }
 
-  /* Remove transition from elements where it causes layout shift */
   svg,
   img,
   video,
@@ -309,20 +311,20 @@
    LEAFLET DARK THEME OVERRIDES
 ============================================= */
 .leaflet-container {
-  background-color: #0f1117 !important;
+  background-color: var(--bg-canvas) !important;
   font-family: var(--font-mono);
 }
 
 .leaflet-control-zoom {
-  border: 1px solid #2a3347 !important;
-  border-radius: 6px !important;
+  border: 1px solid var(--border-default) !important;
+  border-radius: var(--radius-sm) !important;
   overflow: hidden;
 }
 
 .leaflet-control-zoom a {
-  background-color: #161b27 !important;
-  color: #8892a4 !important;
-  border-bottom: 1px solid #2a3347 !important;
+  background-color: var(--bg-surface-2) !important;
+  color: var(--fg-3) !important;
+  border-bottom: 1px solid var(--border-default) !important;
   width: 28px !important;
   height: 28px !important;
   line-height: 28px !important;
@@ -330,39 +332,39 @@
 }
 
 .leaflet-control-zoom a:hover {
-  background-color: #1e2535 !important;
-  color: #e2e8f0 !important;
+  background-color: var(--bg-surface-3) !important;
+  color: var(--fg-1) !important;
 }
 
 .leaflet-control-attribution {
-  background-color: rgba(15, 17, 23, 0.7) !important;
-  color: #4a5568 !important;
+  background-color: rgba(7, 9, 12, 0.7) !important;
+  color: var(--fg-4) !important;
   font-size: 9px !important;
   padding: 2px 6px !important;
 }
 
 .leaflet-control-attribution a {
-  color: #4a5568 !important;
+  color: var(--fg-4) !important;
 }
 
 .leaflet-popup-content-wrapper {
-  background-color: #161b27 !important;
-  color: #e2e8f0 !important;
-  border: 1px solid #2a3347 !important;
-  border-radius: 8px !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+  background-color: var(--bg-surface-2) !important;
+  color: var(--fg-1) !important;
+  border: 1px solid var(--border-default) !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: var(--shadow-modal) !important;
 }
 
 .leaflet-popup-tip {
-  background-color: #161b27 !important;
+  background-color: var(--bg-surface-2) !important;
 }
 
 .leaflet-popup-close-button {
-  color: #4a5568 !important;
+  color: var(--fg-4) !important;
 }
 
 .leaflet-popup-close-button:hover {
-  color: #e2e8f0 !important;
+  color: var(--fg-1) !important;
 }
 
 /* =============================================

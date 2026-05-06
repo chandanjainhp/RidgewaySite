@@ -14,7 +14,7 @@ let investigationQueue = null;
  * Get or create the investigations queue
  * @returns {Queue} BullMQ Queue instance
  */
-const getInvestigationQueue = () => {
+export const getInvestigationQueue = () => {
   if (!investigationQueue) {
     const redisClient = getRedis();
     if (!redisClient) {
@@ -228,10 +228,46 @@ export const closeInvestigationQueue = async () => {
   }
 };
 
+export const getQueueStats = async () => {
+  const queue = getInvestigationQueue();
+  const [waiting, active, completed, failed, delayed] = await Promise.all([
+    queue.getWaitingCount(),
+    queue.getActiveCount(),
+    queue.getCompletedCount(),
+    queue.getFailedCount(),
+    queue.getDelayedCount(),
+  ]);
+  return { waiting, active, completed, failed, delayed };
+};
+
+export const getFailedJobs = async (start = 0, end = 99) => {
+  const queue = getInvestigationQueue();
+  return queue.getFailed(start, end);
+};
+
+export const retryJob = async (jobId) => {
+  const queue = getInvestigationQueue();
+  const job = await queue.getJob(jobId);
+  if (!job) throw new Error(`Job ${jobId} not found`);
+  await job.retry();
+  return job;
+};
+
+export const deleteJob = async (jobId) => {
+  const queue = getInvestigationQueue();
+  const job = await queue.getJob(jobId);
+  if (!job) throw new Error(`Job ${jobId} not found`);
+  await job.remove();
+};
+
 export default {
   dispatchInvestigation,
   getJobStatus,
   subscribeToJobProgress,
   closeInvestigationQueue,
   getInvestigationQueue,
+  getQueueStats,
+  getFailedJobs,
+  retryJob,
+  deleteJob,
 };

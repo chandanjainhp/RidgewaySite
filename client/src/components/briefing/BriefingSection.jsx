@@ -12,12 +12,35 @@ const SECTION_CONFIG = {
   followUpItems: { label: "Requires Follow-Up",          Icon: ListTodo,      iconClass: "text-severity-monitor" },
 };
 
+function getSectionContent(content) {
+  if (!content) return "No content available.";
+
+  const value = typeof content === "string" ? content : JSON.stringify(content);
+  const trimmed = value.trim();
+
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed.overview) return parsed.overview;
+      if (parsed.summary) return parsed.summary;
+      if (parsed.content) return parsed.content;
+      if (typeof parsed === "string") return parsed;
+      return "Content is being processed...";
+    } catch {
+      return trimmed;
+    }
+  }
+
+  return trimmed;
+}
+
 export default function BriefingSection({ sectionName, sectionData, briefingId, isApproved }) {
   const config = SECTION_CONFIG[sectionName] || { label: sectionName, Icon: Moon, iconClass: "text-text-secondary" };
   const { Icon, label, iconClass } = config;
 
   const { agentDraft = "", mayaVersion = null, isEdited = false } = sectionData || {};
   const currentContent = isEdited && mayaVersion ? mayaVersion : agentDraft;
+  const displayContent = getSectionContent(currentContent);
 
   const [isEditMode, setIsEditMode] = useState(false);
   const [editValue, setEditValue] = useState(currentContent);
@@ -27,7 +50,7 @@ export default function BriefingSection({ sectionName, sectionData, briefingId, 
   const { mutate: updateSection, isPending } = useUpdateBriefingSection();
 
   // Keep draft in sync when props refresh
-  useEffect(() => { setEditValue(currentContent); }, [currentContent]);
+  useEffect(() => { setEditValue(displayContent); }, [displayContent]);
 
   const save = useCallback((value) => {
     if (!briefingId) return;
@@ -89,7 +112,7 @@ export default function BriefingSection({ sectionName, sectionData, briefingId, 
             disabled={isPending}
             value={editValue}
             onChange={handleChange}
-            className="w-full min-h-[160px] bg-surface border border-border text-text-primary text-sm leading-relaxed p-4 font-sans resize-none focus:outline-none focus:border-agent-blue/50 disabled:opacity-50 transition-colors"
+            className="w-full min-h-40 bg-surface border border-border text-text-primary text-sm leading-relaxed p-4 font-sans resize-none focus:outline-none focus:border-agent-blue/50 disabled:opacity-50 transition-colors"
           />
 
           <div className="flex justify-between items-center">
@@ -118,7 +141,7 @@ export default function BriefingSection({ sectionName, sectionData, briefingId, 
               ))}
             </div>
           ) : (
-            <p className="text-text-primary whitespace-pre-wrap text-[16px] leading-[1.75]">{currentContent || <span className="text-text-muted italic">No content yet.</span>}</p>
+            <p className="text-text-primary whitespace-pre-wrap text-[16px] leading-[1.75]">{displayContent || <span className="text-text-muted italic">No content yet.</span>}</p>
           )}
 
           {/* Agent draft comparison toggle */}

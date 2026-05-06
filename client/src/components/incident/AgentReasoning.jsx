@@ -2,50 +2,100 @@
 
 import { BrainCircuit, AlertTriangle } from "lucide-react";
 
-export default function AgentReasoning({ reasoning, uncertainties }) {
-  const hasUncertainties = uncertainties && uncertainties.length > 0;
+export default function AgentReasoning({ reasoning, uncertainties = [], confidence = 0 }) {
+  const hasUncertainties = uncertainties.length > 0;
 
   return (
-    <div className="w-full flex flex-col gap-6">
-      {/* Primary Logistical Deductions Block */}
-      <div className="bg-agent-blue-dim border border-agent-blue/30 rounded-sm p-6">
-        <div className="flex items-center gap-2 mb-3">
-          <BrainCircuit className="w-4 h-4 text-agent-blue" />
-          <h3 className="font-mono text-xs font-bold uppercase tracking-widest text-agent-blue">Agent Reasoning</h3>
+    <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "16px" }}>
+
+      {/* Agent reasoning block */}
+      <div style={{
+        background: "var(--accent-deep)",
+        border: "1px solid rgba(184,212,232,0.18)",
+        padding: "24px",
+      }}>
+        <div style={{
+          display: "flex", alignItems: "center", gap: "8px",
+          marginBottom: "12px",
+        }}>
+          <BrainCircuit size={14} color="var(--accent)" />
+          <span style={{
+            fontFamily: "var(--font-mono)", fontSize: "10px",
+            fontWeight: 700, textTransform: "uppercase",
+            letterSpacing: "0.14em", color: "var(--accent)",
+          }}>
+            Agent Reasoning
+          </span>
         </div>
-        <p className="text-text-primary text-[15px] leading-relaxed tracking-wide opacity-90">
+        <p style={{
+          fontSize: "14px", lineHeight: "var(--lh-loose)",
+          color: "var(--fg-1)", opacity: 0.9,
+        }}>
           {reasoning}
         </p>
       </div>
 
-      {/* Uncertainty Identification Matrix */}
+      {/* Uncertainties block */}
       {hasUncertainties ? (
-        <div className="border border-border/80 rounded-sm p-6 bg-surface">
-          <div className="flex items-center gap-2 mb-4">
-            <AlertTriangle className="w-4 h-4 text-amber-500" />
-            <h3 className="font-mono text-xs font-bold uppercase tracking-widest text-amber-500">Uncertainties Detected</h3>
+        <div style={{
+          border: "1px solid rgba(232,154,43,0.3)",
+          background: "var(--sev-minor-bg)",
+          padding: "24px",
+        }}>
+          <div style={{
+            display: "flex", alignItems: "center", gap: "8px",
+            marginBottom: "16px",
+          }}>
+            <AlertTriangle size={14} color="var(--sev-minor)" />
+            <span style={{
+              fontFamily: "var(--font-mono)", fontSize: "10px",
+              fontWeight: 700, textTransform: "uppercase",
+              letterSpacing: "0.14em", color: "var(--sev-minor)",
+            }}>
+              Uncertainties Detected
+            </span>
           </div>
-
-          <ul className="flex flex-col gap-4">
-             {uncertainties.map((unc, idx) => {
-               const isDroneGap = unc.startsWith("Drone did not cover");
-               return (
-                 <li key={idx} className="flex items-start gap-4">
-                   <div className="w-[6px] h-[6px] rounded-full bg-indigo-500 mt-2 shrink-0"></div>
-                   <span className={`text-sm leading-relaxed ${isDroneGap ? 'text-amber-500 font-medium' : 'text-text-secondary'}`}>
-                     {unc}
-                   </span>
-                 </li>
-               );
-             })}
+          <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "12px" }}>
+            {uncertainties.map((unc, idx) => {
+              const isDroneGap = unc.startsWith("Drone did not cover");
+              return (
+                <li key={idx} style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+                  <span style={{
+                    width: "6px", height: "6px", borderRadius: "50%",
+                    background: "#6366f1", flexShrink: 0, marginTop: "6px",
+                  }} />
+                  <span style={{
+                    fontSize: "13px", lineHeight: "var(--lh-snug)",
+                    color: isDroneGap ? "var(--sev-minor)" : "var(--fg-2)",
+                    fontWeight: isDroneGap ? 500 : 400,
+                  }}>
+                    {unc}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         </div>
-      ) : (
-        <div className="flex items-center gap-2 border border-green-500/30 bg-green-500/10 px-4 py-3 rounded-sm w-max">
-           <div className="w-2 h-2 rounded-full bg-green-500"></div>
-           <span className="font-mono text-[10px] text-green-500 uppercase tracking-widest">No uncertainties — high confidence classification</span>
+      ) : confidence > 0.7 ? (
+        <div style={{
+          display: "inline-flex", alignItems: "center", gap: "8px",
+          padding: "10px 16px",
+          border: "1px solid rgba(34,197,94,0.3)",
+          background: "rgba(34,197,94,0.07)",
+        }}>
+          <span style={{
+            width: "8px", height: "8px", borderRadius: "50%",
+            background: "#22c55e", flexShrink: 0,
+          }} />
+          <span style={{
+            fontFamily: "var(--font-mono)", fontSize: "10px",
+            textTransform: "uppercase", letterSpacing: "0.12em",
+            color: "#22c55e",
+          }}>
+            No uncertainties — high confidence classification
+          </span>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
