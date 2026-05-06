@@ -8,6 +8,11 @@ const reviewSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    orgId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Organisation',
+      index: true,
+    },
     briefingId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Briefing",

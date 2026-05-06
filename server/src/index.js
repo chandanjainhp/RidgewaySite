@@ -1,10 +1,20 @@
+import * as Sentry from '@sentry/node';
 import dotenv from 'dotenv';
+import mongoose from 'mongoose';
 import app from './app.js';
-import { connectDatabases } from './db/index.js';
+import { connectDatabases, disconnectDatabases } from './db/index.js';
 import { seedOvernightData, seedTestUsers, seedIncidents } from './db/seed.js';
 import { startWorker, stopWorker } from './queues/worker.js';
+import logger from './utils/logger.js';
 
 dotenv.config({ path: './.env' });
+
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  environment: process.env.NODE_ENV || 'development',
+  enabled: !!process.env.SENTRY_DSN,
+  tracesSampleRate: 0.1,
+});
 
 const port = process.env.PORT || 8000;
 let server;
@@ -19,47 +29,46 @@ connectDatabases()
       try {
         await seedOvernightData();
       } catch (error) {
-        console.error('[Startup] seedOvernightData failed:', error.message);
+        logger.error({ err: error }, '[Startup] seedOvernightData failed');
       }
 
       try {
         await seedTestUsers();
       } catch (error) {
-        console.error('[Startup] seedTestUsers failed:', error.message);
+        logger.error({ err: error }, '[Startup] seedTestUsers failed');
       }
 
       try {
         await seedIncidents();
       } catch (error) {
-        console.error('[Startup] seedIncidents failed:', error.message);
+        logger.error({ err: error }, '[Startup] seedIncidents failed');
       }
     }
 
     // Step 5: All seeding done — now open the port
-    console.log('✅ SEED COMPLETE - starting server');
+    logger.info('SEED COMPLETE - starting server');
 
     const startServer = (attemptNumber = 1) => {
       server = app.listen(port, () => {
-        console.log(`🚀 Server listening on http://localhost:${port}`);
+        logger.info(`Server listening on http://localhost:${port}`);
       });
 
       server.on('error', (error) => {
         if (error.code === 'EADDRINUSE') {
-          console.error(`❌ Port ${port} is already in use.`);
+          logger.error(`Port ${port} is already in use.`);
           if (attemptNumber < 3) {
-            console.log(`⏳ Retrying in 2 seconds (attempt ${attemptNumber}/3)...`);
+            logger.info(`Retrying in 2 seconds (attempt ${attemptNumber}/3)...`);
             setTimeout(() => {
               startServer(attemptNumber + 1);
             }, 2000);
           } else {
-            console.error(
-              '❌ Failed to start server after 3 attempts. Please kill existing processes on port ' +
-                port
+            logger.error(
+              `Failed to start server after 3 attempts. Please kill existing processes on port ${port}`
             );
             process.exit(1);
           }
         } else {
-          console.error('Server error:', error);
+          logger.error({ err: error }, 'Server error');
           process.exit(1);
         }
       });
@@ -70,42 +79,60 @@ connectDatabases()
     startServer();
   })
   .catch((error) => {
-    console.error('Failed to start server:', error);
+    logger.error({ err: error }, 'Failed to start server');
     process.exit(1);
   });
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+// ── Graceful shutdown ─────────────────────────────────────────────────────────
+
+const shutdown = async (signal) => {
+  logger.info(`${signal} received. Shutdown signal received, closing gracefully`);
+
+  const safetyTimeout = setTimeout(() => {
+    logger.error('Graceful shutdown timed out after 10s, forcing exit');
+    process.exit(1);
+  }, 10000);
+
+  if (server) {
+    server.close(async () => {
+      try {
+        await stopWorker();
+        await disconnectDatabases();
+        clearTimeout(safetyTimeout);
+        logger.info('All connections closed, exiting');
+        process.exit(0);
+      } catch (err) {
+        logger.error({ err }, 'Error during shutdown');
+        clearTimeout(safetyTimeout);
+        process.exit(1);
+      }
+    });
+  } else {
+    try {
+      await stopWorker();
+      await disconnectDatabases();
+      clearTimeout(safetyTimeout);
+      logger.info('All connections closed, exiting');
+      process.exit(0);
+    } catch (err) {
+      logger.error({ err }, 'Error during shutdown');
+      clearTimeout(safetyTimeout);
+      process.exit(1);
+    }
+  }
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+process.on('unhandledRejection', (reason) => {
+  logger.error({ err: reason }, 'Unhandled Promise Rejection');
+  Sentry.captureException(reason);
   process.exit(1);
 });
 
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
+  logger.error({ err: error }, 'Uncaught Exception');
+  Sentry.captureException(error);
   process.exit(1);
-});
-
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, closing server gracefully...');
-  await stopWorker();
-  if (server) {
-    server.close(() => {
-      console.log('Server closed');
-      process.exit(0);
-    });
-  } else {
-    process.exit(0);
-  }
-});
-
-process.on('SIGINT', async () => {
-  console.log('SIGINT received, closing server gracefully...');
-  await stopWorker();
-  if (server) {
-    server.close(() => {
-      console.log('Server closed');
-      process.exit(0);
-    });
-  } else {
-    process.exit(0);
-  }
 });

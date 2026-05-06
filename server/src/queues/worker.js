@@ -302,6 +302,7 @@ export const startWorker = async () => {
             headers: {
               'Content-Type': 'application/json',
               'X-Ridgeway-Signature': signature,
+              'X-Ridgeway-Event': delivery.eventType,
             },
             body: payloadString,
             signal: controller.signal,

@@ -42,6 +42,9 @@ export const startInvestigation = async (req, res) => {
 };
 
 export const getInvestigation = async (req, res) => {
+  const owned = await Investigation.findOne({ _id: req.params.id, ...req.orgFilter }).lean();
+  if (!owned) throw new ApiError(404, 'Investigation not found');
+
   const investigation = await getInvestigationWithEvidence(req.params.id);
 
   res

@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/node';
 import { ApiError } from '../utils/api-error.js';
 import { ApiResponse } from '../utils/api-response.js';
 
@@ -6,6 +7,8 @@ import { ApiResponse } from '../utils/api-response.js';
  * Catches all errors and formats them consistently
  */
 const errorHandler = (err, req, res, next) => {
+  Sentry.captureException(err);
+
   // ========== API ERROR ==========
   if (err instanceof ApiError) {
     console.log(

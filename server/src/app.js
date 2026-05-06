@@ -1,7 +1,10 @@
+import * as Sentry from '@sentry/node';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import { requestLogger } from './middlewares/requestLogger.middleware.js';
+import helmet from 'helmet';
+import mongoSanitize from 'express-mongo-sanitize';
+import { httpLogger } from './utils/logger.js';
 import { apiLimiter } from './middlewares/rateLimit.middleware.js';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware.js';
 
@@ -16,11 +19,15 @@ import reviewRouter from './routes/review.routes.js';
 import mapRouter from './routes/map.routes.js';
 import adminRouter from './routes/admin.routes.js';
 import orgRouter from './routes/org.routes.js';
+import mcpRouter from './routes/mcp.routes.js';
 
 const app = express();
 
 // MIDDLEWARE ORDER
-// 1. CORS
+// 1. Security headers
+app.use(helmet());
+
+// 2. CORS
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'],
@@ -30,15 +37,18 @@ app.use(
   })
 );
 
-// 2. Body parsing (10mb limit for briefing payloads)
+// 3. NoSQL injection sanitisation
+app.use(mongoSanitize());
+
+// 4. Body parsing (10mb limit for briefing payloads)
 app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// 3. Request logger
-app.use(requestLogger);
+// 5. Request logger
+app.use(httpLogger);
 
-// 4. Global rate limiter
+// 6. Global rate limiter
 app.use(apiLimiter);
 
 // ROUTE MOUNTING (all under /api/v1)
@@ -52,6 +62,7 @@ app.use('/api/v1/reviews', reviewRouter);
 app.use('/api/v1/map', mapRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/org', orgRouter);
+app.use('/api/v1/mcp', mcpRouter);
 
 // 404 handler for unmatched routes
 app.use(notFoundHandler);

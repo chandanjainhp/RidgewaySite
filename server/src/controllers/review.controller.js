@@ -14,6 +14,7 @@ const startAndEndOfDay = (date) => {
 export const createReview = async (req, res) => {
   const review = await Review.create({
     reviewId: `REVIEW-${Date.now()}`,
+    orgId: req.user.orgId,
     briefingId: req.body.briefingId,
     reviewer: req.user?._id,
     verdict: req.body.verdict,
@@ -32,6 +33,7 @@ export const getReviewsForNight = async (req, res) => {
   const { start, end } = startAndEndOfDay(date);
 
   const reviews = await Review.find({
+    ...req.orgFilter,
     reviewedAt: { $gte: start, $lte: end },
   })
     .sort({ reviewedAt: -1 })

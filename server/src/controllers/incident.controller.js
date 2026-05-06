@@ -55,7 +55,7 @@ const summarizeToolResult = (toolName, toolResult) => {
 };
 
 export const createIncident = async (req, res) => {
-  const incident = new Incident({ ...req.body, orgId: req.orgId });
+  const incident = new Incident({ ...req.body, orgId: req.user.orgId });
   const savedIncident = await incident.save();
 
   // Webhook integration
