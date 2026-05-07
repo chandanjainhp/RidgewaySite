@@ -16,12 +16,29 @@ import {
   testWebhook,
   retryWebhookDelivery,
   getMcpActivity,
+  ragUpload,
+  uploadDocument,
+  listDocuments,
+  getDocument,
+  deleteDocument,
+  approveDocument,
+  rejectDocument,
 } from '../controllers/org.controller.js';
 
 const router = express.Router();
 
 router.use(authenticateRequest);
 router.use(scopeToOrg);
+
+// RAG Documents — open to all org members (operators can upload; approve/reject org_admin only)
+router.post('/documents/upload', requireRole('org_admin', 'operator', 'super_admin'), ragUpload.single('file'), asyncHandler(uploadDocument));
+router.get('/documents', requireRole('org_admin', 'operator', 'super_admin'), asyncHandler(listDocuments));
+router.get('/documents/:docId', requireRole('org_admin', 'operator', 'super_admin'), asyncHandler(getDocument));
+router.delete('/documents/:docId', requireRole('org_admin', 'operator', 'super_admin'), asyncHandler(deleteDocument));
+router.post('/documents/:docId/approve', requireRole('org_admin', 'super_admin'), asyncHandler(approveDocument));
+router.post('/documents/:docId/reject', requireRole('org_admin', 'super_admin'), asyncHandler(rejectDocument));
+
+// All remaining routes require org_admin or super_admin
 router.use(requireRole('org_admin', 'super_admin'));
 
 // Org profile

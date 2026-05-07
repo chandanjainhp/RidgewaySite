@@ -81,6 +81,8 @@ services:
       SMTP_USER: ${SMTP_USER}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      QDRANT_URL: http://qdrant:6333
       CLIENT_URL: ${CLIENT_URL:-https://yourdomain.com}
     ports:
       - "8000:8000"
@@ -104,6 +106,24 @@ services:
           memory: 1G
         reservations:
           cpus: '1'
+          memory: 512M
+
+  # Qdrant vector database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: ridgeway_qdrant_prod
+    restart: always
+    volumes:
+      - qdrant_data_prod:/qdrant/storage
+    networks:
+      - ridgeway-network-prod
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
           memory: 512M
 
   # Next.js Client
@@ -142,6 +162,8 @@ volumes:
   mongodb_config_prod:
     driver: local
   redis_data_prod:
+    driver: local
+  qdrant_data_prod:
     driver: local
 
 networks:

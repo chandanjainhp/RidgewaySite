@@ -3,12 +3,18 @@ import Organisation from '../models/organisation.model.js';
 import WebhookDelivery from '../models/webhookDelivery.model.js';
 import ApiKey from '../models/apiKey.model.js';
 import AuditLog from '../models/auditLog.model.js';
+import RagDocument from '../models/ragDocument.model.js';
 import { ApiError } from '../utils/api-error.js';
 import { ApiResponse } from '../utils/api-response.js';
 import { logAudit } from '../utils/audit.js';
 import { sendEmail, inviteMailgenContent } from '../utils/mail.js';
 import { dispatchWebhook } from '../queues/webhook.queue.js';
+import { dispatchIndexingJob } from '../queues/rag.queue.js';
+import { deleteDocumentVectors } from '../services/rag.service.js';
 import crypto from 'crypto';
+import fs from 'fs/promises';
+import path from 'path';
+import multer from 'multer';
 
 export const inviteOperator = async (req, res) => {
   const { email } = req.body;
@@ -315,4 +321,144 @@ export const getMcpActivity = async (req, res) => {
   ]);
 
   res.status(200).json(new ApiResponse(200, { logs, total }, 'MCP activity retrieved'));
+};
+
+// ─── RAG Document Management ─────────────────────────────────────────────────
+
+const ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'text/plain',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+const storage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const uploadDir = path.join(process.cwd(), 'uploads', 'rag', req.user.orgId.toString());
+    try {
+      await fs.mkdir(uploadDir, { recursive: true });
+      cb(null, uploadDir);
+    } catch (err) {
+      cb(err);
+    }
+  },
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const base = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9_-]/g, '_');
+    cb(null, `${Date.now()}_${base}${ext}`);
+  },
+});
+
+const fileFilter = (_req, file, cb) => {
+  if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new ApiError(400, `Unsupported file type: ${file.mimetype}`));
+  }
+};
+
+export const ragUpload = multer({ storage, fileFilter, limits: { fileSize: MAX_FILE_SIZE } });
+
+export const uploadDocument = async (req, res) => {
+  if (!req.file) throw new ApiError(400, 'No file uploaded');
+
+  const doc = await RagDocument.create({
+    orgId: req.user.orgId,
+    filename: req.file.filename,
+    originalName: req.file.originalname,
+    mimeType: req.file.mimetype,
+    fileSize: req.file.size,
+    storedPath: req.file.path,
+    status: 'pending',
+    uploadedBy: req.user._id,
+  });
+
+  logAudit(req, 'document.uploaded', { type: 'RagDocument', id: doc._id }, { filename: doc.originalName });
+
+  res.status(201).json(new ApiResponse(201, doc, 'Document uploaded — awaiting approval'));
+};
+
+export const listDocuments = async (req, res) => {
+  const docs = await RagDocument.find({ orgId: req.user.orgId })
+    .select('-storedPath')
+    .sort({ createdAt: -1 })
+    .lean();
+
+  res.status(200).json(new ApiResponse(200, docs, 'Documents retrieved'));
+};
+
+export const getDocument = async (req, res) => {
+  const doc = await RagDocument.findById(req.params.docId).select('-storedPath').lean();
+  if (!doc || doc.orgId.toString() !== req.user.orgId.toString()) {
+    throw new ApiError(404, 'Document not found');
+  }
+  res.status(200).json(new ApiResponse(200, doc, 'Document retrieved'));
+};
+
+export const deleteDocument = async (req, res) => {
+  const doc = await RagDocument.findById(req.params.docId);
+  if (!doc || doc.orgId.toString() !== req.user.orgId.toString()) {
+    throw new ApiError(404, 'Document not found');
+  }
+
+  if (doc.status === 'indexed') {
+    await deleteDocumentVectors(doc);
+  }
+
+  if (doc.storedPath) {
+    try {
+      await fs.unlink(doc.storedPath);
+    } catch {
+      // File may already be gone — continue with DB deletion
+    }
+  }
+
+  await doc.deleteOne();
+
+  logAudit(req, 'document.deleted', { type: 'RagDocument', id: doc._id }, { filename: doc.originalName });
+
+  res.status(200).json(new ApiResponse(200, null, 'Document deleted'));
+};
+
+export const approveDocument = async (req, res) => {
+  const doc = await RagDocument.findById(req.params.docId);
+  if (!doc || doc.orgId.toString() !== req.user.orgId.toString()) {
+    throw new ApiError(404, 'Document not found');
+  }
+  if (doc.status !== 'pending') {
+    throw new ApiError(400, 'Document is not pending');
+  }
+
+  doc.status = 'approved';
+  doc.approvedBy = req.user._id;
+  doc.approvedAt = new Date();
+  await doc.save();
+
+  await dispatchIndexingJob(doc._id, doc.orgId);
+
+  logAudit(req, 'document.approved', { type: 'RagDocument', id: doc._id }, { filename: doc.originalName });
+
+  res.status(200).json(new ApiResponse(200, doc, 'Document approved and queued for indexing'));
+};
+
+export const rejectDocument = async (req, res) => {
+  const doc = await RagDocument.findById(req.params.docId);
+  if (!doc || doc.orgId.toString() !== req.user.orgId.toString()) {
+    throw new ApiError(404, 'Document not found');
+  }
+  if (doc.status !== 'pending') {
+    throw new ApiError(400, 'Document is not pending');
+  }
+
+  const { reason } = req.body;
+
+  doc.status = 'rejected';
+  doc.rejectedBy = req.user._id;
+  doc.rejectedAt = new Date();
+  doc.rejectionReason = reason || '';
+  await doc.save();
+
+  logAudit(req, 'document.rejected', { type: 'RagDocument', id: doc._id }, { filename: doc.originalName, reason });
+
+  res.status(200).json(new ApiResponse(200, doc, 'Document rejected'));
 };

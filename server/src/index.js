@@ -5,6 +5,7 @@ import app from './app.js';
 import { connectDatabases, disconnectDatabases } from './db/index.js';
 import { seedOvernightData, seedTestUsers, seedIncidents } from './db/seed.js';
 import { startWorker, stopWorker } from './queues/worker.js';
+import { ensureCollection } from './config/qdrant.js';
 import logger from './utils/logger.js';
 
 dotenv.config({ path: './.env' });
@@ -23,6 +24,13 @@ connectDatabases()
   .then(async () => {
     // Step 1: Start the investigation worker
     await startWorker();
+
+    // Step 2: Ensure Qdrant collection exists
+    try {
+      await ensureCollection();
+    } catch (error) {
+      logger.error({ err: error }, '[Startup] Qdrant ensureCollection failed — RAG will be unavailable');
+    }
 
     // Steps 2-4: Seed completes before the port opens (dev only)
     if (process.env.NODE_ENV !== 'production') {

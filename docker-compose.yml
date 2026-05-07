@@ -61,6 +61,8 @@ services:
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-your-email@gmail.com}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-your-app-password}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      QDRANT_URL: http://qdrant:6333
     ports:
       - "8000:8000"
     depends_on:
@@ -78,6 +80,19 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  # Qdrant vector database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: ridgeway_qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - ridgeway-network
 
   # Next.js Client
   client:
@@ -110,6 +125,8 @@ volumes:
   mongodb_config:
     driver: local
   redis_data:
+    driver: local
+  qdrant_data:
     driver: local
 
 networks:

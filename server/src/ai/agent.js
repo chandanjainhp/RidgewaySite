@@ -13,6 +13,7 @@ import { getClaudeClient, getModelName } from '../utils/anthropic.js';
 import { buildSystemPrompt } from './prompts/system.js';
 import { TOOLS_FOR_CLAUDE, executeTool } from './tools-registry.js';
 import Incident from '../models/incident.model.js';
+import { queryRag } from '../services/rag.service.js';
 
 const MAX_TOOL_CALLS = 12;
 const DEFAULT_MODEL = getModelName();
@@ -88,7 +89,25 @@ export const runInvestigation = async (
     }
 
     // Build system prompt
-    const systemPrompt = buildSystemPrompt(incident, events);
+    let systemPrompt = buildSystemPrompt(incident, events);
+
+    // Augment with RAG context from org-scoped documents
+    try {
+      const orgId = investigation.orgId ?? incident.orgId;
+      if (orgId) {
+        const ragQueryText = `${incident.title} ${incident.primaryLocation?.name ?? ''}`;
+        const ragResults = await queryRag(ragQueryText, orgId, 5);
+        if (ragResults.length > 0) {
+          systemPrompt +=
+            `\n\nRelevant historical context from site documents:\n` +
+            ragResults
+              .map((r, i) => `[${i + 1}] From "${r.filename}":\n${r.text}`)
+              .join('\n\n');
+        }
+      }
+    } catch {
+      // RAG failure must never block an investigation
+    }
 
     // Build initial user message
     const eventSummary = events
