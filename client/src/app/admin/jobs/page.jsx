@@ -302,11 +302,10 @@ export default function JobsPage() {
   } = useQuery({
     queryKey: ['admin-jobs-stats'],
     queryFn: async () => {
-      const res = await getAdminJobStats();
-      return res.data?.data ?? res.data ?? [];
+      const data = await getAdminJobStats();
+      return Array.isArray(data) ? data : data?.data ?? [];
     },
     refetchInterval: 30000,
-    onSuccess: () => setLastUpdated(Date.now()),
   });
 
   // TanStack Query v5 uses `select` / meta for side-effects; use a derived state via useEffect instead
@@ -323,8 +322,8 @@ export default function JobsPage() {
   } = useQuery({
     queryKey: ['admin-jobs-failed'],
     queryFn: async () => {
-      const res = await listFailedJobs();
-      return res.data?.data ?? res.data ?? [];
+      const data = await listFailedJobs();
+      return Array.isArray(data) ? data : data?.data ?? [];
     },
     refetchInterval: 30000,
   });

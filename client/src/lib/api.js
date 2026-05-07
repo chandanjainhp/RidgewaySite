@@ -378,11 +378,11 @@ export const updateUserStatus = (userId, isActive) => api.patch(`/admin/users/${
 export const deleteUserSessions = (userId) => api.delete(`/admin/users/${userId}/sessions`);
 
 // Admin — API Keys
-export const listAdminApiKeys = (params) => api.get("/admin/api-keys", { params });
-export const revokeAdminApiKey = (keyId) => api.delete(`/admin/api-keys/${keyId}`);
+export const listAdminApiKeys = (params) => api.get("/admin/apikeys", { params });
+export const revokeAdminApiKey = (keyId) => api.delete(`/admin/apikeys/${keyId}/revoke`);
 
 // Admin — Jobs
-export const getAdminJobStats = () => api.get("/admin/jobs");
+export const getAdminJobStats = () => api.get("/admin/jobs/stats");
 export const listFailedJobs = () => api.get("/admin/jobs/failed");
 export const retryAdminJob = (queueName, jobId) => api.post(`/admin/jobs/${queueName}/${jobId}/retry`);
 export const deleteAdminJob = (queueName, jobId) => api.delete(`/admin/jobs/${queueName}/${jobId}`);

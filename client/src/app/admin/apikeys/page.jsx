@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
 import { listAdminOrgs, listAdminApiKeys, revokeAdminApiKey } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatDistanceToNow, format } from 'date-fns';
-import { Key, ShieldAlert, Loader2 } from 'lucide-react';
+import { Key, ShieldAlert, Loader2, ChevronDown } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -19,6 +20,8 @@ const ALL_SCOPES = [
   'investigations:write',
   'mcp',
 ];
+
+const PAGE_SIZE = 50;
 
 function lastUsedLabel(lastUsedAt) {
   if (!lastUsedAt) return 'Never';
@@ -39,7 +42,7 @@ function expiresLabel(expiresAt) {
 }
 
 function StatusBadge({ keyObj }) {
-  const isActive = keyObj.status === 'active' || keyObj.isActive === true;
+  const isActive = keyObj.isActive === true;
   if (isActive) {
     return (
       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
@@ -92,15 +95,14 @@ function RevokeDialog({ keyObj, onRevoke }) {
           </Dialog.Title>
           <Dialog.Description className="text-sm text-gray-500 mb-1">
             <span className="font-medium text-gray-800">{keyObj.name}</span>
-            {keyObj.prefix && (
+            {keyObj.keyPrefix && (
               <span className="ml-2 font-mono text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
-                {keyObj.prefix}…
+                {keyObj.keyPrefix}…
               </span>
             )}
           </Dialog.Description>
           <p className="text-xs text-red-600 bg-red-50 rounded-md px-3 py-2 mb-5">
-            Revoking this key will immediately block all requests using it.
-            This cannot be undone.
+            This will immediately block all requests using this key. This cannot be undone.
           </p>
           <div className="flex justify-end gap-3">
             <Dialog.Close asChild>
@@ -123,6 +125,30 @@ function RevokeDialog({ keyObj, onRevoke }) {
   );
 }
 
+// ─── scopes cell ─────────────────────────────────────────────────────────────
+
+function ScopesCell({ scopes = [] }) {
+  const visible = scopes.slice(0, 3);
+  const hidden = scopes.slice(3);
+  return (
+    <div className="flex flex-wrap gap-1 max-w-[200px]">
+      {visible.map((s) => (
+        <span key={s} className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
+          {s}
+        </span>
+      ))}
+      {hidden.length > 0 && (
+        <span
+          className="text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded cursor-default"
+          title={hidden.join(', ')}
+        >
+          +{hidden.length} more
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ─── main page ───────────────────────────────────────────────────────────────
 
 export default function ApiKeysPage() {
@@ -131,45 +157,63 @@ export default function ApiKeysPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [scopeFilter, setScopeFilter] = useState('');
 
-  // orgs for dropdown
+  // orgs for dropdown — loaded once
   const { data: orgsData } = useQuery({
     queryKey: ['admin-orgs-list'],
     queryFn: () => listAdminOrgs({ limit: 100 }),
+    staleTime: 5 * 60 * 1000,
   });
   const orgs = orgsData?.orgs ?? orgsData?.data ?? [];
 
-  // api keys query
-  const { data: keysData, isLoading, isError } = useQuery({
+  // paginated api keys
+  const {
+    data,
+    isLoading,
+    isError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ['admin-apikeys', orgFilter, statusFilter],
-    queryFn: () =>
+    queryFn: ({ pageParam = 1 }) =>
       listAdminApiKeys({
         orgId: orgFilter || undefined,
-        status: statusFilter || undefined,
-        limit: 50,
+        page: pageParam,
+        limit: PAGE_SIZE,
       }),
-    keepPreviousData: true,
+    getNextPageParam: (last, allPages) => {
+      const loaded = allPages.length * PAGE_SIZE;
+      const total = last?.total ?? 0;
+      return loaded < total ? allPages.length + 1 : undefined;
+    },
+    initialPageParam: 1,
   });
 
-  const allKeys = keysData?.apiKeys ?? keysData?.data ?? [];
+  const allKeys = data?.pages.flatMap((page) => page?.data ?? []) ?? [];
 
   // scope filter is applied locally
   const keys = scopeFilter
-    ? allKeys.filter(
-        (k) => Array.isArray(k.scopes) && k.scopes.includes(scopeFilter)
-      )
+    ? allKeys.filter((k) => Array.isArray(k.scopes) && k.scopes.includes(scopeFilter))
     : allKeys;
 
+  const totalLoaded = allKeys.length;
+  const totalAvailable = data?.pages?.[0]?.total ?? 0;
+  const hasActiveFilters = !!(orgFilter || statusFilter || scopeFilter);
+
   async function handleRevoke(keyId) {
-    // optimistic: mark revoked immediately
     queryClient.setQueryData(['admin-apikeys', orgFilter, statusFilter], (old) => {
       if (!old) return old;
-      const list = old?.apiKeys ?? old?.data ?? [];
-      const updated = list.map((k) =>
-        k._id === keyId
-          ? { ...k, isActive: false, status: 'revoked', revokedAt: new Date().toISOString() }
-          : k
-      );
-      return old?.apiKeys ? { ...old, apiKeys: updated } : { ...old, data: updated };
+      return {
+        ...old,
+        pages: old.pages.map((page) => ({
+          ...page,
+          data: (page?.data ?? []).map((k) =>
+            k._id === keyId
+              ? { ...k, isActive: false, revokedAt: new Date().toISOString() }
+              : k
+          ),
+        })),
+      };
     });
     try {
       await revokeAdminApiKey(keyId);
@@ -191,9 +235,10 @@ export default function ApiKeysPage() {
           <Key className="w-6 h-6 text-indigo-500" />
           Global API Keys
         </h1>
-        {keysData && (
+        {!isLoading && (
           <span className="text-sm text-gray-500">
-            {keys.length} key{keys.length !== 1 ? 's' : ''}
+            {keys.length} key{keys.length !== 1 ? 's' : ''} loaded
+            {totalAvailable > keys.length && ` of ${totalAvailable}`}
           </span>
         )}
       </div>
@@ -202,49 +247,66 @@ export default function ApiKeysPage() {
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
         <ShieldAlert className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
         <p className="text-sm text-amber-800">
-          This is a global oversight view. You can monitor and emergency-revoke
-          any API key in the system here. Creation of API keys is managed by
-          Org Admins within their own organisation settings.
+          Global oversight view. Monitor and emergency-revoke any API key in the system.
+          Keys are created by Org Admins within their organisation settings.
         </p>
       </div>
 
       {/* filters */}
-      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-3">
-        <select
-          className={selectBase}
-          value={orgFilter}
-          onChange={(e) => setOrgFilter(e.target.value)}
-        >
-          <option value="">All Organisations</option>
-          {orgs.map((o) => (
-            <option key={o._id} value={o._id}>
-              {o.name}
-            </option>
-          ))}
-        </select>
+      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-3 items-center">
+        <div className="relative">
+          <select
+            className={`${selectBase} appearance-none pr-8`}
+            value={orgFilter}
+            onChange={(e) => setOrgFilter(e.target.value)}
+          >
+            <option value="">All Organisations</option>
+            {orgs.map((o) => (
+              <option key={o._id} value={o._id}>
+                {o.name}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        </div>
 
-        <select
-          className={selectBase}
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="">All Statuses</option>
-          <option value="active">Active</option>
-          <option value="revoked">Revoked</option>
-        </select>
+        <div className="relative">
+          <select
+            className={`${selectBase} appearance-none pr-8`}
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="revoked">Revoked</option>
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        </div>
 
-        <select
-          className={selectBase}
-          value={scopeFilter}
-          onChange={(e) => setScopeFilter(e.target.value)}
-        >
-          <option value="">All Scopes</option>
-          {ALL_SCOPES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
+        <div className="relative">
+          <select
+            className={`${selectBase} appearance-none pr-8`}
+            value={scopeFilter}
+            onChange={(e) => setScopeFilter(e.target.value)}
+          >
+            <option value="">All Scopes</option>
+            {ALL_SCOPES.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        </div>
+
+        {hasActiveFilters && (
+          <button
+            onClick={() => { setOrgFilter(''); setStatusFilter(''); setScopeFilter(''); }}
+            className="text-xs text-gray-500 hover:text-gray-700 underline"
+          >
+            Clear filters
+          </button>
+        )}
       </div>
 
       {/* table */}
@@ -280,13 +342,23 @@ export default function ApiKeysPage() {
                 </tr>
               ) : keys.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-5 py-10 text-center text-gray-400">
-                    No API keys found.
+                  <td colSpan={9} className="px-5 py-12 text-center">
+                    <p className="text-gray-400 mb-2">
+                      {hasActiveFilters ? 'No keys match your filters.' : 'No API keys found.'}
+                    </p>
+                    {hasActiveFilters && (
+                      <button
+                        onClick={() => { setOrgFilter(''); setStatusFilter(''); setScopeFilter(''); }}
+                        className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                      >
+                        Clear filters
+                      </button>
+                    )}
                   </td>
                 </tr>
               ) : (
                 keys.map((k) => {
-                  const isActive = k.status === 'active' || k.isActive === true;
+                  const isActive = k.isActive === true;
                   const orgId = k.orgId?._id ?? k.orgId;
                   const orgName = k.orgId?.name ?? null;
 
@@ -299,19 +371,16 @@ export default function ApiKeysPage() {
                           : 'bg-red-50/30 opacity-70'
                       }`}
                     >
-                      {/* name */}
                       <td className="px-5 py-3 font-medium text-gray-900 max-w-[160px] truncate">
                         {k.name}
                       </td>
 
-                      {/* prefix */}
                       <td className="px-5 py-3">
                         <span className="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
-                          {String(k.prefix ?? '').slice(0, 12)}…
+                          {String(k.keyPrefix ?? '').slice(0, 16)}…
                         </span>
                       </td>
 
-                      {/* org */}
                       <td className="px-5 py-3 text-gray-700">
                         {orgId && orgName ? (
                           <Link
@@ -327,41 +396,26 @@ export default function ApiKeysPage() {
                         )}
                       </td>
 
-                      {/* scopes */}
                       <td className="px-5 py-3">
-                        <div className="flex flex-wrap gap-1 max-w-[180px]">
-                          {(k.scopes ?? []).map((s) => (
-                            <span
-                              key={s}
-                              className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded"
-                            >
-                              {s}
-                            </span>
-                          ))}
-                        </div>
+                        <ScopesCell scopes={k.scopes} />
                       </td>
 
-                      {/* created by */}
                       <td className="px-5 py-3 text-gray-600 text-xs">
-                        {k.createdBy?.username ?? 'System'}
+                        {k.createdBy?.username ?? k.createdBy?.email ?? 'System'}
                       </td>
 
-                      {/* last used */}
                       <td className="px-5 py-3 text-xs text-gray-500 whitespace-nowrap">
                         {lastUsedLabel(k.lastUsedAt)}
                       </td>
 
-                      {/* expires */}
                       <td className="px-5 py-3 text-xs text-gray-500 whitespace-nowrap">
                         {expiresLabel(k.expiresAt)}
                       </td>
 
-                      {/* status */}
                       <td className="px-5 py-3">
                         <StatusBadge keyObj={k} />
                       </td>
 
-                      {/* actions */}
                       <td className="px-5 py-3 text-right">
                         {isActive && (
                           <RevokeDialog keyObj={k} onRevoke={handleRevoke} />
@@ -375,6 +429,25 @@ export default function ApiKeysPage() {
           </table>
         </div>
       </div>
+
+      {/* pagination */}
+      {!isLoading && allKeys.length > 0 && (
+        <div className="flex flex-col items-center gap-2 pt-2">
+          <p className="text-sm text-gray-400">
+            Showing {keys.length} of {scopeFilter ? `${allKeys.length} loaded` : `${totalAvailable}`} records
+          </p>
+          {hasNextPage && (
+            <button
+              onClick={() => fetchNextPage()}
+              disabled={isFetchingNextPage}
+              className="inline-flex items-center gap-2 px-5 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            >
+              {isFetchingNextPage && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isFetchingNextPage ? 'Loading…' : 'Load More'}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
