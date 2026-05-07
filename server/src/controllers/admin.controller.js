@@ -313,9 +313,11 @@ export const updateUserStatus = async (req, res) => {
 // --- API Key Routes ---
 
 export const listApiKeys = async (req, res) => {
-  const { page = 1, limit = 20, orgId } = req.query;
+  const { page = 1, limit = 20, orgId, status } = req.query;
   const query = {};
   if (orgId) query.orgId = orgId;
+  if (status === 'active') query.isActive = true;
+  else if (status === 'revoked') query.isActive = false;
 
   const keys = await ApiKey.find(query)
     .populate('orgId', 'name')
@@ -434,12 +436,28 @@ export const deleteJob = async (req, res) => {
 // --- Audit Log ---
 
 export const getAuditLogs = async (req, res) => {
-  const { page = 1, limit = 50, orgId, action, actor } = req.query;
+  const { page = 1, limit = 50, orgId, action, actor, dateFrom, dateTo, search } = req.query;
   const query = {};
 
   if (orgId) query.orgId = orgId;
   if (action) query.action = action;
   if (actor) query.actor = actor;
+
+  if (dateFrom && dateTo) {
+    query.createdAt = { $gte: new Date(dateFrom), $lte: new Date(dateTo) };
+  } else if (dateFrom) {
+    query.createdAt = { $gte: new Date(dateFrom) };
+  } else if (dateTo) {
+    query.createdAt = { $lte: new Date(dateTo) };
+  }
+
+  if (search) {
+    const regex = new RegExp(search, 'i');
+    const matchingUsers = await User.find({
+      $or: [{ username: regex }, { email: regex }, { fullName: regex }]
+    }).select('_id').lean();
+    query.actor = { $in: matchingUsers.map((u) => u._id) };
+  }
 
   const logs = await AuditLog.find(query)
     .populate('actor', 'username email')

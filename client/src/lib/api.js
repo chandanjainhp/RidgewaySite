@@ -375,7 +375,7 @@ export const resendOrgInvite = (orgId, userId) => api.post(`/admin/orgs/${orgId}
 export const listAdminUsers = (params) => api.get("/admin/users", { params });
 export const updateUserRole = (userId, role) => api.patch(`/admin/users/${userId}/role`, { role });
 export const updateUserStatus = (userId, isActive) => api.patch(`/admin/users/${userId}/status`, { isActive });
-export const deleteUserSessions = (userId) => api.delete(`/admin/users/${userId}/sessions`);
+export const deleteUserSessions = (userId) => api.post(`/admin/users/${userId}/force-logout`);
 
 // Admin — API Keys
 export const listAdminApiKeys = (params) => api.get("/admin/apikeys", { params });
