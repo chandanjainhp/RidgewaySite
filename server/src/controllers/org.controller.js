@@ -156,6 +156,7 @@ export const getOrgMe = async (req, res) => {
     slug: org.slug,
     plan: org.plan,
     status: org.status,
+    setupComplete: org.setupComplete,
     config: safeConfig,
     createdAt: org.createdAt,
   }, 'Organisation retrieved successfully'));
@@ -464,4 +465,17 @@ export const rejectDocument = async (req, res) => {
   logAudit(req, 'document.rejected', { type: 'RagDocument', id: doc._id }, { filename: doc.originalName, reason });
 
   res.status(200).json(new ApiResponse(200, doc, 'Document rejected'));
+};
+
+export const completeSetup = async (req, res) => {
+  const org = await Organisation.findById(req.user.orgId);
+  if (!org) throw new ApiError(404, 'Organisation not found');
+
+  org.setupComplete = true;
+  if (org.status === 'pending') org.status = 'active';
+  await org.save();
+
+  logAudit(req, 'org.setup_completed', { type: 'Organisation', id: org._id }, {});
+
+  res.status(200).json(new ApiResponse(200, { setupComplete: true }, 'Setup complete'));
 };

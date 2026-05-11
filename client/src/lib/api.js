@@ -395,6 +395,7 @@ export const exportAuditLog = (params) =>
 // Org Settings
 export const getOrgMe = () => api.get("/org/me");
 export const updateOrgConfig = (data) => api.patch("/org/me/config", data);
+export const completeSetup = () => api.post("/org/setup/complete");
 export const listOrgUsers = () => api.get("/org/users");
 export const inviteOrgUser = (data) => api.post("/org/users/invite", data);
 export const deactivateOrgUser = (userId) => api.patch(`/admin/users/${userId}/status`, { isActive: false });

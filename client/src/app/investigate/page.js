@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useInvestigationStore } from "@/store/investigationStore";
@@ -105,8 +105,6 @@ export default function InvestigationView() {
     setShowWelcome(false);
   };
 
-  const hasStartedRef = useRef(false);
-
   const jobId     = useInvestigationStore((s) => s.jobId);
   const jobStatus = useInvestigationStore((s) => s.jobStatus);
   const stats     = useInvestigationStore((s) => s.investigationStats);
@@ -134,13 +132,6 @@ export default function InvestigationView() {
     },
     refetchInterval: jobStatus === "running" ? 5000 : false,
   });
-
-  /* auto-start */
-  useEffect(() => {
-    if (hasStartedRef.current || jobId || jobStatus !== "idle" || isStarting) return;
-    hasStartedRef.current = true;
-    startInvestigation({ nightDate });
-  }, [jobId, jobStatus, isStarting]);
 
   /* auth / error toasts */
   useEffect(() => {
@@ -242,7 +233,37 @@ export default function InvestigationView() {
             </span>
           </div>
           <div style={{ flex: 1, overflow: "hidden", minHeight: 0 }}>
-            <AgentFeed />
+            {jobStatus === "idle" && !jobId ? (
+              <div style={{
+                height: "100%", display: "flex", flexDirection: "column",
+                alignItems: "center", justifyContent: "center", gap: "16px",
+                padding: "24px",
+              }}>
+                <p style={{
+                  fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)",
+                  color: "var(--fg-3)", textAlign: "center", margin: 0,
+                }}>
+                  No investigation running for {nightDate}.
+                </p>
+                <button
+                  onClick={() => startInvestigation({ nightDate })}
+                  disabled={isStarting}
+                  style={{
+                    background: "var(--accent)", color: "var(--bg-base)",
+                    border: "none", borderRadius: "var(--radius-xs)",
+                    padding: "8px 20px", fontSize: "var(--text-sm)",
+                    fontFamily: "var(--font-sans)", fontWeight: 600,
+                    cursor: isStarting ? "not-allowed" : "pointer",
+                    opacity: isStarting ? 0.6 : 1,
+                    letterSpacing: "0.02em",
+                  }}
+                >
+                  {isStarting ? "Starting…" : "Start investigation"}
+                </button>
+              </div>
+            ) : (
+              <AgentFeed />
+            )}
           </div>
         </div>
 

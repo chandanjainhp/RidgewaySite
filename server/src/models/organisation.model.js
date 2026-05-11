@@ -64,6 +64,10 @@ const organisationSchema = new mongoose.Schema(
         },
       },
     },
+    setupComplete: {
+      type: Boolean,
+      default: false,
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

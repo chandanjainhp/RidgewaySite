@@ -11,6 +11,7 @@ import {
   getStoredToken,
   setStoredToken,
   clearStoredToken,
+  getOrgMe,
   ERROR_TYPES,
 } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
@@ -44,10 +45,19 @@ export function useAuth() {
         }
       }
 
-      toast.success("Welcome back, Maya");
+      toast.success("Welcome back");
 
-      // Redirect to investigate page
-      router.push("/investigate");
+      // Check org setup status before redirect
+      try {
+        const orgData = await getOrgMe();
+        const setupDone = orgData?.data?.setupComplete;
+        if (typeof window !== "undefined") {
+          document.cookie = `ridgeway_setup=${setupDone ? "1" : "0"}; path=/; max-age=86400; SameSite=Lax`;
+        }
+        router.push(setupDone ? "/investigate" : "/setup");
+      } catch {
+        router.push("/investigate");
+      }
     },
     onError: (error) => {
       if (error.type === ERROR_TYPES.UNAUTHORIZED) {
@@ -68,6 +78,7 @@ export function useAuth() {
       if (typeof window !== "undefined") {
         document.cookie = `ridgeway_auth=; path=/; max-age=0; SameSite=Lax`;
         document.cookie = `ridgeway_role=; path=/; max-age=0; SameSite=Lax`;
+        document.cookie = `ridgeway_setup=; path=/; max-age=0; SameSite=Lax`;
       }
       router.push("/login");
       toast.info("Logged out");
@@ -80,6 +91,7 @@ export function useAuth() {
       if (typeof window !== "undefined") {
         document.cookie = `ridgeway_auth=; path=/; max-age=0; SameSite=Lax`;
         document.cookie = `ridgeway_role=; path=/; max-age=0; SameSite=Lax`;
+        document.cookie = `ridgeway_setup=; path=/; max-age=0; SameSite=Lax`;
       }
       router.push("/login");
     },
@@ -107,12 +119,12 @@ export function useAuth() {
         if (data?.user?.role) {
           document.cookie = `ridgeway_role=${data.user.role}; path=/; max-age=86400; SameSite=Lax`;
         }
+        document.cookie = `ridgeway_setup=0; path=/; max-age=86400; SameSite=Lax`;
       }
 
       toast.success("Account created successfully!");
 
-      // Redirect to dashboard
-      router.push("/investigate");
+      router.push("/setup");
     },
     onError: (error) => {
       toast.error(error.message || "Registration failed");

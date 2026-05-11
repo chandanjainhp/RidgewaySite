@@ -46,6 +46,16 @@ export function middleware(request) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Setup gate — redirect incomplete orgs to /setup before they reach the app
+  if (isAuthenticated && pathname !== '/setup') {
+    const setupCookie = request.cookies.get('ridgeway_setup');
+    const needsSetup = setupCookie?.value === '0';
+    const isAppRoute = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+    if (needsSetup && isAppRoute) {
+      return NextResponse.redirect(new URL('/setup', request.url));
+    }
+  }
+
   // Role checks for authenticated users
   if (isAuthenticated) {
     const roleCookie = request.cookies.get('ridgeway_role');

@@ -10,6 +10,7 @@ import {
   getWebhookDeliveries,
   getOrgMe,
   updateOrgConfig,
+  completeSetup,
   listOrgApiKeys,
   createOrgApiKey,
   revokeOrgApiKey,
@@ -44,6 +45,7 @@ router.use(requireRole('org_admin', 'super_admin'));
 // Org profile
 router.get('/me', asyncHandler(getOrgMe));
 router.patch('/me/config', asyncHandler(updateOrgConfig));
+router.post('/setup/complete', asyncHandler(completeSetup));
 
 // Members
 router.post('/users/invite', asyncHandler(inviteOperator));
