@@ -47,12 +47,18 @@ export function middleware(request) {
   }
 
   // Setup gate — redirect incomplete orgs to /setup before they reach the app
+  // super_admin has no orgId and must never be sent to /setup
   if (isAuthenticated && pathname !== '/setup') {
-    const setupCookie = request.cookies.get('ridgeway_setup');
-    const needsSetup = setupCookie?.value === '0';
-    const isAppRoute = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
-    if (needsSetup && isAppRoute) {
-      return NextResponse.redirect(new URL('/setup', request.url));
+    const roleCookie = request.cookies.get('ridgeway_role');
+    const isSuperAdmin = roleCookie?.value === 'super_admin';
+
+    if (!isSuperAdmin) {
+      const setupCookie = request.cookies.get('ridgeway_setup');
+      const needsSetup = setupCookie?.value === '0';
+      const isAppRoute = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+      if (needsSetup && isAppRoute) {
+        return NextResponse.redirect(new URL('/setup', request.url));
+      }
     }
   }
 

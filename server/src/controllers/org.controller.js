@@ -475,7 +475,9 @@ export const completeSetup = async (req, res) => {
   if (org.status === 'pending') org.status = 'active';
   await org.save();
 
-  logAudit(req, 'org.setup_completed', { type: 'Organisation', id: org._id }, {});
+  await User.findByIdAndUpdate(req.user._id, { firstLogin: false });
+
+  logAudit(req, 'org.setup.complete', { type: 'Organisation', id: org._id }, {});
 
   res.status(200).json(new ApiResponse(200, { setupComplete: true }, 'Setup complete'));
 };

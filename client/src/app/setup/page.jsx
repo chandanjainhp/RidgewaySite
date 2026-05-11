@@ -357,7 +357,7 @@ export default function SetupPage() {
 
   const generateKey = useMutation({
     mutationFn: () => createOrgApiKey({ name: "Drone patrol key", scopes: ["events:write"] }),
-    onSuccess: (data) => setGeneratedKey(data?.data?.key),
+    onSuccess: (data) => setGeneratedKey(data?.key),
     onError: () => toast.error("Failed to generate API key"),
   });
 
@@ -367,7 +367,7 @@ export default function SetupPage() {
       if (typeof window !== "undefined") {
         document.cookie = `ridgeway_setup=1; path=/; max-age=86400; SameSite=Lax`;
       }
-      router.push("/investigate");
+      router.replace("/investigate");
     },
     onError: () => toast.error("Failed to complete setup"),
   });

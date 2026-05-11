@@ -23,7 +23,7 @@ export function useAuth() {
   // Login mutation
   const loginMutation = useMutation({
     mutationFn: ({ email, password }) => loginUser(email, password),
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       // Store the access token
       setStoredToken(data.accessToken);
 
@@ -50,13 +50,13 @@ export function useAuth() {
       // Check org setup status before redirect
       try {
         const orgData = await getOrgMe();
-        const setupDone = orgData?.data?.setupComplete;
+        const setupDone = orgData?.setupComplete;
         if (typeof window !== "undefined") {
           document.cookie = `ridgeway_setup=${setupDone ? "1" : "0"}; path=/; max-age=86400; SameSite=Lax`;
         }
-        router.push(setupDone ? "/investigate" : "/setup");
+        router.replace(setupDone ? "/investigate" : "/setup");
       } catch {
-        router.push("/investigate");
+        router.replace("/investigate");
       }
     },
     onError: (error) => {
@@ -124,7 +124,7 @@ export function useAuth() {
 
       toast.success("Account created successfully!");
 
-      router.push("/setup");
+      router.replace("/setup");
     },
     onError: (error) => {
       toast.error(error.message || "Registration failed");

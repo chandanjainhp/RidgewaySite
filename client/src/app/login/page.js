@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
-import { loginUser } from '@/lib/api';
+import { loginUser, getOrgMe } from '@/lib/api';
 import { initTheme } from '@/lib/theme';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -52,7 +52,7 @@ export default function LoginPage() {
 
   const mutation = useMutation({
     mutationFn: ({ email, password }) => loginUser(email, password),
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       setServerError('');
 
       if (data?.user?.isActive === false) {
@@ -69,15 +69,25 @@ export default function LoginPage() {
         useAuthStore.getState().setUser(data.user);
       }
       document.cookie = 'ridgeway_auth=1; path=/; max-age=86400; SameSite=Lax';
-      if (data?.user?.role) {
-        document.cookie = `ridgeway_role=${data.user.role}; path=/; max-age=86400; SameSite=Lax`;
+      const role = data?.user?.role;
+      if (role) {
+        document.cookie = `ridgeway_role=${role}; path=/; max-age=86400; SameSite=Lax`;
       }
 
-      const role = data?.user?.role;
       if (role === 'super_admin') {
-        router.push('/admin/orgs');
+        document.cookie = 'ridgeway_setup=1; path=/; max-age=86400; SameSite=Lax';
+        router.replace('/admin/orgs');
       } else {
-        router.push('/investigate');
+        try {
+          const orgData = await getOrgMe();
+          const setupDone = orgData?.setupComplete;
+          document.cookie = `ridgeway_setup=${setupDone ? '1' : '0'}; path=/; max-age=86400; SameSite=Lax`;
+          router.replace(setupDone ? '/investigate' : '/setup');
+        } catch {
+          // Non-critical — don't block login
+          document.cookie = 'ridgeway_setup=1; path=/; max-age=86400; SameSite=Lax';
+          router.replace('/investigate');
+        }
       }
     },
     onError: (error) => {

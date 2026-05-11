@@ -838,6 +838,103 @@ Severity levels (set by Claude agent during classification):
 
 ---
 
+## 18. Known Bugs & Fixes — Do Not Repeat
+
+These bugs were found and fixed during implementation. Claude Code must not reintroduce them.
+
+### API Response Unwrapping
+
+The axios interceptor in `client/src/lib/api.js` already unwraps `response.data` once.
+**Never double-unwrap.** Use `data?.field`, not `data?.data?.field`.
+
+```js
+// WRONG — interceptor already unwrapped once
+const setupComplete = orgData?.data?.setupComplete;
+const key = data?.data?.key;
+
+// CORRECT
+const setupComplete = orgData?.setupComplete;
+const key = data?.key;
+```
+
+### Async Callbacks
+
+Any callback that uses `await` must be declared `async`.
+Silent failures happen when `await` is used inside a non-async function — no error is thrown, the promise just resolves to `undefined`.
+
+```js
+// WRONG — silent fail, await does nothing
+onSuccess: (data) => {
+  const org = await getOrgMe();
+}
+
+// CORRECT
+onSuccess: async (data) => {
+  const org = await getOrgMe();
+}
+```
+
+### Navigation After Auth
+
+Always use `router.replace()` after login, register, setup completion, and logout.
+`router.push()` adds to the history stack — pressing back returns to the auth page and triggers another redirect loop.
+
+```js
+// WRONG — creates back-button loop
+router.push('/investigate');
+router.push('/setup');
+
+// CORRECT
+router.replace('/investigate');
+router.replace('/setup');
+```
+
+### super_admin and the Setup Gate
+
+`super_admin` users have no `orgId` and must be exempt from the setup gate in `middleware.js`.
+Always check the `ridgeway_role` cookie before applying the setup redirect.
+
+```js
+// middleware.js — setup gate must skip super_admin
+const roleCookie = request.cookies.get('ridgeway_role');
+const isSuperAdmin = roleCookie?.value === 'super_admin';
+if (!isSuperAdmin) {
+  // apply setup gate
+}
+```
+
+On login (`login/page.js` and `useAuth.js`):
+- `super_admin` → set `ridgeway_setup=1` immediately, redirect to `/admin/orgs`
+- all other roles → call `GET /org/me`, read `setupComplete`, set `ridgeway_setup=0|1` accordingly
+
+### `firstLogin` Field on User Model
+
+`user.models.js` was missing the `firstLogin` field. It has been added:
+
+```js
+firstLogin: { type: Boolean, default: true }
+```
+
+When `completeSetup` runs in `org.controller.js`, it must set this to false:
+
+```js
+await User.findByIdAndUpdate(req.user._id, { firstLogin: false });
+```
+
+Do not remove this line. The `firstLogin` flag controls the welcome banner on `/investigate` and `/dashboard`. If it stays `true` after setup, the banner reappears on every session.
+
+### `completeSetup` Audit Action String
+
+The audit log action must be exactly `'org.setup.complete'` (dot-separated, no spaces).
+Using a different format breaks audit log filtering in the admin panel.
+
+```js
+// CORRECT
+await logAudit(req, 'org.setup.complete', 'organisation', { orgId });
+```
+
+---
+
 *Last updated: 2026-05-11*
 *Maintained by: Ridgeway development team*
 *For questions, open an issue or ping the team in Slack.*

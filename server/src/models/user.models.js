@@ -41,6 +41,10 @@ const userSchema = new Schema(
     lastLoginAt: {
       type: Date,
     },
+    firstLogin: {
+      type: Boolean,
+      default: true,
+    },
     invitedBy: {
       type: Types.ObjectId,
       ref: 'User',
