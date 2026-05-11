@@ -90,7 +90,7 @@ export default function InvestigationView() {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && user) {
-      const dismissed = localStorage.getItem('ridgeway_welcome_dismissed');
+      const dismissed = sessionStorage.getItem('ridgeway_welcome_dismissed');
       // If user has lastLoginAt within last 5 minutes, show banner
       const loginTime = new Date(user.lastLoginAt).getTime();
       const now = new Date().getTime();
@@ -101,7 +101,7 @@ export default function InvestigationView() {
   }, [user]);
 
   const dismissWelcome = () => {
-    localStorage.setItem('ridgeway_welcome_dismissed', 'true');
+    sessionStorage.setItem('ridgeway_welcome_dismissed', 'true');
     setShowWelcome(false);
   };
 
@@ -190,6 +190,11 @@ export default function InvestigationView() {
           >
             <X className="w-5 h-5" />
           </button>
+          <a 
+            href="#"
+            onClick={(e)=>{e.preventDefault(); sessionStorage.removeItem('ridgeway_welcome_dismissed'); setShowWelcome(false);}}
+            className="ml-4 text-xs text-white underline hover:text-gray-200"
+          >Dismiss — show again next session</a>
         </div>
       )}
 

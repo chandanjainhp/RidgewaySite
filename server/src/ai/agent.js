@@ -16,7 +16,6 @@ import Incident from '../models/incident.model.js';
 import { queryRag } from '../services/rag.service.js';
 
 const MAX_TOOL_CALLS = 12;
-const DEFAULT_MODEL = getModelName();
 
 const toUsageNumber = (value) => {
   const n = Number(value);
@@ -139,7 +138,7 @@ Begin by gathering all available data for this location and these event types. O
       console.log(`[Agent] Iteration ${toolCallCount + 1}/${MAX_TOOL_CALLS}`);
 
       try {
-        const model = DEFAULT_MODEL;
+        const model = getModelName();
         const tools = TOOLS_FOR_CLAUDE;
         const messages = conversationHistory;
 
@@ -411,7 +410,7 @@ Begin by gathering all available data for this location and these event types. O
     investigation.totalToolCalls = toolCallCount;
     investigation.durationMs = duration;
     investigation.failureReason = failureReason;
-    investigation.agentModel = DEFAULT_MODEL;
+    investigation.agentModel = getModelName();
 
     await investigation.save();
     console.log(`[Agent] Investigation saved with status: ${finalStatus}`);

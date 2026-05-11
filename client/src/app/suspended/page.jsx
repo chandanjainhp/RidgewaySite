@@ -1,12 +1,12 @@
 'use client';
 
 import { ShieldAlert, LogOut } from 'lucide-react';
-import { useAuthStore } from '../../hooks/useAuth';
+import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
-import api from '../../lib/api';
+import api, { clearStoredToken } from '@/lib/api';
 
 export default function SuspendedPage() {
-  const { user, logout } = useAuthStore();
+  const { user, clearUser } = useAuthStore();
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -15,7 +15,8 @@ export default function SuspendedPage() {
     } catch (e) {
       console.error(e);
     }
-    logout();
+    clearUser();
+    clearStoredToken();
     router.push('/login');
   };
 
@@ -39,6 +40,12 @@ export default function SuspendedPage() {
               Please contact your platform administrator or account manager to restore access.
             </p>
           </div>
+          <a href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || 'support@ridgeway.io'}`} className="block mt-3 text-sm text-blue-500 hover:underline">
+            Contact support
+          </a>
+          <p className="text-xs text-gray-500 mt-1">
+            Include your organisation name and the email address you use to log in.
+          </p>
 
           <button
             onClick={handleLogout}

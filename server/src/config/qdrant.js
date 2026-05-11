@@ -31,8 +31,7 @@ export const ensureCollection = async () => {
 
     logger.info(`[Qdrant] Collection "${COLLECTION_NAME}" created with orgId index`);
   } catch (err) {
-    logger.error({ err }, '[Qdrant] Failed to ensure collection');
-    throw err;
+    logger.warn({ err }, '[Qdrant] Qdrant not reachable — RAG features disabled');
   }
 };
 

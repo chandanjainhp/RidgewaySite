@@ -7,6 +7,7 @@ const PUBLIC_ROUTES = new Set([
   "/",
   "/login",
   "/register",
+  "/opt",
   "/forgot-password",
   "/reset-password",
   "/suspended",
@@ -22,10 +23,12 @@ export default function RootFrame({ children }) {
     path.startsWith("/reset-password") ||
     path.startsWith("/invite/accept");
 
+  const suppressTopBar = isPublicRoute || path.startsWith("/admin");
+
   return (
     <>
-      {!isPublicRoute ? <TopBar /> : null}
-      <div style={{ paddingTop: isPublicRoute ? "0" : "56px" }}>{children}</div>
+      {!suppressTopBar ? <TopBar /> : null}
+      <div style={{ paddingTop: suppressTopBar ? "0" : "56px" }}>{children}</div>
     </>
   );
 }

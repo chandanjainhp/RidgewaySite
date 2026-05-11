@@ -1,7 +1,10 @@
 import OpenAI from 'openai';
 import logger from '../utils/logger.js';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || 'lm-studio',
+  baseURL: process.env.OPENAI_BASE_URL || undefined,
+});
 
 const MAX_CHARS = 8000;
 const BATCH_SIZE = 100;
@@ -14,7 +17,7 @@ const truncate = (text) => {
 export const generateEmbedding = async (text) => {
   try {
     const response = await openai.embeddings.create({
-      model: 'text-embedding-3-small',
+      model: process.env.EMBEDDING_MODEL || 'text-embedding-3-small',
       input: truncate(text),
     });
     return response.data[0].embedding;
@@ -30,7 +33,7 @@ export const generateEmbeddings = async (texts) => {
 
     if (truncated.length <= BATCH_SIZE) {
       const response = await openai.embeddings.create({
-        model: 'text-embedding-3-small',
+        model: process.env.EMBEDDING_MODEL || 'text-embedding-3-small',
         input: truncated,
       });
       return response.data.map((d) => d.embedding);
@@ -40,7 +43,7 @@ export const generateEmbeddings = async (texts) => {
     for (let i = 0; i < truncated.length; i += BATCH_SIZE) {
       const batch = truncated.slice(i, i + BATCH_SIZE);
       const response = await openai.embeddings.create({
-        model: 'text-embedding-3-small',
+        model: process.env.EMBEDDING_MODEL || 'text-embedding-3-small',
         input: batch,
       });
       results.push(...response.data.map((d) => d.embedding));

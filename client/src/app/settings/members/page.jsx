@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import api from '../../../../lib/api';
+import { deactivateOrgUser } from '@/lib/api';
 import { Users, Mail, UserX, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -41,13 +43,14 @@ export default function MembersSettingsPage() {
   });
 
   const deactivateMutation = useMutation({
-    mutationFn: async (userId) => {
-      // Assuming you have an endpoint for this, we'll use a hypothetical one or wait for Phase 5 to complete it
-      // Actually we'll just show the UI for now, we can build the backend endpoint if it doesn't exist.
-      // Wait, admin has `/admin/users/:userId/status`, but org_admin should have `/org/users/:userId/status`?
-      // The prompt didn't specify the deactivate endpoint for org admins. Let's just simulate or add it later.
-      alert('Deactivation of members is available to Super Admins. Please contact support.');
-    }
+    mutationFn: (userId) => deactivateOrgUser(userId),
+    onSuccess: () => {
+      toast.success('Member removed');
+      queryClient.invalidateQueries({ queryKey: ['org-members'] });
+    },
+    onError: (err) => {
+      toast.error(err?.message ?? 'Failed to remove member');
+    },
   });
 
   return (
@@ -104,9 +107,13 @@ export default function MembersSettingsPage() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       {m.role !== 'org_admin' && m.role !== 'super_admin' && m.isActive && (
-                        <button 
-                          onClick={() => deactivateMutation.mutate(m._id)}
-                          className="text-red-600 hover:text-red-800 text-sm font-medium inline-flex items-center"
+                        <button
+                          onClick={() => {
+                            if (!window.confirm('Remove this member? They will lose access immediately.')) return;
+                            deactivateMutation.mutate(m._id);
+                          }}
+                          disabled={deactivateMutation.isPending}
+                          className="text-red-600 hover:text-red-800 text-sm font-medium inline-flex items-center disabled:opacity-50"
                         >
                           <UserX className="w-4 h-4 mr-1" />
                           Remove

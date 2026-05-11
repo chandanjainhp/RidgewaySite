@@ -69,6 +69,13 @@ export default function TopBar() {
 
   const displayUser = currentUser?.email || currentUser?.username || "";
 
+  function formatRole(role) {
+    if (role === "super_admin") return "Super Admin";
+    if (role === "org_admin") return "Org Admin";
+    if (role === "operator") return "Operator";
+    return role || "";
+  }
+
   return (
     <header
       style={{
@@ -147,7 +154,7 @@ export default function TopBar() {
           </Link>
           {['super_admin', 'org_admin'].includes(userRole) && (
             <Link
-              href="/settings"
+              href="/settings/general"
               style={{
                 fontFamily: "var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
                 fontSize: "11px",
@@ -161,7 +168,7 @@ export default function TopBar() {
           )}
           {userRole === 'super_admin' && (
             <Link
-              href="/admin"
+              href="/admin/orgs"
               style={{
                 fontFamily: "var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
                 fontSize: "11px",
@@ -190,23 +197,38 @@ export default function TopBar() {
 
       <div style={{ flex: "none", display: "flex", alignItems: "center", gap: "16px" }}>
         {displayUser ? (
-          <Link
-            href="/profile"
-            style={{
-              fontFamily: "var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-              fontSize: "10px",
-              color: profileActive ? "#8892a4" : "#4a5568",
-              maxWidth: "150px",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              textDecoration: "none",
-              transition: "color 0.15s ease",
-            }}
-            title={displayUser}
-          >
-            {displayUser}
-          </Link>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "1px" }}>
+            <Link
+              href="/profile"
+              style={{
+                fontFamily: "var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                fontSize: "10px",
+                color: profileActive ? "#8892a4" : "#4a5568",
+                maxWidth: "150px",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                textDecoration: "none",
+                transition: "color 0.15s ease",
+              }}
+              title={displayUser}
+            >
+              {displayUser}
+            </Link>
+            {userRole ? (
+              <span
+                style={{
+                  fontFamily: "var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                  fontSize: "9px",
+                  color: "#374151",
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                }}
+              >
+                {formatRole(userRole)}
+              </span>
+            ) : null}
+          </div>
         ) : null}
         <span
           style={{

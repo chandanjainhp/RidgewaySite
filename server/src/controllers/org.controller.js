@@ -381,6 +381,9 @@ export const uploadDocument = async (req, res) => {
 export const listDocuments = async (req, res) => {
   const docs = await RagDocument.find({ orgId: req.user.orgId })
     .select('-storedPath')
+    .populate('uploadedBy', 'username email')
+    .populate('approvedBy', 'username email')
+    .populate('rejectedBy', 'username email')
     .sort({ createdAt: -1 })
     .lean();
 

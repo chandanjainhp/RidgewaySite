@@ -213,9 +213,52 @@ const createOpenRouterCompatClient = ({ apiKey, baseURL }) => {
   };
 };
 
+const createLMStudioClient = ({ baseURL, apiKey }) => {
+  const base = (baseURL || 'http://localhost:1234/v1').replace(/\/$/, '');
+  const maxTokensCap = parseInt(process.env.LMSTUDIO_MAX_TOKENS || '800', 10);
+
+  return {
+    messages: {
+      create: async ({ model, max_tokens, system, tools, tool_choice, messages }) => {
+        max_tokens = Math.min(max_tokens, maxTokensCap);
+        const openAIMessages = [
+          { role: 'system', content: system || '' },
+          ...anthropicMessagesToOpenAIMessages(messages || []),
+        ];
+
+        const payload = { model, messages: openAIMessages, max_tokens };
+
+        if (Array.isArray(tools) && tools.length > 0) {
+          payload.tools = anthropicToolsToOpenAITools(tools);
+          payload.tool_choice = tool_choice?.type || 'auto';
+        }
+
+        const body = JSON.stringify(payload);
+        console.log(`[LMStudio] sending payload chars=${body.length} prompt_msgs=${openAIMessages.length} max_tokens=${max_tokens}`);
+        const response = await fetch(`${base}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey || 'lm-studio'}`,
+            'Content-Type': 'application/json',
+          },
+          body,
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`LM Studio error (${response.status}): ${text.slice(0, 500)}`);
+        }
+
+        const data = await response.json();
+        return openAIResponseToAnthropicShape(data);
+      },
+    },
+  };
+};
+
 /**
  * Determine which AI provider to use based on environment variables
- * @returns {'openrouter' | 'anthropic'} The configured AI provider
+ * @returns {'openrouter' | 'anthropic' | 'lmstudio'} The configured AI provider
  */
 const getAIProvider = () => {
   if (process.env.OPENROUTER_API_KEY) {
@@ -224,8 +267,11 @@ const getAIProvider = () => {
   if (process.env.ANTHROPIC_API_KEY) {
     return 'anthropic';
   }
+  if (process.env.OPENAI_BASE_URL) {
+    return 'lmstudio';
+  }
   throw new Error(
-    'No AI provider configured. Set either OPENROUTER_API_KEY or ANTHROPIC_API_KEY in .env'
+    'No AI provider configured. Set OPENROUTER_API_KEY, ANTHROPIC_API_KEY, or OPENAI_BASE_URL in .env'
   );
 };
 
@@ -256,6 +302,17 @@ export const getAIClient = () => {
         apiKey: process.env.ANTHROPIC_API_KEY,
       });
       console.log('[AI] ✅ Anthropic Claude initialized');
+    } else if (aiProvider === 'lmstudio') {
+      console.log('[AI] Initializing LM Studio client...');
+      clientInstance = createLMStudioClient({
+        baseURL: process.env.OPENAI_BASE_URL,
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+      console.log(
+        `[AI] ✅ LM Studio initialized - Model: ${
+          process.env.LMSTUDIO_MODEL || 'openai/gpt-oss-20b'
+        } | Base URL: ${process.env.OPENAI_BASE_URL}`
+      );
     }
   }
   return clientInstance;
@@ -290,6 +347,10 @@ export const getModelName = () => {
     }
 
     return configuredModel;
+  }
+
+  if (provider === 'lmstudio') {
+    return process.env.LMSTUDIO_MODEL || 'openai/gpt-oss-20b';
   }
 
   // Anthropic uses claude-3-sonnet by default

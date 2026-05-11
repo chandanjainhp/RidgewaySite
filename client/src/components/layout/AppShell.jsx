@@ -1,13 +1,6 @@
-import TopBar from "./TopBar";
-
 export default function AppShell({ variant = "investigate", children }) {
   return (
-    <div className="flex flex-col h-screen w-full overflow-hidden bg-surface text-text-primary">
-      {/* Fixed Navigation and Status Reference */}
-      <div className="h-14 shrink-0 border-b border-border z-50 bg-surface">
-        <TopBar />
-      </div>
-
+    <div className="flex flex-col h-[calc(100vh-56px)] w-full overflow-hidden bg-surface text-text-primary">
       {/* Main Dynamically Structured Interactive Pane */}
       <div className="flex-1 overflow-hidden relative">
         {variant === "investigate" ? (

@@ -416,4 +416,15 @@ export const retryWebhookDelivery = (id) => api.post(`/org/webhooks/deliveries/$
 export const getMcpHealth = () => api.get("/mcp/health");
 export const getMcpActivity = (params) => api.get("/org/mcp/activity", { params });
 
+// Org RAG Documents
+export const getOrgDocuments = () => api.get("/org/documents");
+export const uploadOrgDocument = (formData, onProgress) =>
+  api.post("/org/documents/upload", formData, {
+    onUploadProgress: onProgress,
+  });
+export const deleteOrgDocument = (docId) => api.delete(`/org/documents/${docId}`);
+export const approveOrgDocument = (docId) => api.post(`/org/documents/${docId}/approve`);
+export const rejectOrgDocument = (docId, reason) =>
+  api.post(`/org/documents/${docId}/reject`, { reason });
+
 export default api;
