@@ -363,6 +363,8 @@ export const ragUpload = multer({ storage, fileFilter, limits: { fileSize: MAX_F
 export const uploadDocument = async (req, res) => {
   if (!req.file) throw new ApiError(400, 'No file uploaded');
 
+  const isAdmin = ['org_admin', 'super_admin'].includes(req.user.role);
+
   const doc = await RagDocument.create({
     orgId: req.user.orgId,
     filename: req.file.filename,
@@ -370,13 +372,21 @@ export const uploadDocument = async (req, res) => {
     mimeType: req.file.mimetype,
     fileSize: req.file.size,
     storedPath: req.file.path,
-    status: 'pending',
+    status: isAdmin ? 'approved' : 'pending',
     uploadedBy: req.user._id,
+    ...(isAdmin && {
+      approvedBy: req.user._id,
+      approvedAt: new Date(),
+    }),
   });
 
-  logAudit(req, 'document.uploaded', { type: 'RagDocument', id: doc._id }, { filename: doc.originalName });
+  logAudit(req, 'document.uploaded', { type: 'RagDocument', id: doc._id }, { filename: doc.originalName, autoApproved: isAdmin });
 
-  res.status(201).json(new ApiResponse(201, doc, 'Document uploaded — awaiting approval'));
+  if (isAdmin) {
+    await dispatchIndexingJob(doc._id, doc.orgId);
+  }
+
+  res.status(201).json(new ApiResponse(201, doc, isAdmin ? 'Document uploaded and queued for indexing' : 'Document uploaded — awaiting approval'));
 };
 
 export const listDocuments = async (req, res) => {

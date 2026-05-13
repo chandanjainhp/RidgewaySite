@@ -1,8 +1,10 @@
 import express from 'express';
+import crypto from 'crypto';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { mcpServer } from '../mcp/server.js';
 import { authenticateRequest, requireScope, scopeToOrg } from '../middlewares/auth.middleware.js';
 import { getRedis } from '../db/redis.js';
+import { logAudit } from '../utils/audit.js';
 
 const router = express.Router();
 
@@ -43,13 +45,21 @@ const rateLimitToolCalls = async (req, res, next) => {
       });
     }
 
-    // Log the tool call
     const toolName = req.body.params?.name;
-    const args = req.body.params?.arguments;
     console.log(`[MCP] Tool call: ${toolName} by org ${req.user.orgId}`);
-    
-    // We can wrap the transport handlePostMessage to log latency and response size
-    // But for now, simple logging of the request is fine.
+
+    const startMs = Date.now();
+    const originalJson = res.json.bind(res);
+    res.json = (body) => {
+      const success = !body?.error;
+      logAudit(req, 'mcp.tool_call', 'mcp', {
+        toolName,
+        orgId: req.user.orgId,
+        durationMs: Date.now() - startMs,
+        success,
+      }).catch(() => {});
+      return originalJson(body);
+    };
   }
   next();
 };
@@ -59,7 +69,7 @@ router.get('/', async (req, res) => {
     const transport = new SSEServerTransport('/api/v1/mcp/messages', res);
     
     // Attach orgFilter and orgId to session for tool implementations to use
-    transport.sessionId = transport.sessionId || crypto.randomUUID(); // Fallback if no getter
+    transport.sessionId = transport.sessionId || crypto.randomUUID();
     transport.extraParams = {
       orgFilter: req.orgFilter,
       orgId: req.user.orgId

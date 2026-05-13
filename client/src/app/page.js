@@ -36,8 +36,8 @@ const TERM_COLOR = {
   dim: "var(--term-dim)",
 };
 
-/* ── static mock data ─────────────────────────────────── */
-const MOCK_EVENTS = [
+/* ── demo preview data — illustrative only, shown on public landing page ── */
+const DEMO_EVENTS = [
   { time: "04:17", sev: "serious", desc: "North Fence — unexplained motion", meta: "zone 3 · cam 7 offline", label: "ESCALATED" },
   { time: "03:42", sev: "harmless", desc: "North Fence — motion (wind)", meta: "zone 3 · 14 m/s gust", label: "RESOLVED" },
   { time: "02:58", sev: "minor", desc: "Loading Bay — door cycled", meta: "bay 2 · unscheduled", label: "MONITORING" },
@@ -45,7 +45,7 @@ const MOCK_EVENTS = [
   { time: "01:33", sev: "minor", desc: "East Compound — heat signature", meta: "zone 5 · anomaly flagged", label: "REVIEW" },
 ];
 
-const MOCK_AGENT = [
+const DEMO_AGENT = [
   { type: "tool", text: "→ query_sensor_log(zone=3, window=\"03:00–05:00\")" },
   { type: "result", text: "← 3 anomalies. cam_7 offline at 04:12 UTC." },
   { type: "classify", text: "■ SERIOUS · confidence 0.81" },
@@ -260,15 +260,22 @@ export default function LandingPage() {
               padding: "12px 24px",
               display: "inline-flex", alignItems: "center", gap: "8px",
             }}>
-              Start Investigating <span>→</span>
+              Get started <span>→</span>
             </Link>
-            <Link href="#features" style={{
+            <Link href="/login" style={{
               fontFamily: "var(--font-mono)", fontSize: "11px",
               letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none",
               color: "var(--fg-3)", padding: "12px 24px",
               border: "1px solid var(--border-default)",
             }}>
-              See the Platform
+              Sign in
+            </Link>
+            <Link href="/docs" style={{
+              fontFamily: "var(--font-mono)", fontSize: "11px",
+              letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none",
+              color: "var(--fg-4)", padding: "12px 24px",
+            }}>
+              Read the docs
             </Link>
           </div>
 
@@ -334,12 +341,12 @@ export default function LandingPage() {
               }}>9 tool calls · running</span>
             </div>
             <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: "5px" }}>
-              {MOCK_AGENT.map((line, i) => (
+              {DEMO_AGENT.map((line, i) => (
                 <div key={i} style={{
                   fontFamily: "var(--font-mono)", fontSize: "11px",
                   color: TERM_COLOR[line.type] || "var(--term-fg)",
                   lineHeight: 1.5,
-                  opacity: i < MOCK_AGENT.length - 3 ? 0.55 : 1,
+                  opacity: i < DEMO_AGENT.length - 3 ? 0.55 : 1,
                 }}>{line.text}</div>
               ))}
               {/* Blinking cursor */}
@@ -371,7 +378,7 @@ export default function LandingPage() {
                 fontSize: "10px", color: "var(--fg-4)",
               }}>5 logged · 1 escalated</span>
             </div>
-            {MOCK_EVENTS.map((evt, i) => {
+            {DEMO_EVENTS.map((evt, i) => {
               const s = SEV[evt.sev];
               return (
                 <div key={i} style={{
@@ -576,7 +583,7 @@ export default function LandingPage() {
               padding: "14px 32px",
               display: "inline-flex", alignItems: "center", gap: "8px",
             }}>
-              Request Access →
+              Get started →
             </Link>
             <Link href="/login" style={{
               fontFamily: "var(--font-mono)", fontSize: "11px",
@@ -584,7 +591,14 @@ export default function LandingPage() {
               color: "var(--fg-3)", padding: "14px 24px",
               border: "1px solid var(--accent-dim)",
             }}>
-              Sign In
+              Sign in
+            </Link>
+            <Link href="/docs" style={{
+              fontFamily: "var(--font-mono)", fontSize: "11px",
+              letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none",
+              color: "var(--fg-4)", padding: "14px 24px",
+            }}>
+              Read the docs
             </Link>
           </div>
         </div>
@@ -615,7 +629,7 @@ export default function LandingPage() {
         }}>© {new Date().getFullYear()}</span>
 
         <div style={{ display: "flex", gap: "20px" }}>
-          {[["Login", "/login"], ["Register", "/register"]].map(([label, href]) => (
+          {[["Docs", "/docs"], ["Login", "/login"], ["Register", "/register"]].map(([label, href]) => (
             <Link key={label} href={href} style={{
               fontFamily: "var(--font-mono)", fontSize: "10px",
               color: "var(--fg-4)", textDecoration: "none",

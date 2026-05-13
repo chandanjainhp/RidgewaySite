@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import AppShell from "@/components/layout/AppShell";
 import BriefingDocument from "@/components/briefing/BriefingDocument";
 import ApproveButton from "@/components/briefing/ApproveButton";
 import { useBriefing } from "@/hooks/useBriefing";
-import { useProgressPercent } from "@/store/investigationStore";
+import { useProgressPercent, useInvestigationStore } from "@/store/investigationStore";
 import { formatNightLabel } from "@/lib/formatters";
 
 function useCountdown() {
@@ -61,6 +62,9 @@ export default function BriefingPage() {
     'w-full';
   const { timeLeft, urgency } = useCountdown();
 
+  const jobStatus = useInvestigationStore((s) => s.jobStatus);
+  const isJobActive = jobStatus === "running" || jobStatus === "connecting";
+
   const briefing = data?.briefing || null;
   const isApproved = data?.isApproved || false;
   const canApprove = data?.canApprove || false;
@@ -102,8 +106,73 @@ export default function BriefingPage() {
     return null;
   };
 
-  // Waiting state — investigation not yet complete or briefing not generated yet
-  if (!isLoading && (!briefing || briefing?.status === "draft")) {
+  // STATE 1 — no investigation running and no briefing
+  if (!isLoading && !briefing && !isJobActive) {
+    return (
+      <AppShell variant="briefing">
+        <div style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+          gap: "16px",
+          padding: "48px",
+          textAlign: "center",
+        }}>
+          <div style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "11px",
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.12em",
+            color: "var(--fg-4)",
+            marginBottom: "4px",
+          }}>
+            Briefing
+          </div>
+          <div style={{
+            fontFamily: "var(--font-sans)",
+            fontSize: "20px",
+            fontWeight: 500,
+            color: "var(--fg-2)",
+          }}>
+            No briefing yet.
+          </div>
+          <div style={{
+            fontFamily: "var(--font-sans)",
+            fontSize: "14px",
+            color: "var(--fg-4)",
+            maxWidth: "320px",
+          }}>
+            Run an investigation from the Investigate tab first. The briefing will appear once all incidents have been classified.
+          </div>
+          <Link
+            href="/investigate"
+            style={{
+              marginTop: "8px",
+              display: "inline-block",
+              padding: "8px 20px",
+              background: "var(--accent)",
+              color: "var(--bg-base)",
+              fontFamily: "var(--font-mono)",
+              fontSize: "11px",
+              fontWeight: 600,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              textDecoration: "none",
+              borderRadius: "2px",
+            }}
+          >
+            Go to Investigate →
+          </Link>
+        </div>
+      </AppShell>
+    );
+  }
+
+  // STATE 2 — investigation is actively running
+  if (!isLoading && !briefing && isJobActive) {
     return (
       <AppShell variant="briefing">
         <div className="w-full max-w-3xl mx-auto flex flex-col items-center justify-center h-full gap-8 px-8">

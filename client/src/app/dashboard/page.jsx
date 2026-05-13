@@ -1,0 +1,466 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuthStore } from "@/store/authStore";
+import { getLatestBriefing, getIncidents, startInvestigation, getOrgMe } from "@/lib/api";
+
+const MONO = "var(--font-mono)";
+const SANS = "var(--font-sans)";
+
+function useNightDate() {
+  return useMemo(() => {
+    if (process.env.NEXT_PUBLIC_SEED_NIGHT_DATE) return process.env.NEXT_PUBLIC_SEED_NIGHT_DATE;
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
+}
+
+function StatCard({ label, value, sub, accent, onClick }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        flex: 1,
+        minWidth: "160px",
+        background: hovered && onClick ? "var(--bg-surface-3)" : "var(--bg-surface-1)",
+        border: "1px solid var(--border-default)",
+        borderRadius: "2px",
+        padding: "16px",
+        cursor: onClick ? "pointer" : "default",
+        transition: `background var(--dur-fast)`,
+      }}>
+      <div style={{
+        fontFamily: MONO,
+        fontSize: "10px",
+        fontWeight: 600,
+        textTransform: "uppercase",
+        letterSpacing: "0.12em",
+        color: "var(--fg-3)",
+        marginBottom: "8px",
+      }}>
+        {label}
+      </div>
+      <div style={{
+        fontFamily: MONO,
+        fontSize: "28px",
+        fontWeight: 700,
+        color: accent || "var(--fg-1)",
+        lineHeight: 1,
+        marginBottom: "4px",
+      }}>
+        {value}
+      </div>
+      {sub && (
+        <div style={{
+          fontFamily: SANS,
+          fontSize: "12px",
+          color: "var(--fg-4)",
+          marginTop: "6px",
+        }}>
+          {sub}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const SEV_COLOR = {
+  serious:  "var(--sev-serious)",
+  minor:    "var(--sev-minor)",
+  harmless: "var(--sev-harmless)",
+  uncertain:"var(--sev-unknown)",
+  unknown:  "var(--sev-unknown)",
+};
+
+function SeverityBadge({ severity }) {
+  const label = severity?.toUpperCase() ?? "—";
+  return (
+    <span style={{
+      fontFamily: MONO,
+      fontSize: "9px",
+      fontWeight: 700,
+      letterSpacing: "0.12em",
+      color: SEV_COLOR[severity] || "var(--fg-4)",
+      textTransform: "uppercase",
+    }}>
+      {label}
+    </span>
+  );
+}
+
+function PrimaryBtn({ children, onClick, disabled }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        background: disabled ? "var(--bg-surface-3)" : "var(--accent)",
+        color: disabled ? "var(--fg-4)" : "var(--bg-base)",
+        border: "none",
+        borderRadius: "2px",
+        padding: "8px 20px",
+        fontSize: "13px",
+        fontFamily: SANS,
+        fontWeight: 600,
+        cursor: disabled ? "not-allowed" : "pointer",
+        letterSpacing: "0.02em",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function GhostBtn({ children, href }) {
+  return (
+    <Link href={href} style={{
+      background: "transparent",
+      color: "var(--fg-3)",
+      border: "1px solid var(--border-default)",
+      borderRadius: "2px",
+      padding: "7px 16px",
+      fontSize: "13px",
+      fontFamily: SANS,
+      cursor: "pointer",
+      textDecoration: "none",
+      display: "inline-block",
+    }}>
+      {children}
+    </Link>
+  );
+}
+
+function formatTime(iso) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatDate(iso) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+}
+
+export default function DashboardPage() {
+  const { user, orgName } = useAuthStore();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const nightDate = useNightDate();
+  const { data: orgData } = useQuery({
+    queryKey: ["org-me"],
+    queryFn: getOrgMe,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
+  const { data: briefingData, isLoading: briefingLoading } = useQuery({
+    queryKey: ["briefing", nightDate],
+    queryFn: () => getLatestBriefing(nightDate),
+    staleTime: 60 * 1000,
+    retry: false,
+  });
+
+  const { data: incidentsRaw, isLoading: incidentsLoading } = useQuery({
+    queryKey: ["incidents", nightDate],
+    queryFn: () => getIncidents({ nightDate }),
+    staleTime: 60 * 1000,
+    retry: false,
+  });
+
+  const { mutate: kickStart, isPending: isStarting } = useMutation({
+    mutationFn: () => startInvestigation(nightDate),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["briefing", nightDate] });
+      router.replace("/investigate");
+    },
+  });
+
+  const incidents = Array.isArray(incidentsRaw)
+    ? incidentsRaw
+    : incidentsRaw?.incidents ?? incidentsRaw?.data ?? [];
+
+  const totalIncidents = incidents.length;
+  const seriousCount = incidents.filter((i) => i.severity === "serious").length;
+  const minorCount = incidents.filter((i) => i.severity === "minor").length;
+
+  const briefingStatus = briefingData?.status;
+  const briefingApprovedAt = briefingData?.approvedAt;
+  const briefingApprovedBy = briefingData?.approvedBy?.username || briefingData?.approvedBy?.email;
+
+  const isLoading = briefingLoading || incidentsLoading;
+
+  // Determine which state to show
+  let dashState = "none"; // no briefing, no incidents
+  if (briefingStatus === "approved") dashState = "approved";
+  else if (briefingStatus === "draft" || totalIncidents > 0) dashState = "ready";
+  else if (isStarting) dashState = "running";
+
+  const siteName = orgData?.config?.siteName || orgData?.siteName || orgName || "Your site";
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 17) return "Good afternoon";
+    return "Good evening";
+  })();
+
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: "var(--bg-base)",
+      padding: "32px 24px",
+      maxWidth: "900px",
+      margin: "0 auto",
+    }}>
+      {/* Morning status card */}
+      <section style={{
+        background: "var(--bg-surface-1)",
+        border: "1px solid var(--border-default)",
+        borderRadius: "2px",
+        padding: "24px",
+        marginBottom: "24px",
+      }}>
+        <div style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: "16px",
+          flexWrap: "wrap",
+        }}>
+          <div>
+            <div style={{
+              fontFamily: MONO,
+              fontSize: "10px",
+              textTransform: "uppercase",
+              letterSpacing: "0.12em",
+              color: "var(--fg-4)",
+              marginBottom: "8px",
+            }}>
+              {greeting} — {nightDate}
+            </div>
+            <h1 style={{
+              fontFamily: SANS,
+              fontSize: "24px",
+              fontWeight: 500,
+              color: "var(--fg-1)",
+              margin: "0 0 6px",
+            }}>
+              {siteName}
+            </h1>
+
+            {isLoading ? (
+              <div style={{ fontFamily: SANS, fontSize: "13px", color: "var(--fg-4)" }}>
+                Loading overnight data…
+              </div>
+            ) : dashState === "approved" ? (
+              <div style={{ fontFamily: SANS, fontSize: "14px", color: "var(--sev-harmless)" }}>
+                Briefing approved{briefingApprovedAt ? ` at ${formatTime(briefingApprovedAt)}` : ""}.
+                {briefingApprovedBy && ` Approved by ${briefingApprovedBy}.`}
+                {" "}Day shift has been notified.
+              </div>
+            ) : dashState === "ready" ? (
+              <div style={{ fontFamily: SANS, fontSize: "14px", color: "var(--fg-2)" }}>
+                {totalIncidents > 0
+                  ? `${totalIncidents} incident${totalIncidents !== 1 ? "s" : ""} recorded overnight${seriousCount > 0 ? ` — ${seriousCount} serious` : ""}.`
+                  : "Investigation complete."}{" "}
+                {briefingStatus === "draft"
+                  ? "Your morning briefing is ready for review."
+                  : "Review incidents and start the investigation."}
+              </div>
+            ) : dashState === "running" ? (
+              <div style={{ fontFamily: SANS, fontSize: "14px", color: "var(--accent)" }}>
+                Investigation running…
+              </div>
+            ) : (
+              <div style={{ fontFamily: SANS, fontSize: "14px", color: "var(--fg-3)" }}>
+                No patrol data for {nightDate} yet. Events recorded tonight will appear here tomorrow morning.
+              </div>
+            )}
+          </div>
+
+          {/* CTA */}
+          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexShrink: 0 }}>
+            {dashState === "approved" ? (
+              <GhostBtn href="/briefing">View briefing</GhostBtn>
+            ) : dashState === "ready" && briefingStatus === "draft" ? (
+              <>
+                <PrimaryBtn onClick={() => router.push("/briefing")}>Review briefing</PrimaryBtn>
+                <GhostBtn href="/investigate">View incidents</GhostBtn>
+              </>
+            ) : dashState === "ready" ? (
+              <>
+                <PrimaryBtn onClick={() => kickStart()} disabled={isStarting}>
+                  {isStarting ? "Starting…" : "Start investigation"}
+                </PrimaryBtn>
+                <GhostBtn href="/investigate">View incidents</GhostBtn>
+              </>
+            ) : dashState === "none" ? null : null}
+          </div>
+        </div>
+      </section>
+
+      {/* Stat cards */}
+      <div style={{
+        display: "flex",
+        gap: "12px",
+        marginBottom: "24px",
+        flexWrap: "wrap",
+      }}>
+        <StatCard
+          label="Incidents"
+          value={incidentsLoading ? "—" : totalIncidents}
+          sub={
+            seriousCount > 0 && minorCount > 0 ? `${seriousCount} serious · ${minorCount} minor` :
+            seriousCount > 0 ? `${seriousCount} serious` :
+            minorCount > 0 ? `${minorCount} minor` :
+            "None flagged"
+          }
+          accent={seriousCount > 0 ? "var(--sev-serious)" : "var(--fg-1)"}
+          onClick={() => router.push("/investigate")}
+        />
+        <StatCard
+          label="Briefing"
+          value={briefingLoading ? "—" : briefingStatus === "draft" ? "READY" : briefingStatus === "approved" ? "APPROVED" : "NONE"}
+          sub={briefingStatus === "approved" ? `Approved ${formatDate(briefingApprovedAt)}` : briefingStatus === "draft" ? "Awaiting approval" : "No briefing yet"}
+          accent={briefingStatus === "approved" ? "var(--sev-harmless)" : briefingStatus === "draft" ? "var(--accent)" : "var(--fg-4)"}
+          onClick={() => router.push("/briefing")}
+        />
+        <StatCard
+          label="Patrol night"
+          value={nightDate}
+        />
+      </div>
+
+      {/* Recent incidents */}
+      {totalIncidents > 0 && (
+        <section style={{
+          background: "var(--bg-surface-1)",
+          border: "1px solid var(--border-default)",
+          borderRadius: "2px",
+          overflow: "hidden",
+          marginBottom: "24px",
+        }}>
+          <div style={{
+            padding: "10px 16px",
+            borderBottom: "1px solid var(--border-hairline)",
+            background: "var(--bg-surface-2)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}>
+            <span style={{
+              fontFamily: MONO,
+              fontSize: "10px",
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.12em",
+              color: "var(--fg-3)",
+            }}>
+              Recent incidents
+            </span>
+            <Link href="/investigate" style={{
+              fontFamily: MONO,
+              fontSize: "10px",
+              color: "var(--accent)",
+              textDecoration: "none",
+              letterSpacing: "0.08em",
+            }}>
+              View all →
+            </Link>
+          </div>
+          {incidents.slice(0, 5).map((incident) => (
+            <Link
+              key={incident._id}
+              href={`/incident/${incident._id}`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                padding: "12px 16px",
+                borderBottom: "1px solid var(--border-hairline)",
+                textDecoration: "none",
+                transition: "background 120ms",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-2)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+            >
+              <div style={{ flexShrink: 0, width: "64px" }}>
+                <SeverityBadge severity={incident.severity || incident.finalClassification?.severity} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontFamily: SANS,
+                  fontSize: "13px",
+                  color: "var(--fg-1)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}>
+                  {incident.title || incident.description || "Unnamed incident"}
+                </div>
+                <div style={{
+                  fontFamily: MONO,
+                  fontSize: "11px",
+                  color: "var(--fg-4)",
+                  marginTop: "2px",
+                }}>
+                  {incident.primaryLocation?.name || incident.location?.name || "Unknown location"}
+                </div>
+              </div>
+              <div style={{
+                fontFamily: MONO,
+                fontSize: "10px",
+                color: "var(--fg-4)",
+                flexShrink: 0,
+              }}>
+                {incident.createdAt ? formatTime(incident.createdAt) : "—"}
+              </div>
+            </Link>
+          ))}
+        </section>
+      )}
+
+      {/* Empty state */}
+      {!isLoading && totalIncidents === 0 && (
+        <section style={{
+          background: "var(--bg-surface-1)",
+          border: "1px solid var(--border-default)",
+          borderRadius: "2px",
+          padding: "48px 24px",
+          textAlign: "center",
+        }}>
+          <div style={{
+            fontFamily: MONO,
+            fontSize: "10px",
+            textTransform: "uppercase",
+            letterSpacing: "0.12em",
+            color: "var(--fg-4)",
+            marginBottom: "8px",
+          }}>
+            Overnight
+          </div>
+          <div style={{
+            fontFamily: SANS,
+            fontSize: "16px",
+            color: "var(--fg-3)",
+            marginBottom: "4px",
+          }}>
+            No events recorded for {nightDate}
+          </div>
+          <div style={{
+            fontFamily: SANS,
+            fontSize: "13px",
+            color: "var(--fg-4)",
+          }}>
+            Events sent by your drones tonight will appear here tomorrow morning.
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}

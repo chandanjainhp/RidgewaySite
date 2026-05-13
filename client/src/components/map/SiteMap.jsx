@@ -81,7 +81,7 @@ export default function SiteMap({
         </div>
       )}
       <MapContainer
-        key="site-map-container"
+        key="ridgeway-site-map"
         center={[51.505, -0.09]}
         zoom={16}
         className="h-full w-full"

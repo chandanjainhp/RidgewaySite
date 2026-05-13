@@ -126,6 +126,62 @@ export default function IntegrationsPage() {
         </p>
       </div>
 
+      {/* intro — connect your AI agent */}
+      <section style={{
+        background: 'var(--bg-surface-1)',
+        border: '1px solid var(--border-default)',
+        borderRadius: '2px',
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          padding: '10px 16px',
+          borderBottom: '1px solid var(--border-hairline)',
+          background: 'var(--bg-surface-2)',
+          display: 'flex', alignItems: 'center', gap: '8px',
+        }}>
+          <span style={{
+            fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)',
+            fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.12em',
+            color: 'var(--fg-2)',
+          }}>Connect your AI agent</span>
+        </div>
+        <div style={{ padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-sm)', color: 'var(--fg-2)', margin: 0 }}>
+            Give any MCP-compatible AI agent direct access to Ridgeway — incidents, investigations, briefings, and site data — without leaving your AI tool.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {[
+              ['1', 'Create an API key', 'Go to Settings → API Keys and create a key with the mcp scope.'],
+              ['2', 'Add the MCP server URL', 'Paste the server URL shown below into your AI tool\'s MCP configuration.'],
+              ['3', 'Authenticate', 'Pass your API key as a Bearer token in the Authorization header.'],
+            ].map(([num, title, desc]) => (
+              <div key={num} style={{
+                display: 'flex', gap: '12px', alignItems: 'flex-start',
+                padding: '10px 12px',
+                background: 'var(--bg-surface-2)',
+                border: '1px solid var(--border-hairline)',
+                borderRadius: '2px',
+              }}>
+                <span style={{
+                  flexShrink: 0,
+                  fontFamily: 'var(--font-mono)', fontSize: '10px',
+                  fontWeight: 700, color: 'var(--accent)',
+                  width: '16px', textAlign: 'center',
+                }}>{num}</span>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--fg-1)', marginBottom: '2px' }}>
+                    {title}
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-sm)', color: 'var(--fg-3)' }}>
+                    {desc}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* section 1 — server status */}
       <section className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center gap-2">

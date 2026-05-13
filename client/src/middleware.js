@@ -11,14 +11,14 @@ import { NextResponse } from 'next/server';
  */
 
 // Routes that require authentication
-const PROTECTED_PREFIXES = ['/investigate', '/briefing', '/incident', '/settings', '/admin', '/dashboard'];
+const PROTECTED_PREFIXES = ['/investigate', '/briefing', '/incident', '/settings', '/admin', '/dashboard', '/doc'];
 
 // Role requirements
 const ADMIN_PATHS = ['/admin'];
 const SETTINGS_PATHS = ['/settings'];
 
 // Routes that bypass authentication checks
-const PUBLIC_PATHS = ['/', '/login', '/register'];
+const PUBLIC_PATHS = ['/', '/login', '/register', '/docs'];
 
 // Routes that should redirect to /investigate if already authenticated
 const AUTH_ROUTES = ['/login', '/register'];
@@ -83,7 +83,7 @@ export function middleware(request) {
 
   if (isAuthRoute && isAuthenticated) {
     const from = request.nextUrl.searchParams.get('from');
-    const redirectTo = from ? decodeURIComponent(from) : '/investigate';
+    const redirectTo = from ? decodeURIComponent(from) : '/dashboard';
     return NextResponse.redirect(new URL(redirectTo, request.url));
   }
 

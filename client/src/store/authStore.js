@@ -7,12 +7,14 @@ export const useAuthStore = create(
       user: null,
       role: null,
       orgId: null,
-      setUser: (user) => set({ 
-        user, 
-        role: user?.role || null, 
-        orgId: user?.orgId || null 
+      orgName: null,
+      setUser: (user) => set({
+        user,
+        role: user?.role || null,
+        orgId: user?.orgId || null,
+        orgName: user?.orgName || null,
       }),
-      clearUser: () => set({ user: null, role: null, orgId: null }),
+      clearUser: () => set({ user: null, role: null, orgId: null, orgName: null }),
     }),
     {
       name: 'ridgeway-auth-storage',

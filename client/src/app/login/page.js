@@ -9,23 +9,16 @@ import { initTheme } from '@/lib/theme';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const MOCK_EVENTS = [
-  { time: '04:17', sev: 'serious', desc: 'North Fence — unexplained motion', zone: 'zone 3' },
-  { time: '03:42', sev: 'harmless', desc: 'North Fence — motion (wind)', zone: 'zone 3' },
-  { time: '02:58', sev: 'minor', desc: 'Loading Bay — door cycled', zone: 'bay 2' },
+const SYSTEM_FEATURES = [
+  { color: 'var(--sev-serious)', label: 'Drone Patrol', desc: 'Sensors capture motion, badge swipes, vehicle movement, and environmental readings overnight.' },
+  { color: 'var(--accent)', label: 'AI Investigation', desc: 'Claude correlates events, investigates anomalies, and classifies each incident before morning.' },
+  { color: 'var(--sev-harmless)', label: 'Morning Briefing', desc: 'Operators review structured findings, approve the briefing, and distribute to stakeholders.' },
 ];
-
-const SEV_COLOR = {
-  serious: 'var(--sev-serious)',
-  minor: 'var(--sev-minor)',
-  harmless: 'var(--sev-harmless)',
-};
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const reason = searchParams.get('reason');
-  const [time, setTime] = useState('--:--:--');
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({ email: '', password: '' });
@@ -34,20 +27,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     initTheme();
-    const tick = () =>
-      setTime(
-        new Date().toLocaleTimeString('en-GB', {
-          hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
-        })
-      );
-    tick();
-    const id = setInterval(tick, 1000);
-
     if (reason === 'session_ended') {
       setServerError('Your session has ended. Please log in again.');
     }
-
-    return () => clearInterval(id);
   }, [reason]);
 
   const mutation = useMutation({
@@ -164,86 +146,41 @@ export default function LoginPage() {
                 letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--fg-1)',
               }}>Ridgeway Site</span>
             </div>
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: '10px',
-              color: 'var(--fg-4)', letterSpacing: '0.1em',
-              textTransform: 'uppercase', paddingLeft: '15px',
-            }}>6:10 Assistant</div>
           </div>
 
-          {/* Live clock */}
-          <div style={{ marginBottom: '40px' }}>
-            <div style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '48px', fontWeight: 700, lineHeight: 1,
-              color: 'var(--accent)',
-              letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums',
-              textShadow: '0 0 32px rgba(184,212,232,0.2)',
-              marginBottom: '4px',
-            }}>{time.slice(0, 5)}</div>
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: '10px',
-              color: 'var(--fg-4)', letterSpacing: '0.1em', textTransform: 'uppercase',
-            }}>local time</div>
-          </div>
+          <div style={{ height: '1px', background: 'var(--border-default)', marginBottom: '28px', marginTop: '28px' }} />
 
-          <div style={{ height: '1px', background: 'var(--border-default)', marginBottom: '28px' }} />
-
-          {/* Overnight summary */}
+          {/* How it works */}
           <div style={{
             fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600,
             letterSpacing: '0.14em', textTransform: 'uppercase',
             color: 'var(--fg-4)', marginBottom: '16px',
-          }}>Overnight Summary</div>
+          }}>How It Works</div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', marginBottom: '28px' }}>
-            {MOCK_EVENTS.map((evt, i) => (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+            {SYSTEM_FEATURES.map((f, i) => (
               <div key={i} style={{
-                display: 'grid', gridTemplateColumns: '38px 8px 1fr',
-                alignItems: 'start', gap: '8px',
-                padding: '9px 0',
+                display: 'grid', gridTemplateColumns: '8px 1fr',
+                alignItems: 'start', gap: '10px',
+                padding: '10px 0',
                 borderTop: i > 0 ? '1px solid var(--border-hairline)' : 'none',
               }}>
                 <span style={{
-                  fontFamily: 'var(--font-mono)', fontSize: '10px',
-                  color: 'var(--fg-4)', paddingTop: '1px',
-                }}>{evt.time}</span>
-                <span style={{
                   width: '7px', height: '7px', borderRadius: '50%',
-                  background: SEV_COLOR[evt.sev], flexShrink: 0, marginTop: '3px',
+                  background: f.color, flexShrink: 0, marginTop: '3px',
                 }} />
                 <div>
                   <div style={{
-                    fontSize: '11px', color: 'var(--fg-2)',
-                    fontWeight: 500, lineHeight: 1.4,
-                  }}>{evt.desc}</div>
+                    fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600,
+                    letterSpacing: '0.1em', textTransform: 'uppercase',
+                    color: 'var(--fg-2)', marginBottom: '3px',
+                  }}>{f.label}</div>
                   <div style={{
-                    fontFamily: 'var(--font-mono)', fontSize: '10px',
-                    color: 'var(--fg-4)', marginTop: '2px',
-                  }}>{evt.zone}</div>
+                    fontSize: '11px', color: 'var(--fg-3)', lineHeight: 1.5,
+                  }}>{f.desc}</div>
                 </div>
               </div>
             ))}
-          </div>
-
-          <div style={{ height: '1px', background: 'var(--border-default)', marginBottom: '24px' }} />
-
-          {/* Briefing ready */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-            <span style={{
-              width: '7px', height: '7px', borderRadius: '50%',
-              background: 'var(--success)', flexShrink: 0, marginTop: '3px',
-            }} />
-            <div>
-              <div style={{
-                fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600,
-                letterSpacing: '0.1em', textTransform: 'uppercase',
-                color: 'var(--success-text)', marginBottom: '3px',
-              }}>Morning Briefing Ready</div>
-              <div style={{
-                fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--fg-4)',
-              }}>Awaiting ops lead review</div>
-            </div>
           </div>
 
           {/* Footer */}

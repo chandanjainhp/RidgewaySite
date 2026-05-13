@@ -367,7 +367,7 @@ export default function SetupPage() {
       if (typeof window !== "undefined") {
         document.cookie = `ridgeway_setup=1; path=/; max-age=86400; SameSite=Lax`;
       }
-      router.replace("/investigate");
+      router.replace("/dashboard");
     },
     onError: () => toast.error("Failed to complete setup"),
   });

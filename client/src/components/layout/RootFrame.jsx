@@ -8,6 +8,7 @@ const PUBLIC_ROUTES = new Set([
   "/login",
   "/register",
   "/opt",
+  "/docs",
   "/forgot-password",
   "/reset-password",
   "/suspended",
@@ -23,7 +24,7 @@ export default function RootFrame({ children }) {
     path.startsWith("/reset-password") ||
     path.startsWith("/invite/accept");
 
-  const suppressTopBar = isPublicRoute || path.startsWith("/admin");
+  const suppressTopBar = isPublicRoute || path.startsWith("/admin") || path.startsWith("/setup");
 
   return (
     <>

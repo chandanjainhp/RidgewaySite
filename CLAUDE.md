@@ -462,8 +462,9 @@ Short-lived (15m), httpOnly cookies, tokenVersion for instant invalidation.
 Job payloads stored plaintext. Use Redis ACLs + TLS (`rediss://`) in production.
 Avoid storing PII in BullMQ job data — use document IDs only.
 
-### Webhook payloads ⚠️
-HMAC-SHA256 signing not confirmed. Add `X-Ridgeway-Signature` header to all outgoing webhooks.
+### Webhook payloads ✅
+
+Webhook HMAC-SHA256 signing: DONE — `X-Ridgeway-Signature: sha256=<hmac>` and `X-Ridgeway-Delivery: <deliveryId>` headers computed in webhook worker (`server/src/queues/worker.js`) using `org.config.webhookSecret`.
 
 ---
 
@@ -637,13 +638,13 @@ These are confirmed missing or broken. Fix in order of priority.
 | 1 | `Review.orgId` field missing | `server/src/models/review.model.js` | Add `orgId: { type: ObjectId, ref: 'Organisation', required: true, index: true }` |
 | 2 | `GET /org/me` endpoint missing | `server/src/routes/org.routes.js` | Add route + controller |
 | 3 | `PATCH /org/me/config` endpoint missing | `server/src/routes/org.routes.js` | Add route + controller |
-| 4 | `orgName` not stored in auth store | `client/src/store/authStore.js` | Add `orgName` to persisted state |
+| ~~4~~ | ~~`orgName` not stored in auth store~~ | ~~`client/src/store/authStore.js`~~ | ✅ FIXED — `orgName` added to Zustand persisted state |
 
 ### High (features broken)
 
 | # | Issue | Fix |
 |---|---|---|
-| 5 | RAG pipeline entirely missing | Create `server/src/services/rag.service.js`, `RagDocument` model, `rag-indexing` BullMQ queue |
+| ~~5~~ | ~~RAG pipeline entirely missing~~ | ✅ FIXED — `rag.service.js`, `RagDocument` model, `rag-indexing` queue all exist; RAG docs queried logged to `investigation.ragDocumentsQueried`; org_admin uploads auto-approved |
 | 6 | Sentry not configured | Add `@sentry/node` to server, `@sentry/nextjs` to client |
 | 7 | `helmet` not added to Express app | `bun add helmet` → `app.use(helmet())` in `server/src/app.js` |
 | 8 | `express-mongo-sanitize` not applied | `app.use(mongoSanitize())` in `server/src/app.js` |
@@ -655,8 +656,12 @@ These are confirmed missing or broken. Fix in order of priority.
 |---|---|---|
 | 10 | Redis not using TLS in production | Switch `REDIS_URL` to `rediss://` scheme |
 | 11 | MongoDB TLS not confirmed | Add `tls=true` to `MONGODB_URL` for Atlas |
-| 12 | Webhook HMAC signing not confirmed | Add `X-Ridgeway-Signature: sha256=<hmac>` to outgoing webhooks |
+| ~~12~~ | ~~Webhook HMAC signing not confirmed~~ | ✅ FIXED — `X-Ridgeway-Signature: sha256=<hmac>` + `X-Ridgeway-Delivery` in webhook worker |
 | 13 | Nginx not in docker-compose.prod.yml | Add Nginx service with SSL termination |
+
+### Also resolved (not in original audit)
+
+- **MCP tool call audit logging**: ✅ FIXED — `logAudit('mcp.tool_call', ...)` added to `mcp.routes.js` with `durationMs` + `success` flag.
 
 ---
 
@@ -933,8 +938,86 @@ Using a different format breaks audit log filtering in the admin panel.
 await logAudit(req, 'org.setup.complete', 'organisation', { orgId });
 ```
 
+### Settings Pages and API Calls — Never Manual `.data` Access
+
+Always use named API functions or return `api.get()/api.post()` directly from `queryFn` / `mutationFn`.
+The axios interceptor in `client/src/lib/api.js` already unwraps `response.data` once.
+Accessing `.data` again returns `undefined` silently — no error thrown.
+
+```js
+// WRONG — double unwrap, returns undefined
+queryFn: async () => {
+  const res = await api.get('/org/users');
+  return res.data;
+}
+const members = response?.data || [];
+
+// CORRECT
+queryFn: () => api.get('/org/users'),
+const members = Array.isArray(response) ? response : response?.users ?? [];
+```
+
 ---
 
-*Last updated: 2026-05-11*
+## 19. UX Architecture — How the App Hangs Together
+
+### Entry points
+
+| URL | Access | Destination |
+| --- | --- | --- |
+| `/` | Public | Landing page with "Get started" → /register, "Sign in" → /login, "Read the docs" → /docs |
+| `/docs` | **Public** (no auth required) | Standalone documentation — no TopBar, Night Watch dark theme |
+| `/login` | Public (redirects if authed) | → `/dashboard` (setupComplete) or `/setup` (first run) |
+| `/register` | Public | → `/setup` after account creation |
+| `/setup` | Auth | Setup wizard → `/dashboard` on completion |
+
+### Authenticated user flow
+
+```text
+/dashboard      ← morning hub: overnight summary, stat cards, recent incidents
+  ├─ /investigate  ← 3-column: map + agent feed + incident list
+  ├─ /briefing     ← read and approve morning briefing
+  ├─ /incident/[id] ← case file: evidence chain, agent reasoning, sources
+  └─ /settings/*   ← org config (org_admin+), members, documents, webhooks, integrations
+```
+
+### Navigation
+
+- **TopBar** is present on all authenticated non-admin pages
+- **TopBar left nav**: Investigate, Briefing (with notification dot when draft), Overview
+- **TopBar right**: Docs, Settings (org_admin+), user dropdown (Profile, Settings, Admin Panel for super_admin, Sign out)
+- **Notification dot**: 5px accent dot above "Briefing" nav link when `briefing.status === 'draft'`
+- `/admin/*` uses its own sidebar layout — no TopBar
+- `/setup` and `/docs` suppress TopBar entirely
+
+### Post-login redirect rules
+
+| Role | After login | Condition |
+| --- | --- | --- |
+| `super_admin` | `/admin/orgs` | Always |
+| `operator` | `/dashboard` | Always (org setup assumed complete) |
+| `org_admin` | `/setup` | `setupComplete === false` |
+| `org_admin` | `/dashboard` | `setupComplete === true` |
+
+### Design consistency rule
+
+ALL authenticated pages must use Night Watch CSS tokens only.
+NO Tailwind light-theme classes (`bg-gray-*`, `text-gray-*`, `bg-white`) in any page visible to operators or org_admins.
+The admin panel (`/admin/*`, super_admin only) is exempt until a future theming pass.
+
+### Test suite
+
+Run the full overnight loop integration test:
+
+```bash
+cd server
+bun test:agentic    # runs src/tests/agentic-flow.test.js
+```
+
+Requires: `MONGODB_URL` (appends `_test` to db name), `ACCESS_TOKEN_SECRET`.
+
+---
+
+*Last updated: 2026-05-13*
 *Maintained by: Ridgeway development team*
 *For questions, open an issue or ping the team in Slack.*

@@ -102,6 +102,8 @@ export const runInvestigation = async (
             ragResults
               .map((r, i) => `[${i + 1}] From "${r.filename}":\n${r.text}`)
               .join('\n\n');
+          investigation.ragDocumentsQueried = ragResults.map(r => r.filename);
+          await investigation.save();
         }
       }
     } catch {

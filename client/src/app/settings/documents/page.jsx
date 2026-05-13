@@ -65,20 +65,36 @@ function FileTypeIcon({ mimeType, className = 'w-5 h-5' }) {
 
 /* ── StatusBadge ──────────────────────────────────────────── */
 
-function StatusBadge({ status }) {
-  const map = {
-    pending:  { label: 'Pending review', cls: 'bg-amber-100 text-amber-700' },
-    approved: { label: 'Approved',       cls: 'bg-blue-100 text-blue-700' },
-    indexing: { label: 'Indexing…',      cls: 'bg-blue-100 text-blue-700', spin: true },
-    indexed:  { label: 'Ready',          cls: 'bg-green-100 text-green-700' },
-    rejected: { label: 'Rejected',       cls: 'bg-red-100 text-red-700' },
-    failed:   { label: 'Failed',         cls: 'bg-red-100 text-red-700' },
-  };
-  const s = map[status] ?? { label: status, cls: 'bg-gray-100 text-gray-600' };
+const BADGE_STYLES = {
+  pending:  { color: 'var(--sev-minor)',    bg: 'rgba(232,154,43,0.10)', label: 'PENDING' },
+  approved: { color: 'var(--accent)',       bg: 'rgba(184,212,232,0.10)', label: 'APPROVED' },
+  indexing: { color: 'var(--accent)',       bg: 'rgba(184,212,232,0.10)', label: 'INDEXING', spin: true },
+  indexed:  { color: 'var(--sev-harmless)', bg: 'rgba(125,138,106,0.12)', label: 'ACTIVE' },
+  rejected: { color: 'var(--sev-serious)', bg: 'rgba(255,56,56,0.10)',   label: 'REJECTED' },
+  failed:   { color: 'var(--sev-serious)', bg: 'rgba(255,56,56,0.10)',   label: 'FAILED' },
+};
+
+function StatusBadge({ status, chunkCount }) {
+  const s = BADGE_STYLES[status] ?? { color: 'var(--fg-3)', bg: 'var(--bg-surface-2)', label: status?.toUpperCase() ?? '—' };
+  const label = (status === 'indexed' && chunkCount != null)
+    ? `${s.label} · ${chunkCount} chunks`
+    : s.label;
   return (
-    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${s.cls}`}>
-      {s.spin && <Loader2 className="w-3 h-3 animate-spin" />}
-      {s.label}
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '4px',
+      padding: '2px 8px',
+      background: s.bg,
+      color: s.color,
+      fontFamily: 'var(--font-mono)',
+      fontSize: '10px',
+      fontWeight: 700,
+      letterSpacing: '0.1em',
+      borderRadius: '2px',
+      textTransform: 'uppercase',
+      whiteSpace: 'nowrap',
+    }}>
+      {s.spin && <Loader2 style={{ width: '10px', height: '10px', animation: 'spin 1s linear infinite' }} />}
+      {label}
     </span>
   );
 }
@@ -580,7 +596,6 @@ export default function DocumentsPage() {
                 <th className="px-4 py-3">Uploaded by</th>
                 <th className="px-4 py-3">Size</th>
                 <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Chunks</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
@@ -624,13 +639,10 @@ export default function DocumentsPage() {
                       </td>
                       <td className="px-4 py-4 text-gray-500 text-xs">{formatFileSize(doc.fileSize)}</td>
                       <td className="px-4 py-4">
-                        <StatusBadge status={doc.status} />
+                        <StatusBadge status={doc.status} chunkCount={doc.chunkCount} />
                         {doc.status === 'indexing' && (
                           <p className="text-xs text-gray-400 mt-0.5">May take a minute for large files</p>
                         )}
-                      </td>
-                      <td className="px-4 py-4 text-gray-500 text-xs">
-                        {doc.status === 'indexed' ? doc.chunkCount : '—'}
                       </td>
                       <td className="px-4 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-2">
@@ -674,7 +686,7 @@ export default function DocumentsPage() {
                     {expanded && (
                       <tr className="bg-indigo-50/40">
                         <td />
-                        <td colSpan={6} className="px-4 py-3">
+                        <td colSpan={5} className="px-4 py-3">
                           {getExpandedContent(doc)}
                         </td>
                       </tr>

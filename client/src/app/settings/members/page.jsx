@@ -16,19 +16,13 @@ export default function MembersSettingsPage() {
 
   const { data: response, isLoading } = useQuery({
     queryKey: ['org-members'],
-    queryFn: async () => {
-      const res = await api.get('/org/users');
-      return res.data;
-    }
+    queryFn: () => api.get('/org/users'),
   });
 
-  const members = response?.data || [];
+  const members = Array.isArray(response) ? response : response?.users ?? [];
 
   const inviteMutation = useMutation({
-    mutationFn: async (email) => {
-      const res = await api.post('/org/users/invite', { email });
-      return res.data;
-    },
+    mutationFn: (email) => api.post('/org/users/invite', { email }),
     onSuccess: (data) => {
       setInviteSuccess(`Invite sent to ${inviteEmail}!`);
       setInviteEmail('');

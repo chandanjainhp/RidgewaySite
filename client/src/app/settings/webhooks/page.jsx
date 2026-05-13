@@ -382,7 +382,7 @@ const EVENT_TYPES = [
 ];
 
 function EventReferenceSection() {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
 
   return (
     <Collapsible.Root open={open} onOpenChange={setOpen}>
@@ -710,6 +710,45 @@ export default function WebhooksSettingsPage() {
           }}
         />
       )}
+
+      {/* Webhook value context */}
+      <div style={{
+        background: 'var(--bg-surface-1)',
+        border: '1px solid var(--border-default)',
+        borderRadius: '2px',
+        padding: '16px',
+        display: 'flex', flexDirection: 'column', gap: '12px',
+      }}>
+        <div style={{
+          fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)',
+          fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.12em',
+          color: 'var(--fg-3)',
+        }}>
+          How webhooks work
+        </div>
+        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-sm)', color: 'var(--fg-2)', margin: 0 }}>
+          Ridgeway POSTs a signed JSON payload to your endpoint when an investigation completes, a briefing is approved, or a critical incident is detected. Use webhooks to trigger Slack alerts, PagerDuty incidents, or custom automations.
+        </p>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {[
+            ['X-Ridgeway-Event', 'Event type (e.g. investigation.completed)'],
+            ['X-Ridgeway-Delivery', 'Unique delivery ID for idempotency'],
+            ['X-Ridgeway-Signature', 'HMAC-SHA256 of the payload body'],
+          ].map(([header, desc]) => (
+            <div key={header} style={{
+              padding: '6px 10px',
+              background: 'var(--bg-surface-2)',
+              border: '1px solid var(--border-hairline)',
+              borderRadius: '2px',
+              display: 'flex', flexDirection: 'column', gap: '2px',
+              flex: '1', minWidth: '200px',
+            }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--accent)', fontWeight: 600 }}>{header}</span>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-xs)', color: 'var(--fg-3)' }}>{desc}</span>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Delivery Log */}
       <SectionCard title="Delivery Log" icon={Clock}>

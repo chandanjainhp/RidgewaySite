@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { Settings, Key, Users, Webhook, Plug, BookOpen, Lock } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 
+const MONO = 'var(--font-mono)';
+const SANS = 'var(--font-sans)';
+
 const ALL_NAV_ITEMS = [
   { name: 'General',      path: '/settings/general',      icon: Settings, adminOnly: false },
   { name: 'API Keys',     path: '/settings/api-keys',     icon: Key,      adminOnly: false },
@@ -17,23 +20,52 @@ const ALL_NAV_ITEMS = [
 export default function SettingsLayout({ children }) {
   const pathname = usePathname();
   const role = useAuthStore((s) => s.role);
+  const user = useAuthStore((s) => s.user);
+  const orgName = useAuthStore((s) => s.orgName);
   const isAdmin = role === 'org_admin' || role === 'super_admin';
-  const navItems = ALL_NAV_ITEMS;
+
+  function formatRole(r) {
+    if (r === 'super_admin') return 'Super Admin';
+    if (r === 'org_admin') return 'Org Admin';
+    if (r === 'operator') return 'Operator';
+    return r || '';
+  }
 
   return (
-    <div className="flex min-h-screen bg-gray-50 text-gray-900">
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-base)' }}>
       {/* Sidebar */}
-      <div className="w-56 bg-slate-900 text-slate-100 flex flex-col shadow-xl flex-shrink-0">
-        <div className="p-5 border-b border-slate-800">
-          <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Ridgeway</div>
-          <div className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
-            <Settings className="w-4 h-4 text-indigo-400" />
+      <div style={{
+        width: '220px',
+        flexShrink: 0,
+        background: 'var(--bg-surface-1)',
+        borderRight: '1px solid var(--border-default)',
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'sticky',
+        top: '56px',
+        height: 'calc(100vh - 56px)',
+        overflowY: 'auto',
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: '16px',
+          borderBottom: '1px solid var(--border-hairline)',
+        }}>
+          <div style={{
+            fontFamily: MONO,
+            fontSize: '10px',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.12em',
+            color: 'var(--fg-3)',
+          }}>
             Settings
           </div>
         </div>
 
-        <nav className="flex-1 py-4 px-3 space-y-1">
-          {navItems.map((item) => {
+        {/* Nav */}
+        <nav style={{ flex: 1, padding: '8px' }}>
+          {ALL_NAV_ITEMS.map((item) => {
             const isActive = pathname === item.path || pathname.startsWith(item.path + '/');
             const Icon = item.icon;
             const isDisabled = item.adminOnly && !isAdmin;
@@ -42,35 +74,114 @@ export default function SettingsLayout({ children }) {
                 key={item.name}
                 href={item.path}
                 onClick={(e) => { if (isDisabled) e.preventDefault(); }}
-                className={`flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-colors ${
-                  isActive
-                    ? 'bg-indigo-500/10 text-indigo-400'
-                    : isDisabled
-                      ? 'text-slate-500 cursor-not-allowed'
-                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                }`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '8px 10px',
+                  marginBottom: '2px',
+                  borderRadius: '2px',
+                  borderLeft: isActive ? '2px solid var(--accent)' : '2px solid transparent',
+                  background: isActive ? 'var(--bg-surface-3)' : 'transparent',
+                  color: isActive ? 'var(--fg-1)' : isDisabled ? 'var(--fg-4)' : 'var(--fg-3)',
+                  cursor: isDisabled ? 'not-allowed' : 'pointer',
+                  textDecoration: 'none',
+                  fontFamily: SANS,
+                  fontSize: '13px',
+                  transition: 'background 120ms, color 120ms',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive && !isDisabled) {
+                    e.currentTarget.style.color = 'var(--fg-2)';
+                    e.currentTarget.style.background = 'var(--bg-surface-2)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive && !isDisabled) {
+                    e.currentTarget.style.color = 'var(--fg-3)';
+                    e.currentTarget.style.background = 'transparent';
+                  }
+                }}
               >
-                <Icon className={`mr-3 h-4 w-4 flex-shrink-0 ${isActive ? 'text-indigo-400' : isDisabled ? 'text-slate-400' : 'text-slate-400'}`} />
+                <Icon size={14} style={{ flexShrink: 0, opacity: isDisabled ? 0.4 : 0.7 }} />
                 {item.name}
-                {isDisabled && <Lock className="ml-2 h-3 w-3 text-slate-400" />}
+                {isDisabled && <Lock size={10} style={{ marginLeft: 'auto', opacity: 0.4 }} />}
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-800">
+        {/* Bottom: back link + org/role info */}
+        <div style={{
+          padding: '12px',
+          borderTop: '1px solid var(--border-hairline)',
+        }}>
           <Link
-            href="/investigate"
-            className="flex items-center px-3 py-2 text-sm font-medium text-slate-300 rounded-md hover:bg-slate-800 hover:text-white transition-colors"
+            href="/dashboard"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '7px 10px',
+              fontFamily: MONO,
+              fontSize: '10px',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'var(--fg-3)',
+              textDecoration: 'none',
+              transition: 'color 120ms',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--fg-1)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--fg-3)'; }}
           >
-            ← Back to Product
+            ← Dashboard
           </Link>
+          {(orgName || user?.email) && (
+            <div style={{
+              marginTop: '8px',
+              padding: '8px 10px',
+              background: 'var(--bg-surface-2)',
+              borderRadius: '2px',
+              border: '1px solid var(--border-hairline)',
+            }}>
+              {orgName && (
+                <div style={{
+                  fontFamily: SANS,
+                  fontSize: '12px',
+                  color: 'var(--fg-2)',
+                  marginBottom: '2px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {orgName}
+                </div>
+              )}
+              {role && (
+                <div style={{
+                  fontFamily: MONO,
+                  fontSize: '9px',
+                  color: 'var(--fg-4)',
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                }}>
+                  {formatRole(role)}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Main content */}
-      <div className="flex-1 overflow-y-auto p-8 bg-gray-50/50">
-        <div className="mx-auto max-w-4xl">
+      {/* Content */}
+      <div style={{
+        flex: 1,
+        minWidth: 0,
+        overflowY: 'auto',
+        background: 'var(--bg-base)',
+        padding: '32px 24px',
+      }}>
+        <div style={{ maxWidth: '860px', margin: '0 auto' }}>
           {children}
         </div>
       </div>

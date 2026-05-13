@@ -47,16 +47,37 @@ export function useAuth() {
 
       toast.success("Welcome back");
 
-      // Check org setup status before redirect
+      const role = data?.user?.role;
+
+      // super_admin has no orgId — skip setup gate, go straight to admin panel
+      if (role === "super_admin") {
+        if (typeof window !== "undefined") {
+          document.cookie = `ridgeway_setup=1; path=/; max-age=86400; SameSite=Lax`;
+        }
+        router.replace("/admin/orgs");
+        return;
+      }
+
+      // operator cannot call /org/me (org_admin+ only) and cannot complete setup
+      // if they're logging in, org setup is already done by the admin who invited them
+      if (role === "operator") {
+        if (typeof window !== "undefined") {
+          document.cookie = `ridgeway_setup=1; path=/; max-age=86400; SameSite=Lax`;
+        }
+        router.replace("/dashboard");
+        return;
+      }
+
+      // org_admin: check if setup is complete
       try {
         const orgData = await getOrgMe();
         const setupDone = orgData?.setupComplete;
         if (typeof window !== "undefined") {
           document.cookie = `ridgeway_setup=${setupDone ? "1" : "0"}; path=/; max-age=86400; SameSite=Lax`;
         }
-        router.replace(setupDone ? "/investigate" : "/setup");
+        router.replace(setupDone ? "/dashboard" : "/setup");
       } catch {
-        router.replace("/investigate");
+        router.replace("/dashboard");
       }
     },
     onError: (error) => {
@@ -80,7 +101,7 @@ export function useAuth() {
         document.cookie = `ridgeway_role=; path=/; max-age=0; SameSite=Lax`;
         document.cookie = `ridgeway_setup=; path=/; max-age=0; SameSite=Lax`;
       }
-      router.push("/login");
+      router.replace("/login");
       toast.info("Logged out");
     },
     onError: () => {
@@ -93,7 +114,7 @@ export function useAuth() {
         document.cookie = `ridgeway_role=; path=/; max-age=0; SameSite=Lax`;
         document.cookie = `ridgeway_setup=; path=/; max-age=0; SameSite=Lax`;
       }
-      router.push("/login");
+      router.replace("/login");
     },
   });
 

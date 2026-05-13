@@ -305,8 +305,9 @@ export const startWorker = async () => {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'X-Ridgeway-Signature': signature,
               'X-Ridgeway-Event': delivery.eventType,
+              'X-Ridgeway-Delivery': delivery._id.toString(),
+              ...(signature && { 'X-Ridgeway-Signature': `sha256=${signature}` }),
             },
             body: payloadString,
             signal: controller.signal,

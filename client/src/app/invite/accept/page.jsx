@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useAuthStore } from '../../../hooks/useAuth';
+import { useAuthStore } from '@/store/authStore';
 import api from '../../../lib/api';
 import { ShieldCheck, AlertCircle, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { Suspense } from 'react';
@@ -31,7 +31,7 @@ function InviteContent() {
     const validateToken = async () => {
       try {
         const res = await api.get(`/auth/invite/${token}`);
-        setInviteDetails(res.data || res);
+        setInviteDetails(res);
         setStatus('valid');
       } catch (err) {
         const email = err.response?.data?.data?.email || '';
@@ -63,8 +63,7 @@ function InviteContent() {
     setError('');
 
     try {
-      const res = await api.post('/auth/accept-invite', { token, password });
-      const data = res.data || res;
+      const data = await api.post('/auth/accept-invite', { token, password });
       if (data.accessToken) {
         localStorage.setItem('ridgeway_token', data.accessToken);
         if (data.refreshToken) localStorage.setItem('ridgeway_refresh_token', data.refreshToken);
@@ -77,7 +76,8 @@ function InviteContent() {
           document.cookie = `ridgeway_role=${data.user.role}; path=/; max-age=86400; SameSite=Lax`;
         }
       }
-      router.push('/investigate');
+      document.cookie = 'ridgeway_setup=1; path=/; max-age=86400; SameSite=Lax';
+      router.replace('/investigate');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to accept invite. Please try again.');
       setIsSubmitting(false);

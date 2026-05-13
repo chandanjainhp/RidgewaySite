@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -8,46 +8,42 @@ import { SITE_CENTER } from "@/config/constants";
 
 export default function IncidentMiniMap({ incidentId, location }) {
   const mapRef = useRef(null);
+  const [mounted, setMounted] = useState(false);
 
-  // Proper cleanup of Leaflet map on unmount to prevent "container reuse" errors in Strict Mode
   useEffect(() => {
+    setMounted(true);
     return () => {
       if (mapRef.current) {
         try {
-          // Force cleanup of Leaflet internal state
-          if (mapRef.current._leaflet_id) {
-            delete mapRef.current._leaflet_id;
-          }
-          if (mapRef.current._container) {
-            delete mapRef.current._container._leaflet_id;
-          }
-        } catch (e) {
-          // Suppress cleanup errors silently
-        }
+          if (mapRef.current._leaflet_id) delete mapRef.current._leaflet_id;
+          if (mapRef.current._container) delete mapRef.current._container._leaflet_id;
+        } catch (_) {}
       }
     };
   }, []);
 
-  // Utilizing a generic fallback marker icon since this is an isolated mini-map component
-  const fallbackIcon = L.divIcon({
-    html: `<div class="w-5 h-5 bg-severity-escalate rounded-full border-2 border-white shadow-[0_0_10px_rgba(239,68,68,0.5)]"></div>`,
+  const fallbackIcon = useMemo(() => L.divIcon({
+    html: `<div style="width:20px;height:20px;background:#ef4444;border-radius:50%;border:2px solid white;box-shadow:0 0 10px rgba(239,68,68,0.5)"></div>`,
     className: "",
-    iconSize: [20, 20]
-  });
+    iconSize: [20, 20],
+  }), []);
 
-  // Target default bounds dynamically via explicit location lookup or fallback reliably
-  const targetCoords = [SITE_CENTER.lat, SITE_CENTER.lng];
+  const targetCoords = [SITE_CENTER?.lat ?? 51.505, SITE_CENTER?.lng ?? -0.09];
+
+  if (!mounted) return (
+    <div className="w-full h-64 border border-border bg-surface rounded-sm" />
+  );
 
   return (
     <div className="w-full h-64 border border-border bg-surface relative isolation leaflet-dark-override rounded-sm z-10">
       <MapContainer
-        key="incident-mini-map"
+        key={`minimap-${incidentId}`}
         ref={mapRef}
         center={targetCoords}
         zoom={16}
         zoomControl={false}
         className="w-full h-full"
-        dragging={false}   // Disable interaction allowing user to focus strictly on geography
+        dragging={false}
         scrollWheelZoom={false}
       >
          <TileLayer

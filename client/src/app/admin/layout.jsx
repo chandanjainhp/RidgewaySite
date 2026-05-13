@@ -22,7 +22,8 @@ export default function AdminLayout({ children }) {
     clearStoredToken();
     document.cookie = 'ridgeway_auth=; path=/; max-age=0; SameSite=Lax';
     document.cookie = 'ridgeway_role=; path=/; max-age=0; SameSite=Lax';
-    router.push('/login');
+    document.cookie = 'ridgeway_setup=; path=/; max-age=0; SameSite=Lax';
+    router.replace('/login');
   };
 
   const navItems = [
