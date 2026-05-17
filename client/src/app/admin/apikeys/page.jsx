@@ -25,38 +25,40 @@ const PAGE_SIZE = 50;
 
 function lastUsedLabel(lastUsedAt) {
   if (!lastUsedAt) return 'Never';
-  try {
-    return formatDistanceToNow(new Date(lastUsedAt), { addSuffix: true });
-  } catch {
-    return 'Unknown';
-  }
+  try { return formatDistanceToNow(new Date(lastUsedAt), { addSuffix: true }); }
+  catch { return 'Unknown'; }
 }
 
 function expiresLabel(expiresAt) {
   if (!expiresAt) return 'No expiry';
-  try {
-    return format(new Date(expiresAt), 'd MMM yyyy');
-  } catch {
-    return 'Unknown';
-  }
+  try { return format(new Date(expiresAt), 'd MMM yyyy'); }
+  catch { return 'Unknown'; }
 }
 
 function StatusBadge({ keyObj }) {
   const isActive = keyObj.isActive === true;
   if (isActive) {
     return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+      <span
+        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold"
+        style={{ background: 'rgba(125,138,106,0.2)', color: '#7d8a6a' }}
+      >
         Active
       </span>
     );
   }
   return (
     <div className="flex flex-col items-start gap-0.5">
-      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+      <span
+        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold"
+        style={{ background: 'rgba(255,56,56,0.15)', color: '#ff3838' }}
+      >
         Revoked
       </span>
       {keyObj.revokedAt && (
-        <span className="text-[10px] text-gray-400">
+        <span
+          style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--fg-4)' }}
+        >
           {format(new Date(keyObj.revokedAt), 'd MMM yyyy')}
         </span>
       )}
@@ -72,48 +74,64 @@ function RevokeDialog({ keyObj, onRevoke }) {
 
   async function handleRevoke() {
     setPending(true);
-    try {
-      await onRevoke(keyObj._id);
-      setOpen(false);
-    } finally {
-      setPending(false);
-    }
+    try { await onRevoke(keyObj._id); setOpen(false); }
+    finally { setPending(false); }
   }
 
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>
-        <button className="text-xs font-medium text-red-600 hover:text-red-800 px-2 py-1 rounded hover:bg-red-50 transition-colors">
+        <button
+          className="text-xs font-medium px-2 py-1 rounded transition-colors"
+          style={{ color: '#ff3838' }}
+        >
           Revoke
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" />
-        <Dialog.Content className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl p-6 w-full max-w-md border border-gray-200 focus:outline-none">
-          <Dialog.Title className="text-base font-semibold text-gray-900 mb-1">
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" />
+        <Dialog.Content
+          className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-xl p-6 w-full max-w-md focus:outline-none space-y-4"
+          style={{
+            background: 'var(--bg-surface-2)',
+            border: '1px solid var(--border-default)',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
+          }}
+        >
+          <Dialog.Title className="text-base font-semibold" style={{ color: 'var(--fg-1)' }}>
             Revoke API key?
           </Dialog.Title>
-          <Dialog.Description className="text-sm text-gray-500 mb-1">
-            <span className="font-medium text-gray-800">{keyObj.name}</span>
+          <Dialog.Description className="text-sm" style={{ color: 'var(--fg-3)' }}>
+            <span style={{ color: 'var(--fg-2)', fontWeight: 500 }}>{keyObj.name}</span>
             {keyObj.keyPrefix && (
-              <span className="ml-2 font-mono text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+              <span
+                className="ml-2 px-1.5 py-0.5 rounded"
+                style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', background: 'var(--bg-surface-3)', color: 'var(--fg-3)' }}
+              >
                 {keyObj.keyPrefix}…
               </span>
             )}
           </Dialog.Description>
-          <p className="text-xs text-red-600 bg-red-50 rounded-md px-3 py-2 mb-5">
+          <p
+            className="text-xs rounded-md px-3 py-2"
+            style={{ color: '#ff3838', background: 'rgba(255,56,56,0.08)', border: '1px solid rgba(255,56,56,0.2)' }}
+          >
             This will immediately block all requests using this key. This cannot be undone.
           </p>
           <div className="flex justify-end gap-3">
             <Dialog.Close asChild>
-              <button className="px-4 py-2 text-sm rounded-lg border border-gray-300 hover:bg-gray-50">
+              <button
+                className="px-4 py-2 text-sm rounded-lg transition-colors"
+                style={{ border: '1px solid var(--border-default)', color: 'var(--fg-2)', background: 'transparent' }}
+              >
                 Cancel
               </button>
             </Dialog.Close>
             <button
               disabled={pending}
               onClick={handleRevoke}
-              className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+              className="px-4 py-2 text-sm rounded-lg disabled:opacity-50 flex items-center gap-2"
+              style={{ background: '#ff3838', color: '#fff' }}
             >
               {pending && <Loader2 className="w-4 h-4 animate-spin" />}
               Revoke Key
@@ -133,13 +151,18 @@ function ScopesCell({ scopes = [] }) {
   return (
     <div className="flex flex-wrap gap-1 max-w-[200px]">
       {visible.map((s) => (
-        <span key={s} className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
+        <span
+          key={s}
+          className="px-1.5 py-0.5 rounded"
+          style={{ fontSize: '10px', background: 'var(--bg-surface-3)', color: 'var(--fg-3)', fontFamily: 'var(--font-mono)' }}
+        >
           {s}
         </span>
       ))}
       {hidden.length > 0 && (
         <span
-          className="text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded cursor-default"
+          className="px-1.5 py-0.5 rounded cursor-default"
+          style={{ fontSize: '10px', background: 'rgba(90,135,168,0.2)', color: '#b8d4e8' }}
           title={hidden.join(', ')}
         >
           +{hidden.length} more
@@ -149,6 +172,18 @@ function ScopesCell({ scopes = [] }) {
   );
 }
 
+const selectStyle = {
+  appearance: 'none',
+  background: 'var(--bg-surface-1)',
+  border: '1px solid var(--border-default)',
+  color: 'var(--fg-2)',
+  borderRadius: '6px',
+  padding: '7px 32px 7px 12px',
+  fontSize: 'var(--text-sm)',
+  outline: 'none',
+  cursor: 'pointer',
+};
+
 // ─── main page ───────────────────────────────────────────────────────────────
 
 export default function ApiKeysPage() {
@@ -157,7 +192,6 @@ export default function ApiKeysPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [scopeFilter, setScopeFilter] = useState('');
 
-  // orgs for dropdown — loaded once
   const { data: orgsData } = useQuery({
     queryKey: ['admin-orgs-list'],
     queryFn: () => listAdminOrgs({ limit: 100 }),
@@ -165,15 +199,7 @@ export default function ApiKeysPage() {
   });
   const orgs = Array.isArray(orgsData?.data) ? orgsData.data : Array.isArray(orgsData) ? orgsData : [];
 
-  // paginated api keys
-  const {
-    data,
-    isLoading,
-    isError,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useInfiniteQuery({
+  const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ['admin-apikeys', orgFilter, statusFilter, scopeFilter],
     queryFn: ({ pageParam = 1 }) =>
       listAdminApiKeys({
@@ -193,7 +219,6 @@ export default function ApiKeysPage() {
 
   const allKeys = data?.pages.flatMap((page) => page?.data ?? []) ?? [];
   const keys = allKeys;
-
   const totalLoaded = allKeys.length;
   const totalAvailable = data?.pages?.[0]?.total ?? 0;
   const hasActiveFilters = !!(orgFilter || statusFilter || scopeFilter);
@@ -206,9 +231,7 @@ export default function ApiKeysPage() {
         pages: old.pages.map((page) => ({
           ...page,
           data: (page?.data ?? []).map((k) =>
-            k._id === keyId
-              ? { ...k, isActive: false, revokedAt: new Date().toISOString() }
-              : k
+            k._id === keyId ? { ...k, isActive: false, revokedAt: new Date().toISOString() } : k
           ),
         })),
       };
@@ -222,19 +245,16 @@ export default function ApiKeysPage() {
     }
   }
 
-  const selectBase =
-    'border border-gray-300 rounded-md px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none';
-
   return (
     <div className="space-y-6">
       {/* header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900 flex items-center gap-2">
-          <Key className="w-6 h-6 text-indigo-500" />
+        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2" style={{ color: 'var(--fg-1)' }}>
+          <Key className="w-5 h-5" style={{ color: 'var(--accent)' }} />
           Global API Keys
         </h1>
         {!isLoading && (
-          <span className="text-sm text-gray-500">
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--fg-4)' }}>
             {keys.length} key{keys.length !== 1 ? 's' : ''} loaded
             {totalAvailable > keys.length && ` of ${totalAvailable}`}
           </span>
@@ -242,65 +262,52 @@ export default function ApiKeysPage() {
       </div>
 
       {/* notice */}
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
-        <ShieldAlert className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-        <p className="text-sm text-amber-800">
+      <div
+        className="rounded-xl p-4 flex items-start gap-3"
+        style={{ background: 'rgba(232,154,43,0.08)', border: '1px solid rgba(232,154,43,0.25)' }}
+      >
+        <ShieldAlert className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#e89a2b' }} />
+        <p className="text-sm" style={{ color: '#e89a2b' }}>
           Global oversight view. Monitor and emergency-revoke any API key in the system.
           Keys are created by Org Admins within their organisation settings.
         </p>
       </div>
 
       {/* filters */}
-      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-3 items-center">
+      <div
+        className="p-4 rounded-xl flex flex-wrap gap-3 items-center"
+        style={{ background: 'var(--bg-surface-1)', border: '1px solid var(--border-default)' }}
+      >
         <div className="relative">
-          <select
-            className={`${selectBase} appearance-none pr-8`}
-            value={orgFilter}
-            onChange={(e) => setOrgFilter(e.target.value)}
-          >
+          <select style={selectStyle} value={orgFilter} onChange={(e) => setOrgFilter(e.target.value)}>
             <option value="">All Organisations</option>
-            {orgs.map((o) => (
-              <option key={o._id} value={o._id}>
-                {o.name}
-              </option>
-            ))}
+            {orgs.map((o) => <option key={o._id} value={o._id}>{o.name}</option>)}
           </select>
-          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--fg-4)' }} />
         </div>
 
         <div className="relative">
-          <select
-            className={`${selectBase} appearance-none pr-8`}
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
+          <select style={selectStyle} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="">All Statuses</option>
             <option value="active">Active</option>
             <option value="revoked">Revoked</option>
           </select>
-          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--fg-4)' }} />
         </div>
 
         <div className="relative">
-          <select
-            className={`${selectBase} appearance-none pr-8`}
-            value={scopeFilter}
-            onChange={(e) => setScopeFilter(e.target.value)}
-          >
+          <select style={selectStyle} value={scopeFilter} onChange={(e) => setScopeFilter(e.target.value)}>
             <option value="">All Scopes</option>
-            {ALL_SCOPES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
+            {ALL_SCOPES.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
-          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--fg-4)' }} />
         </div>
 
         {hasActiveFilters && (
           <button
             onClick={() => { setOrgFilter(''); setStatusFilter(''); setScopeFilter(''); }}
-            className="text-xs text-gray-500 hover:text-gray-700 underline"
+            className="text-xs underline"
+            style={{ color: 'var(--fg-3)' }}
           >
             Clear filters
           </button>
@@ -308,46 +315,50 @@ export default function ApiKeysPage() {
       </div>
 
       {/* table */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div
+        className="rounded-xl overflow-hidden"
+        style={{ background: 'var(--bg-surface-1)', border: '1px solid var(--border-default)' }}
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-5 py-3">Name</th>
-                <th className="px-5 py-3">Prefix</th>
-                <th className="px-5 py-3">Organisation</th>
-                <th className="px-5 py-3">Scopes</th>
-                <th className="px-5 py-3">Created by</th>
-                <th className="px-5 py-3">Last used</th>
-                <th className="px-5 py-3">Expires</th>
-                <th className="px-5 py-3">Status</th>
-                <th className="px-5 py-3 text-right">Actions</th>
+            <thead>
+              <tr style={{ background: 'var(--bg-surface-2)', borderBottom: '1px solid var(--border-default)' }}>
+                {['Name', 'Prefix', 'Organisation', 'Scopes', 'Created by', 'Last used', 'Expires', 'Status', 'Actions'].map((h, i) => (
+                  <th
+                    key={h}
+                    className={`px-5 py-3 text-xs font-semibold uppercase tracking-wider ${i === 8 ? 'text-right' : ''}`}
+                    style={{ fontFamily: 'var(--font-mono)', color: 'var(--fg-3)' }}
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={9} className="px-5 py-10 text-center text-gray-400">
+                  <td colSpan={9} className="px-5 py-10 text-center" style={{ color: 'var(--fg-4)' }}>
                     <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
                     Loading API keys…
                   </td>
                 </tr>
               ) : isError ? (
                 <tr>
-                  <td colSpan={9} className="px-5 py-10 text-center text-red-500">
+                  <td colSpan={9} className="px-5 py-10 text-center" style={{ color: 'var(--sev-serious)' }}>
                     Failed to load API keys.
                   </td>
                 </tr>
               ) : keys.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-5 py-12 text-center">
-                    <p className="text-gray-400 mb-2">
+                    <p style={{ color: 'var(--fg-4)' }} className="mb-2">
                       {hasActiveFilters ? 'No keys match your filters.' : 'No API keys found.'}
                     </p>
                     {hasActiveFilters && (
                       <button
                         onClick={() => { setOrgFilter(''); setStatusFilter(''); setScopeFilter(''); }}
-                        className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                        className="text-sm font-medium"
+                        style={{ color: 'var(--accent)' }}
                       >
                         Clear filters
                       </button>
@@ -363,61 +374,62 @@ export default function ApiKeysPage() {
                   return (
                     <tr
                       key={k._id}
-                      className={`transition-colors ${
-                        isActive
-                          ? 'bg-white hover:bg-indigo-50/20'
-                          : 'bg-red-50/30 opacity-70'
-                      }`}
+                      className="transition-colors"
+                      style={{
+                        borderBottom: '1px solid var(--border-hairline)',
+                        opacity: isActive ? 1 : 0.5,
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-surface-2)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                     >
-                      <td className="px-5 py-3 font-medium text-gray-900 max-w-[160px] truncate">
+                      <td className="px-5 py-3 font-medium max-w-[160px] truncate" style={{ color: 'var(--fg-1)' }}>
                         {k.name}
                       </td>
-
                       <td className="px-5 py-3">
-                        <span className="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
+                        <span
+                          className="px-2 py-0.5 rounded"
+                          style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', background: 'var(--bg-surface-3)', color: 'var(--fg-2)' }}
+                        >
                           {String(k.keyPrefix ?? '').slice(0, 16)}…
                         </span>
                       </td>
-
-                      <td className="px-5 py-3 text-gray-700">
+                      <td className="px-5 py-3" style={{ color: 'var(--fg-2)' }}>
                         {orgId && orgName ? (
                           <Link
                             href={`/admin/orgs/${orgId}`}
-                            className="text-indigo-600 hover:underline"
+                            style={{ color: 'var(--accent)' }}
+                            className="hover:underline"
                           >
                             {orgName}
                           </Link>
                         ) : orgName ? (
                           orgName
                         ) : (
-                          <span className="text-gray-400 italic">Unknown</span>
+                          <span style={{ color: 'var(--fg-4)', fontStyle: 'italic' }}>Unknown</span>
                         )}
                       </td>
-
-                      <td className="px-5 py-3">
-                        <ScopesCell scopes={k.scopes} />
-                      </td>
-
-                      <td className="px-5 py-3 text-gray-600 text-xs">
+                      <td className="px-5 py-3"><ScopesCell scopes={k.scopes} /></td>
+                      <td
+                        className="px-5 py-3 text-xs"
+                        style={{ color: 'var(--fg-3)' }}
+                      >
                         {k.createdBy?.username ?? k.createdBy?.email ?? 'System'}
                       </td>
-
-                      <td className="px-5 py-3 text-xs text-gray-500 whitespace-nowrap">
+                      <td
+                        className="px-5 py-3 whitespace-nowrap"
+                        style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--fg-3)' }}
+                      >
                         {lastUsedLabel(k.lastUsedAt)}
                       </td>
-
-                      <td className="px-5 py-3 text-xs text-gray-500 whitespace-nowrap">
+                      <td
+                        className="px-5 py-3 whitespace-nowrap"
+                        style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--fg-3)' }}
+                      >
                         {expiresLabel(k.expiresAt)}
                       </td>
-
-                      <td className="px-5 py-3">
-                        <StatusBadge keyObj={k} />
-                      </td>
-
+                      <td className="px-5 py-3"><StatusBadge keyObj={k} /></td>
                       <td className="px-5 py-3 text-right">
-                        {isActive && (
-                          <RevokeDialog keyObj={k} onRevoke={handleRevoke} />
-                        )}
+                        {isActive && <RevokeDialog keyObj={k} onRevoke={handleRevoke} />}
                       </td>
                     </tr>
                   );
@@ -431,14 +443,19 @@ export default function ApiKeysPage() {
       {/* pagination */}
       {!isLoading && allKeys.length > 0 && (
         <div className="flex flex-col items-center gap-2 pt-2">
-          <p className="text-sm text-gray-400">
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--fg-4)' }}>
             Showing {keys.length} of {scopeFilter ? `${allKeys.length} loaded` : `${totalAvailable}`} records
           </p>
           {hasNextPage && (
             <button
               onClick={() => fetchNextPage()}
               disabled={isFetchingNextPage}
-              className="inline-flex items-center gap-2 px-5 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-2 px-5 py-2 text-sm font-medium rounded-md transition-colors disabled:opacity-40"
+              style={{
+                color: 'var(--fg-2)',
+                border: '1px solid var(--border-default)',
+                background: 'transparent',
+              }}
             >
               {isFetchingNextPage && <Loader2 className="w-4 h-4 animate-spin" />}
               {isFetchingNextPage ? 'Loading…' : 'Load More'}

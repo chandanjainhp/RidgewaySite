@@ -18,27 +18,37 @@ import {
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
-function planBadge(plan) {
-  const map = {
-    trial: 'bg-gray-100 text-gray-700',
-    standard: 'bg-blue-100 text-blue-700',
-    enterprise: 'bg-purple-100 text-purple-700',
-  };
+const PLAN_STYLE = {
+  trial:      { background: 'rgba(107,118,134,0.2)',  color: '#aab4c2' },
+  standard:   { background: 'rgba(90,135,168,0.2)',   color: '#b8d4e8' },
+  enterprise: { background: 'rgba(184,212,232,0.15)', color: '#e6ecf3' },
+};
+
+const STATUS_STYLE = {
+  active:    { background: 'rgba(125,138,106,0.2)', color: '#7d8a6a' },
+  pending:   { background: 'rgba(232,154,43,0.15)', color: '#e89a2b' },
+  suspended: { background: 'rgba(255,56,56,0.15)',  color: '#ff3838' },
+};
+
+function PlanBadge({ plan }) {
+  const s = PLAN_STYLE[plan] ?? PLAN_STYLE.trial;
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize ${map[plan] ?? 'bg-gray-100 text-gray-700'}`}>
+    <span
+      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize"
+      style={s}
+    >
       {plan}
     </span>
   );
 }
 
-function statusBadge(status) {
-  const map = {
-    active: 'bg-green-100 text-green-700',
-    pending: 'bg-amber-100 text-amber-700',
-    suspended: 'bg-red-100 text-red-700',
-  };
+function StatusBadge({ status }) {
+  const s = STATUS_STYLE[status] ?? { background: 'rgba(107,118,134,0.2)', color: '#6b7686' };
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize ${map[status] ?? 'bg-gray-100 text-gray-700'}`}>
+    <span
+      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize"
+      style={s}
+    >
       {status}
     </span>
   );
@@ -63,22 +73,23 @@ function StatusPopover({ org, onMutate }) {
       ? 'active'
       : 'active';
 
-  const btnColor =
+  const btnStyle =
     org.status === 'active'
-      ? 'text-red-700 border-red-200 hover:bg-red-50'
-      : 'text-green-700 border-green-200 hover:bg-green-50';
+      ? { color: '#ff3838', border: '1px solid rgba(255,56,56,0.35)', background: 'rgba(255,56,56,0.08)' }
+      : { color: '#7d8a6a', border: '1px solid rgba(125,138,106,0.35)', background: 'rgba(125,138,106,0.08)' };
 
-  const confirmColor =
+  const confirmStyle =
     nextStatus === 'suspended'
-      ? 'bg-red-600 hover:bg-red-700 text-white'
-      : 'bg-green-600 hover:bg-green-700 text-white';
+      ? { background: '#ff3838', color: '#fff' }
+      : { background: '#7d8a6a', color: '#fff' };
 
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger asChild>
         <button
           onClick={(e) => e.stopPropagation()}
-          className={`text-xs font-medium px-3 py-1.5 rounded border bg-white transition-colors ${btnColor}`}
+          className="text-xs font-medium px-3 py-1.5 rounded transition-colors"
+          style={btnStyle}
         >
           {label}
         </button>
@@ -89,15 +100,22 @@ function StatusPopover({ org, onMutate }) {
           align="center"
           sideOffset={6}
           onClick={(e) => e.stopPropagation()}
-          className="z-50 w-48 rounded-lg border border-gray-200 bg-white p-3 shadow-lg text-sm"
+          className="z-50 w-52 rounded-lg p-3 text-sm"
+          style={{
+            background: 'var(--bg-surface-2)',
+            border: '1px solid var(--border-default)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            color: 'var(--fg-2)',
+          }}
         >
-          <p className="text-gray-700 mb-3 font-medium">
+          <p className="mb-3 font-medium" style={{ color: 'var(--fg-1)' }}>
             {nextStatus === 'suspended'
               ? 'Suspend this organisation?'
               : 'Reactivate this organisation?'}
           </p>
           <button
-            className={`w-full py-1.5 rounded text-xs font-semibold transition-colors ${confirmColor}`}
+            className="w-full py-1.5 rounded text-xs font-semibold transition-opacity hover:opacity-80"
+            style={confirmStyle}
             onClick={() => {
               setOpen(false);
               onMutate(org._id, nextStatus);
@@ -105,7 +123,7 @@ function StatusPopover({ org, onMutate }) {
           >
             Confirm {label}
           </button>
-          <Popover.Arrow className="fill-gray-200" />
+          <Popover.Arrow style={{ fill: 'var(--border-default)' }} />
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
@@ -113,6 +131,17 @@ function StatusPopover({ org, onMutate }) {
 }
 
 // ─── Create Org Modal ───────────────────────────────────────────────────────
+
+const inputStyle = {
+  background: 'var(--bg-base)',
+  border: '1px solid var(--border-default)',
+  color: 'var(--fg-1)',
+  borderRadius: '6px',
+  padding: '8px 12px',
+  fontSize: 'var(--text-sm)',
+  width: '100%',
+  outline: 'none',
+};
 
 function CreateOrgDialog({ open, onOpenChange, onCreated }) {
   const [name, setName] = useState('');
@@ -169,61 +198,67 @@ function CreateOrgDialog({ open, onOpenChange, onCreated }) {
       }}
     >
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" />
-        <Dialog.Content className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-xl shadow-2xl focus:outline-none">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <Dialog.Title className="text-lg font-semibold text-gray-900">
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" />
+        <Dialog.Content
+          className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-xl focus:outline-none"
+          style={{
+            background: 'var(--bg-surface-2)',
+            border: '1px solid var(--border-default)',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
+          }}
+        >
+          <div
+            className="flex items-center justify-between px-6 py-4"
+            style={{ borderBottom: '1px solid var(--border-hairline)' }}
+          >
+            <Dialog.Title className="text-base font-semibold" style={{ color: 'var(--fg-1)' }}>
               Create Organisation
             </Dialog.Title>
-            <Dialog.Close className="text-gray-400 hover:text-gray-600 rounded-md p-1 transition-colors">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <Dialog.Close
+              className="p-1 rounded-md transition-colors"
+              style={{ color: 'var(--fg-3)' }}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </Dialog.Close>
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-5">
-            {/* Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Organisation Name <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--fg-2)' }}>
+                Organisation Name <span style={{ color: 'var(--sev-serious)' }}>*</span>
               </label>
               <input
                 autoFocus
                 required
                 type="text"
                 value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  setSlugError('');
-                }}
+                onChange={(e) => { setName(e.target.value); setSlugError(''); }}
                 placeholder="Acme Corp"
-                className={`w-full px-3 py-2 border rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                  slugError ? 'border-red-400 focus:ring-red-400' : 'border-gray-300'
-                }`}
+                style={{
+                  ...inputStyle,
+                  borderColor: slugError ? 'var(--sev-serious)' : 'var(--border-default)',
+                }}
               />
               {slugError && (
-                <p className="mt-1 text-xs text-red-600">{slugError}</p>
+                <p className="mt-1 text-xs" style={{ color: 'var(--sev-serious)' }}>{slugError}</p>
               )}
             </div>
 
-            {/* Plan */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Plan</label>
-              <RadioGroup.Root
-                value={plan}
-                onValueChange={setPlan}
-                className="flex gap-3"
-              >
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--fg-2)' }}>Plan</label>
+              <RadioGroup.Root value={plan} onValueChange={setPlan} className="flex gap-2">
                 {['trial', 'standard', 'enterprise'].map((p) => (
                   <RadioGroup.Item
                     key={p}
                     value={p}
-                    className={`flex-1 flex items-center justify-center py-2 rounded-md border text-sm font-medium cursor-pointer transition-colors capitalize
-                      ${plan === p
-                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                        : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
-                      }`}
+                    className="flex-1 flex items-center justify-center py-2 rounded-md text-sm font-medium cursor-pointer capitalize transition-all"
+                    style={{
+                      border: plan === p ? '1px solid var(--accent)' : '1px solid var(--border-default)',
+                      background: plan === p ? 'rgba(184,212,232,0.08)' : 'transparent',
+                      color: plan === p ? 'var(--accent)' : 'var(--fg-3)',
+                    }}
                   >
                     <RadioGroup.Indicator className="hidden" />
                     {p}
@@ -232,17 +267,16 @@ function CreateOrgDialog({ open, onOpenChange, onCreated }) {
               </RadioGroup.Root>
             </div>
 
-            {/* Invite email (optional) */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Invite Email <span className="text-gray-400 font-normal">(optional)</span>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--fg-2)' }}>
+                Invite Email <span style={{ color: 'var(--fg-4)', fontWeight: 400 }}>(optional)</span>
               </label>
               <input
                 type="email"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 placeholder="admin@acme.com"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                style={inputStyle}
               />
             </div>
 
@@ -250,7 +284,12 @@ function CreateOrgDialog({ open, onOpenChange, onCreated }) {
               <Dialog.Close asChild>
                 <button
                   type="button"
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 text-sm font-medium rounded-md transition-colors"
+                  style={{
+                    color: 'var(--fg-2)',
+                    border: '1px solid var(--border-default)',
+                    background: 'transparent',
+                  }}
                 >
                   Cancel
                 </button>
@@ -258,7 +297,8 @@ function CreateOrgDialog({ open, onOpenChange, onCreated }) {
               <button
                 type="submit"
                 disabled={mutation.isPending || !name.trim()}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-opacity disabled:opacity-40"
+                style={{ background: 'var(--accent-dim)', color: 'var(--fg-1)' }}
               >
                 {mutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                 {mutation.isPending ? 'Creating…' : 'Create Organisation'}
@@ -275,15 +315,32 @@ function CreateOrgDialog({ open, onOpenChange, onCreated }) {
 
 function SkeletonRow() {
   return (
-    <tr className="border-b border-gray-100">
+    <tr style={{ borderBottom: '1px solid var(--border-hairline)' }}>
       {[...Array(7)].map((_, i) => (
         <td key={i} className="px-6 py-4">
-          <div className="h-4 bg-gray-100 rounded animate-pulse" style={{ width: i === 0 ? '60%' : '50%' }} />
+          <div
+            className="h-3 rounded animate-pulse"
+            style={{ width: i === 0 ? '60%' : '50%', background: 'var(--bg-surface-3)' }}
+          />
         </td>
       ))}
     </tr>
   );
 }
+
+// ─── Select base style ────────────────────────────────────────────────────────
+
+const selectStyle = {
+  appearance: 'none',
+  background: 'var(--bg-surface-1)',
+  border: '1px solid var(--border-default)',
+  color: 'var(--fg-2)',
+  borderRadius: '6px',
+  padding: '7px 32px 7px 12px',
+  fontSize: 'var(--text-sm)',
+  outline: 'none',
+  cursor: 'pointer',
+};
 
 // ─── Main Page ──────────────────────────────────────────────────────────────
 
@@ -348,24 +405,28 @@ export default function OrganisationsPage() {
     },
   });
 
-  const handleFilterChange = (setter) => (e) => {
-    setter(e.target.value);
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Building2 className="w-6 h-6 text-indigo-500" />
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Organisations</h1>
+          <Building2 className="w-5 h-5" style={{ color: 'var(--accent)' }} />
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--fg-1)' }}>
+            Organisations
+          </h1>
           {!isLoading && (
-            <span className="text-sm text-gray-400">({allOrgs.length} loaded)</span>
+            <span
+              className="text-sm"
+              style={{ fontFamily: 'var(--font-mono)', color: 'var(--fg-4)' }}
+            >
+              ({allOrgs.length} loaded)
+            </span>
           )}
         </div>
         <button
           onClick={() => setCreateOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md shadow-sm hover:bg-indigo-700 transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-opacity hover:opacity-80"
+          style={{ background: 'var(--accent-dim)', color: 'var(--fg-1)' }}
         >
           <Plus className="w-4 h-4" />
           Create Organisation
@@ -377,35 +438,42 @@ export default function OrganisationsPage() {
         <div className="relative">
           <select
             value={statusFilter}
-            onChange={handleFilterChange(setStatusFilter)}
-            className="appearance-none pl-3 pr-8 py-2 text-sm border border-gray-300 rounded-md bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={selectStyle}
           >
             <option value="">All Statuses</option>
             <option value="active">Active</option>
             <option value="pending">Pending</option>
             <option value="suspended">Suspended</option>
           </select>
-          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <ChevronDown
+            className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4"
+            style={{ color: 'var(--fg-4)' }}
+          />
         </div>
 
         <div className="relative">
           <select
             value={planFilter}
-            onChange={handleFilterChange(setPlanFilter)}
-            className="appearance-none pl-3 pr-8 py-2 text-sm border border-gray-300 rounded-md bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+            onChange={(e) => setPlanFilter(e.target.value)}
+            style={selectStyle}
           >
             <option value="">All Plans</option>
             <option value="trial">Trial</option>
             <option value="standard">Standard</option>
             <option value="enterprise">Enterprise</option>
           </select>
-          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <ChevronDown
+            className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4"
+            style={{ color: 'var(--fg-4)' }}
+          />
         </div>
 
         {(statusFilter || planFilter) && (
           <button
             onClick={() => { setStatusFilter(''); setPlanFilter(''); }}
-            className="text-xs text-gray-500 hover:text-gray-700 underline"
+            className="text-xs underline transition-colors"
+            style={{ color: 'var(--fg-3)' }}
           >
             Clear filters
           </button>
@@ -413,61 +481,85 @@ export default function OrganisationsPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <div
+        className="rounded-lg overflow-hidden"
+        style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface-1)' }}
+      >
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left text-gray-600">
-            <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 font-semibold">Name</th>
-                <th className="px-6 py-3 font-semibold">Slug</th>
-                <th className="px-6 py-3 font-semibold">Plan</th>
-                <th className="px-6 py-3 font-semibold">Status</th>
-                <th className="px-6 py-3 font-semibold text-center">Users</th>
-                <th className="px-6 py-3 font-semibold">Created</th>
-                <th className="px-6 py-3 font-semibold text-right">Actions</th>
+          <table className="w-full text-sm text-left">
+            <thead>
+              <tr style={{ background: 'var(--bg-surface-2)', borderBottom: '1px solid var(--border-default)' }}>
+                {['Name', 'Slug', 'Plan', 'Status', 'Users', 'Created', 'Actions'].map((h, i) => (
+                  <th
+                    key={h}
+                    className={`px-6 py-3 font-semibold text-xs uppercase tracking-wider ${i === 4 ? 'text-center' : i === 6 ? 'text-right' : ''}`}
+                    style={{ fontFamily: 'var(--font-mono)', color: 'var(--fg-3)', letterSpacing: '0.08em' }}
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {isLoading ? (
                 [...Array(5)].map((_, i) => <SkeletonRow key={i} />)
               ) : allOrgs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
+                  <td
+                    colSpan={7}
+                    className="px-6 py-12 text-center"
+                    style={{ color: 'var(--fg-4)' }}
+                  >
                     No organisations found.
                   </td>
                 </tr>
               ) : (
                 allOrgs.map((org) => (
-                  <tr key={org._id} className="hover:bg-gray-50 transition-colors">
+                  <tr
+                    key={org._id}
+                    className="transition-colors"
+                    style={{ borderBottom: '1px solid var(--border-hairline)' }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-surface-2)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
                     <td className="px-6 py-4">
                       <Link
                         href={`/admin/orgs/${org._id}`}
-                        className="font-semibold text-gray-900 hover:text-indigo-600 transition-colors"
+                        className="font-semibold transition-colors"
+                        style={{ color: 'var(--fg-1)' }}
+                        onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent)'}
+                        onMouseLeave={(e) => e.currentTarget.style.color = 'var(--fg-1)'}
                       >
                         {org.name}
                       </Link>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="font-mono text-xs text-gray-500">{org.slug}</span>
+                      <span
+                        style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--fg-3)' }}
+                      >
+                        {org.slug}
+                      </span>
                     </td>
-                    <td className="px-6 py-4">{planBadge(org.plan)}</td>
-                    <td className="px-6 py-4">{statusBadge(org.status)}</td>
+                    <td className="px-6 py-4"><PlanBadge plan={org.plan} /></td>
+                    <td className="px-6 py-4"><StatusBadge status={org.status} /></td>
                     <td className="px-6 py-4 text-center">
-                      <span className="inline-flex items-center justify-center bg-gray-100 text-gray-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+                      <span
+                        className="inline-flex items-center justify-center text-xs font-semibold px-2 py-0.5 rounded-full"
+                        style={{ background: 'var(--bg-surface-3)', color: 'var(--fg-2)' }}
+                      >
                         {org.userCount ?? 0}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-gray-500 whitespace-nowrap">
-                      {org.createdAt
-                        ? format(new Date(org.createdAt), 'd MMM yyyy')
-                        : '—'}
+                    <td
+                      className="px-6 py-4 whitespace-nowrap"
+                      style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--fg-3)' }}
+                    >
+                      {org.createdAt ? format(new Date(org.createdAt), 'd MMM yyyy') : '—'}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <StatusPopover
                         org={org}
-                        onMutate={(orgId, status) =>
-                          statusMutation.mutate({ orgId, status })
-                        }
+                        onMutate={(orgId, status) => statusMutation.mutate({ orgId, status })}
                       />
                     </td>
                   </tr>
@@ -484,7 +576,12 @@ export default function OrganisationsPage() {
           <button
             onClick={() => fetchNextPage()}
             disabled={!hasNextPage || isFetchingNextPage}
-            className="inline-flex items-center gap-2 px-5 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            className="inline-flex items-center gap-2 px-5 py-2 text-sm font-medium rounded-md transition-colors disabled:opacity-40"
+            style={{
+              color: 'var(--fg-2)',
+              border: '1px solid var(--border-default)',
+              background: 'transparent',
+            }}
           >
             {isFetchingNextPage && <Loader2 className="w-4 h-4 animate-spin" />}
             {isFetchingNextPage ? 'Loading…' : 'Load More'}

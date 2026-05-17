@@ -86,8 +86,11 @@ router.post('/seed-events', asyncHandler(async (req, res) => {
     severities: reqSeverities,
   } = req.body;
 
-  const orgId = req.user.orgId;
-  if (!orgId) throw new ApiError(400, 'No orgId on user — super_admin cannot seed events without specifying an org');
+  let orgId = req.user.orgId;
+  if (!orgId && req.user.role === 'super_admin' && req.body.orgId) {
+    orgId = req.body.orgId;
+  }
+  if (!orgId) throw new ApiError(400, 'No orgId — pass orgId in body (super_admin) or use an org-scoped account');
 
   if (typeof count !== 'number' || count < 1 || count > 50) {
     throw new ApiError(400, 'count must be a number between 1 and 50');

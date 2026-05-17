@@ -39,11 +39,8 @@ function aggregate(queues = []) {
 
 function formatTs(ts) {
   if (!ts) return '—';
-  try {
-    return format(new Date(ts), 'd MMM yyyy HH:mm');
-  } catch {
-    return '—';
-  }
+  try { return format(new Date(ts), 'd MMM yyyy HH:mm'); }
+  catch { return '—'; }
 }
 
 function truncate(str, len = 80) {
@@ -53,29 +50,39 @@ function truncate(str, len = 80) {
 
 /* ─── stat card ───────────────────────────────────────────── */
 
-function StatCard({ label, value, color, loading, pulsing, redBorder }) {
-  const colorMap = {
-    gray: { label: 'text-gray-500', value: 'text-gray-900' },
-    blue: { label: 'text-blue-500', value: 'text-blue-600' },
-    green: { label: 'text-green-500', value: 'text-green-600' },
-    red: { label: 'text-red-500', value: 'text-red-600' },
-  };
-  const c = colorMap[color] ?? colorMap.gray;
+const STAT_COLOR = {
+  gray:  { value: 'var(--fg-2)' },
+  blue:  { value: 'var(--accent)' },
+  green: { value: '#7d8a6a' },
+  red:   { value: 'var(--sev-serious)' },
+};
 
+function StatCard({ label, value, color, loading, pulsing, redBorder }) {
+  const c = STAT_COLOR[color] ?? STAT_COLOR.gray;
   return (
     <div
-      className={`bg-white p-5 rounded-lg border shadow-sm flex flex-col items-center ${
-        redBorder ? 'border-red-300' : 'border-gray-200'
-      }`}
+      className="p-5 rounded-lg flex flex-col items-center"
+      style={{
+        background: 'var(--bg-surface-1)',
+        border: redBorder
+          ? '1px solid rgba(255,56,56,0.4)'
+          : '1px solid var(--border-default)',
+      }}
     >
-      <div className={`text-sm font-medium mb-1 flex items-center ${c.label}`}>
+      <div
+        className="text-sm font-medium mb-1 flex items-center gap-1"
+        style={{ fontFamily: 'var(--font-mono)', color: 'var(--fg-3)', fontSize: 'var(--text-xs)', textTransform: 'uppercase', letterSpacing: '0.08em' }}
+      >
         {pulsing && (
-          <span className="inline-flex h-2 w-2 rounded-full bg-blue-400 animate-ping mr-1" />
+          <span className="inline-flex h-1.5 w-1.5 rounded-full animate-ping" style={{ background: 'var(--accent)' }} />
         )}
         {label}
       </div>
-      <div className={`text-3xl font-bold ${c.value}`}>
-        {loading ? <span className="opacity-40">—</span> : value}
+      <div
+        className="text-3xl font-bold"
+        style={{ color: loading ? 'var(--fg-4)' : c.value }}
+      >
+        {loading ? '—' : value}
       </div>
     </div>
   );
@@ -85,19 +92,28 @@ function StatCard({ label, value, color, loading, pulsing, redBorder }) {
 
 function DeletePopover({ onConfirm, onCancel, pending }) {
   return (
-    <div className="absolute right-0 top-8 z-10 bg-white border border-gray-200 rounded shadow-lg p-3 w-48">
-      <p className="text-xs text-gray-700 mb-3">Remove this job permanently?</p>
+    <div
+      className="absolute right-0 top-8 z-10 rounded p-3 w-48"
+      style={{
+        background: 'var(--bg-surface-2)',
+        border: '1px solid var(--border-default)',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+      }}
+    >
+      <p className="text-xs mb-3" style={{ color: 'var(--fg-2)' }}>Remove this job permanently?</p>
       <div className="flex gap-2">
         <button
           onClick={onConfirm}
           disabled={pending}
-          className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-medium py-1.5 rounded transition-colors"
+          className="flex-1 text-white text-xs font-medium py-1.5 rounded transition-opacity hover:opacity-80 disabled:opacity-50"
+          style={{ background: 'var(--sev-serious)' }}
         >
           {pending ? 'Deleting…' : 'Confirm'}
         </button>
         <button
           onClick={onCancel}
-          className="flex-1 border border-gray-200 text-gray-600 text-xs font-medium py-1.5 rounded hover:bg-gray-50 transition-colors"
+          className="flex-1 text-xs font-medium py-1.5 rounded transition-colors"
+          style={{ border: '1px solid var(--border-default)', color: 'var(--fg-2)', background: 'transparent' }}
         >
           Cancel
         </button>
@@ -120,7 +136,6 @@ function JobRow({ job, onRetry, onDelete, retryingId, deletingId }) {
   const isDeleting = deletingId === jobId;
 
   const handleRowClick = (e) => {
-    // Don't toggle expansion if a button was clicked
     if (e.target.closest('button')) return;
     setExpanded((v) => !v);
   };
@@ -128,58 +143,55 @@ function JobRow({ job, onRetry, onDelete, retryingId, deletingId }) {
   return (
     <>
       <tr
-        className="border-b bg-white hover:bg-gray-50 cursor-pointer transition-colors"
+        className="cursor-pointer transition-colors"
+        style={{ borderBottom: '1px solid var(--border-hairline)' }}
         onClick={handleRowClick}
+        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-surface-2)'}
+        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
       >
-        {/* Queue */}
-        <td className="px-4 py-3 font-medium text-gray-800 capitalize whitespace-nowrap">
+        <td className="px-4 py-3 font-medium capitalize whitespace-nowrap" style={{ color: 'var(--fg-1)' }}>
           <div className="flex items-center gap-1.5">
-            {expanded ? (
-              <ChevronDown className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-            ) : (
-              <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-            )}
+            {expanded
+              ? <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--accent)' }} />
+              : <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--fg-4)' }} />
+            }
             {queueName}
           </div>
         </td>
 
-        {/* Job name */}
-        <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
-          {job.name || <span className="text-gray-400 italic">unnamed</span>}
+        <td className="px-4 py-3 whitespace-nowrap" style={{ color: 'var(--fg-2)' }}>
+          {job.name || <span style={{ color: 'var(--fg-4)', fontStyle: 'italic' }}>unnamed</span>}
         </td>
 
-        {/* Error */}
         <td className="px-4 py-3 max-w-xs">
-          <span
-            className="text-red-600 text-sm truncate block"
-            title={errorMsg}
-          >
+          <span className="text-sm truncate block" style={{ color: 'var(--sev-serious)' }} title={errorMsg}>
             {truncate(errorMsg, 80)}
           </span>
         </td>
 
-        {/* Attempts */}
         <td className="px-4 py-3 text-center">
-          <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs font-medium">
+          <span
+            className="px-2 py-0.5 rounded text-xs font-medium"
+            style={{ background: 'var(--bg-surface-3)', color: 'var(--fg-2)' }}
+          >
             {job.attemptsMade ?? 0}
           </span>
         </td>
 
-        {/* Last failed */}
-        <td className="px-4 py-3 text-gray-500 text-sm whitespace-nowrap">
+        <td className="px-4 py-3 text-sm whitespace-nowrap" style={{ color: 'var(--fg-3)' }}>
           <span className="flex items-center gap-1">
             <Clock className="w-3 h-3 flex-shrink-0" />
             {formatTs(ts)}
           </span>
         </td>
 
-        {/* Actions */}
         <td className="px-4 py-3 text-right">
           <div className="flex items-center justify-end gap-2">
             <button
               onClick={() => onRetry(queueName, jobId)}
               disabled={isRetrying || isDeleting}
-              className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 disabled:opacity-40 transition-colors"
+              className="inline-flex items-center gap-1 text-xs font-medium disabled:opacity-40 transition-colors"
+              style={{ color: 'var(--accent)' }}
               title="Retry job"
             >
               <RotateCcw className={`w-3.5 h-3.5 ${isRetrying ? 'animate-spin' : ''}`} />
@@ -188,12 +200,10 @@ function JobRow({ job, onRetry, onDelete, retryingId, deletingId }) {
 
             <div className="relative">
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowDeletePopover((v) => !v);
-                }}
+                onClick={(e) => { e.stopPropagation(); setShowDeletePopover((v) => !v); }}
                 disabled={isDeleting || isRetrying}
-                className="inline-flex items-center gap-1 text-xs font-medium text-red-500 hover:text-red-700 disabled:opacity-40 transition-colors"
+                className="inline-flex items-center gap-1 text-xs font-medium disabled:opacity-40 transition-colors"
+                style={{ color: 'var(--sev-serious)' }}
                 title="Delete job"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -203,10 +213,7 @@ function JobRow({ job, onRetry, onDelete, retryingId, deletingId }) {
               {showDeletePopover && (
                 <DeletePopover
                   pending={isDeleting}
-                  onConfirm={() => {
-                    setShowDeletePopover(false);
-                    onDelete(queueName, jobId);
-                  }}
+                  onConfirm={() => { setShowDeletePopover(false); onDelete(queueName, jobId); }}
                   onCancel={() => setShowDeletePopover(false)}
                 />
               )}
@@ -215,59 +222,76 @@ function JobRow({ job, onRetry, onDelete, retryingId, deletingId }) {
         </td>
       </tr>
 
-      {/* Expanded detail row */}
       {expanded && (
-        <tr className="bg-gray-50">
-          <td colSpan={6} className="px-6 py-4 border-b">
+        <tr style={{ background: 'var(--bg-surface-2)' }}>
+          <td colSpan={6} className="px-6 py-4" style={{ borderBottom: '1px solid var(--border-default)' }}>
             <div className="space-y-4">
-              {/* Full error */}
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                <p
+                  className="text-xs font-semibold uppercase tracking-wider mb-1"
+                  style={{ fontFamily: 'var(--font-mono)', color: 'var(--fg-3)', letterSpacing: '0.08em' }}
+                >
                   Error message
                 </p>
-                <div className="bg-red-50 border border-red-200 rounded p-3 font-mono text-xs text-red-700 max-h-32 overflow-y-auto whitespace-pre-wrap break-words">
+                <div
+                  className="text-xs p-3 rounded max-h-32 overflow-y-auto whitespace-pre-wrap break-words"
+                  style={{ background: 'rgba(255,56,56,0.08)', border: '1px solid rgba(255,56,56,0.2)', color: '#ff3838', fontFamily: 'var(--font-mono)' }}
+                >
                   {errorMsg}
                 </div>
               </div>
 
-              {/* Stack trace */}
               {job.stacktrace?.[0] && (
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                  <p
+                    className="text-xs font-semibold uppercase tracking-wider mb-1"
+                    style={{ fontFamily: 'var(--font-mono)', color: 'var(--fg-3)', letterSpacing: '0.08em' }}
+                  >
                     Stack trace
                   </p>
-                  <pre className="bg-gray-900 text-red-300 text-xs p-3 rounded overflow-auto max-h-40 whitespace-pre-wrap break-words">
+                  <pre
+                    className="text-xs p-3 rounded overflow-auto max-h-40 whitespace-pre-wrap break-words"
+                    style={{ background: 'var(--bg-base)', color: '#ff3838', fontFamily: 'var(--font-mono)' }}
+                  >
                     {job.stacktrace[0]}
                   </pre>
                 </div>
               )}
 
-              {/* Job data */}
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                <p
+                  className="text-xs font-semibold uppercase tracking-wider mb-1"
+                  style={{ fontFamily: 'var(--font-mono)', color: 'var(--fg-3)', letterSpacing: '0.08em' }}
+                >
                   Job data
                 </p>
-                <pre className="text-xs bg-gray-900 text-green-400 p-3 rounded overflow-auto max-h-48">
+                <pre
+                  className="text-xs p-3 rounded overflow-auto max-h-48"
+                  style={{ background: 'var(--bg-base)', color: '#7d8a6a', fontFamily: 'var(--font-mono)' }}
+                >
                   {JSON.stringify(job.data, null, 2)}
                 </pre>
               </div>
 
-              {/* Attempts timeline */}
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                <p
+                  className="text-xs font-semibold uppercase tracking-wider mb-1"
+                  style={{ fontFamily: 'var(--font-mono)', color: 'var(--fg-3)', letterSpacing: '0.08em' }}
+                >
                   Attempts
                 </p>
                 <div className="flex items-center gap-2">
                   {Array.from({ length: job.opts?.attempts ?? job.attemptsMade }).map((_, i) => (
                     <span
                       key={i}
-                      className={`inline-block h-2.5 w-2.5 rounded-full ${
-                        i < job.attemptsMade ? 'bg-red-400' : 'bg-gray-200'
-                      }`}
+                      className="inline-block h-2.5 w-2.5 rounded-full"
+                      style={{
+                        background: i < job.attemptsMade ? 'var(--sev-serious)' : 'var(--bg-surface-3)',
+                      }}
                       title={i < job.attemptsMade ? `Attempt ${i + 1} failed` : `Attempt ${i + 1} not reached`}
                     />
                   ))}
-                  <span className="text-xs text-gray-500">
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--fg-3)' }}>
                     {job.attemptsMade} of {job.opts?.attempts ?? job.attemptsMade} attempt
                     {(job.opts?.attempts ?? job.attemptsMade) !== 1 ? 's' : ''} made
                   </span>
@@ -285,21 +309,12 @@ function JobRow({ job, onRetry, onDelete, retryingId, deletingId }) {
 
 export default function JobsPage() {
   const queryClient = useQueryClient();
-
-  // Last-updated tracking
   const [lastUpdated, setLastUpdated] = useState(null);
   const [secondsAgo, setSecondsAgo] = useState(0);
-
-  // Mutation tracking (per-job to avoid disabling unrelated rows)
   const [retryingId, setRetryingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
 
-  /* queries */
-  const {
-    data: statsData,
-    isLoading: statsLoading,
-    isFetching: statsFetching,
-  } = useQuery({
+  const { data: statsData, isLoading: statsLoading, isFetching: statsFetching } = useQuery({
     queryKey: ['admin-jobs-stats'],
     queryFn: async () => {
       const data = await getAdminJobStats();
@@ -308,18 +323,11 @@ export default function JobsPage() {
     refetchInterval: 30000,
   });
 
-  // TanStack Query v5 uses `select` / meta for side-effects; use a derived state via useEffect instead
   useEffect(() => {
-    if (statsData !== undefined) {
-      setLastUpdated(Date.now());
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (statsData !== undefined) setLastUpdated(Date.now());
   }, [statsData]);
 
-  const {
-    data: failedData,
-    isLoading: failedLoading,
-  } = useQuery({
+  const { data: failedData, isLoading: failedLoading } = useQuery({
     queryKey: ['admin-jobs-failed'],
     queryFn: async () => {
       const data = await listFailedJobs();
@@ -328,7 +336,6 @@ export default function JobsPage() {
     refetchInterval: 30000,
   });
 
-  /* seconds-ago ticker */
   useEffect(() => {
     setSecondsAgo(0);
     if (!lastUpdated) return;
@@ -338,27 +345,22 @@ export default function JobsPage() {
     return () => clearInterval(id);
   }, [lastUpdated]);
 
-  /* derived data */
   const queues = Array.isArray(statsData) ? statsData : [];
   const totals = aggregate(queues);
   const failedJobs = Array.isArray(failedData) ? failedData : [];
 
-  /* optimistic removal helper */
   const removeJobFromCache = useCallback(
     (jobId) => {
       queryClient.setQueryData(['admin-jobs-failed'], (old) => {
         if (!old) return old;
-        // Handle both raw array and wrapped { data: [...] } shapes
         if (Array.isArray(old)) return old.filter((j) => j.id !== jobId);
-        if (Array.isArray(old.data))
-          return { ...old, data: old.data.filter((j) => j.id !== jobId) };
+        if (Array.isArray(old.data)) return { ...old, data: old.data.filter((j) => j.id !== jobId) };
         return old;
       });
     },
     [queryClient],
   );
 
-  /* handlers */
   const handleRetry = async (queueName, jobId) => {
     setRetryingId(jobId);
     try {
@@ -387,18 +389,16 @@ export default function JobsPage() {
     }
   };
 
-  /* ── render ── */
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900 flex items-center gap-2">
-          <Activity className="w-6 h-6 text-indigo-500" />
+        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2" style={{ color: 'var(--fg-1)' }}>
+          <Activity className="w-5 h-5" style={{ color: 'var(--accent)' }} />
           Job Queues
         </h1>
-
         {statsFetching && (
-          <span className="text-sm text-gray-500 flex items-center gap-1.5">
+          <span className="text-sm flex items-center gap-1.5" style={{ color: 'var(--fg-3)' }}>
             <RefreshCw className="w-4 h-4 animate-spin" />
             Refreshing…
           </span>
@@ -407,76 +407,66 @@ export default function JobsPage() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard
-          label="Waiting"
-          value={totals.waiting}
-          color="gray"
-          loading={statsLoading}
-        />
-        <StatCard
-          label="Active"
-          value={totals.active}
-          color="blue"
-          loading={statsLoading}
-          pulsing
-        />
-        <StatCard
-          label="Completed"
-          value={totals.completed}
-          color="green"
-          loading={statsLoading}
-        />
-        <StatCard
-          label="Failed"
-          value={totals.failed}
-          color="red"
-          loading={statsLoading}
-          redBorder={totals.failed > 0}
-        />
+        <StatCard label="Waiting"   value={totals.waiting}   color="gray"  loading={statsLoading} />
+        <StatCard label="Active"    value={totals.active}    color="blue"  loading={statsLoading} pulsing />
+        <StatCard label="Completed" value={totals.completed} color="green" loading={statsLoading} />
+        <StatCard label="Failed"    value={totals.failed}    color="red"   loading={statsLoading} redBorder={totals.failed > 0} />
       </div>
 
       {/* Last updated */}
       {lastUpdated && (
-        <p className="text-xs text-gray-400 flex items-center gap-1">
+        <p className="flex items-center gap-1" style={{ fontSize: 'var(--text-xs)', fontFamily: 'var(--font-mono)', color: 'var(--fg-4)' }}>
           <Clock className="w-3 h-3" />
-          Last updated {secondsAgo} seconds ago
+          Last updated {secondsAgo}s ago
         </p>
       )}
 
       {/* Failed jobs section */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
-          <AlertCircle className="w-5 h-5 text-red-500" />
-          <h3 className="text-base font-semibold text-gray-900">Failed Jobs</h3>
+      <div
+        className="rounded-lg overflow-hidden"
+        style={{ background: 'var(--bg-surface-1)', border: '1px solid var(--border-default)' }}
+      >
+        <div
+          className="px-6 py-4 flex items-center gap-2"
+          style={{ background: 'var(--bg-surface-2)', borderBottom: '1px solid var(--border-default)' }}
+        >
+          <AlertCircle className="w-5 h-5" style={{ color: 'var(--sev-serious)' }} />
+          <h3 className="text-base font-semibold" style={{ color: 'var(--fg-1)' }}>Failed Jobs</h3>
           {!failedLoading && (
-            <span className="ml-auto text-xs bg-red-100 text-red-700 font-medium px-2 py-0.5 rounded-full">
+            <span
+              className="ml-auto text-xs font-medium px-2 py-0.5 rounded-full"
+              style={{ background: 'rgba(255,56,56,0.15)', color: '#ff3838' }}
+            >
               {failedJobs.length}
             </span>
           )}
         </div>
 
         {failedLoading ? (
-          <div className="px-6 py-12 text-center text-gray-400 text-sm">
+          <div className="px-6 py-12 text-center text-sm" style={{ color: 'var(--fg-4)' }}>
             <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 opacity-40" />
             Loading failed jobs…
           </div>
         ) : failedJobs.length === 0 ? (
           <div className="px-6 py-16 flex flex-col items-center gap-3 text-center">
-            <CheckCircle2 className="w-10 h-10 text-green-400" />
-            <p className="text-gray-600 font-medium">No failed jobs — all queues are healthy</p>
-            <p className="text-gray-400 text-sm">Failed jobs will appear here for review and retry.</p>
+            <CheckCircle2 className="w-10 h-10" style={{ color: '#7d8a6a' }} />
+            <p className="font-medium" style={{ color: 'var(--fg-2)' }}>No failed jobs — all queues are healthy</p>
+            <p className="text-sm" style={{ color: 'var(--fg-4)' }}>Failed jobs will appear here for review and retry.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left text-gray-600">
-              <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Queue</th>
-                  <th className="px-4 py-3 font-semibold">Job name</th>
-                  <th className="px-4 py-3 font-semibold">Error</th>
-                  <th className="px-4 py-3 font-semibold text-center">Attempts</th>
-                  <th className="px-4 py-3 font-semibold">Last failed</th>
-                  <th className="px-4 py-3 font-semibold text-right">Actions</th>
+            <table className="w-full text-sm text-left">
+              <thead>
+                <tr style={{ background: 'var(--bg-surface-2)', borderBottom: '1px solid var(--border-default)' }}>
+                  {['Queue', 'Job name', 'Error', 'Attempts', 'Last failed', 'Actions'].map((h, i) => (
+                    <th
+                      key={h}
+                      className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider ${i === 3 ? 'text-center' : i === 5 ? 'text-right' : ''}`}
+                      style={{ fontFamily: 'var(--font-mono)', color: 'var(--fg-3)' }}
+                    >
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>

@@ -12,7 +12,6 @@ export default function AdminLayout({ children }) {
   const { user } = useAuthStore();
   const router = useRouter();
 
-  // Login page is standalone — no shell
   if (pathname === '/admin/login') {
     return <>{children}</>;
   }
@@ -40,19 +39,27 @@ export default function AdminLayout({ children }) {
   ];
 
   return (
-    <div className="flex min-h-screen bg-gray-50 text-gray-900">
+    <div className="flex min-h-screen" style={{ background: 'var(--bg-base)', color: 'var(--fg-1)' }}>
       {/* Sidebar */}
-      <div className="w-64 bg-slate-900 text-slate-100 flex flex-col shadow-xl">
-        <div className="p-6 border-b border-slate-800">
-          <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Sentinel</div>
-          <div className="text-xl font-bold tracking-tight text-white flex items-center">
-            <ShieldCheck className="w-5 h-5 mr-2 text-indigo-400" />
+      <div
+        className="w-64 flex flex-col flex-shrink-0"
+        style={{ background: 'var(--bg-surface-1)', borderRight: '1px solid var(--border-default)' }}
+      >
+        <div className="p-6" style={{ borderBottom: '1px solid var(--border-default)' }}>
+          <div
+            className="text-xs font-bold uppercase tracking-wider mb-1"
+            style={{ fontFamily: 'var(--font-mono)', color: 'var(--fg-4)', letterSpacing: '0.1em' }}
+          >
+            Sentinel
+          </div>
+          <div className="text-xl font-bold tracking-tight flex items-center gap-2" style={{ color: 'var(--fg-1)' }}>
+            <ShieldCheck className="w-5 h-5" style={{ color: 'var(--accent)' }} />
             Admin Panel
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto py-4">
-          <nav className="space-y-1 px-3">
+          <nav className="space-y-0.5 px-3">
             {navItems.map((item) => {
               const isActive = pathname === item.path || pathname.startsWith(item.path + '/');
               const Icon = item.icon;
@@ -60,13 +67,28 @@ export default function AdminLayout({ children }) {
                 <Link
                   key={item.name}
                   href={item.path}
-                  className={`flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-colors ${
-                    isActive
-                      ? 'bg-indigo-500/10 text-indigo-400'
-                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                  }`}
+                  className="flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-all"
+                  style={{
+                    background: isActive ? 'rgba(184,212,232,0.08)' : 'transparent',
+                    color: isActive ? 'var(--accent)' : 'var(--fg-2)',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.background = 'var(--bg-surface-3)';
+                      e.currentTarget.style.color = 'var(--fg-1)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = 'var(--fg-2)';
+                    }
+                  }}
                 >
-                  <Icon className={`mr-3 h-5 w-5 flex-shrink-0 ${isActive ? 'text-indigo-400' : 'text-slate-400'}`} />
+                  <Icon
+                    className="mr-3 h-4 w-4 flex-shrink-0"
+                    style={{ color: isActive ? 'var(--accent)' : 'var(--fg-3)' }}
+                  />
                   {item.name}
                 </Link>
               );
@@ -74,23 +96,51 @@ export default function AdminLayout({ children }) {
           </nav>
         </div>
 
-        <div className="p-4 border-t border-slate-800 space-y-2">
+        <div className="p-4" style={{ borderTop: '1px solid var(--border-default)' }}>
           <Link
             href="/investigate"
-            className="flex items-center px-3 py-2 text-sm font-medium text-slate-300 rounded-md hover:bg-slate-800 hover:text-white transition-colors"
+            className="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-all"
+            style={{ color: 'var(--fg-3)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'var(--bg-surface-3)';
+              e.currentTarget.style.color = 'var(--fg-1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.color = 'var(--fg-3)';
+            }}
           >
-            <ArrowLeft className="mr-3 h-5 w-5 text-slate-400" />
+            <ArrowLeft className="mr-3 h-4 w-4" style={{ color: 'var(--fg-4)' }} />
             Back to Product
           </Link>
-          
-          <div className="pt-4 mt-4 border-t border-slate-800/50 flex items-center justify-between px-3">
+
+          <div
+            className="mt-3 pt-3 flex items-center justify-between px-3"
+            style={{ borderTop: '1px solid var(--border-hairline)' }}
+          >
             <div className="flex flex-col truncate">
-              <span className="text-sm font-medium text-white truncate">{user?.username}</span>
-              <span className="text-xs text-slate-400 truncate">Super Admin</span>
+              <span className="text-sm font-medium truncate" style={{ color: 'var(--fg-1)' }}>
+                {user?.username}
+              </span>
+              <span
+                className="text-xs truncate"
+                style={{ fontFamily: 'var(--font-mono)', color: 'var(--fg-4)', fontSize: 'var(--text-xs)' }}
+              >
+                SUPER ADMIN
+              </span>
             </div>
             <button
               onClick={handleLogout}
-              className="p-1.5 rounded-md text-slate-400 hover:bg-slate-800 hover:text-red-400 transition-colors"
+              className="p-1.5 rounded-md transition-colors"
+              style={{ color: 'var(--fg-3)' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--bg-surface-3)';
+                e.currentTarget.style.color = 'var(--sev-serious)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = 'var(--fg-3)';
+              }}
               title="Log out"
             >
               <LogOut className="h-4 w-4" />
@@ -101,7 +151,7 @@ export default function AdminLayout({ children }) {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <main className="flex-1 overflow-y-auto p-8 bg-gray-50/50">
+        <main className="flex-1 overflow-y-auto p-8" style={{ background: 'var(--bg-base)' }}>
           <div className="mx-auto max-w-6xl">
             {children}
           </div>

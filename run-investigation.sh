@@ -130,7 +130,10 @@ dim "token: ${TOKEN:0:40}…"
 
 # ── step 2: seed events ───────────────────────────────────────────────────────
 banner "Seeding ${COUNT} events for ${NIGHT_DATE}"
-SEED_RESP=$(post "/test/seed-events" "{\"count\":${COUNT},\"nightDate\":\"${NIGHT_DATE}\"}")
+ORG_ID="${ORG_ID:-}"
+SEED_BODY="{\"count\":${COUNT},\"nightDate\":\"${NIGHT_DATE}\"}"
+[[ -n "$ORG_ID" ]] && SEED_BODY="{\"count\":${COUNT},\"nightDate\":\"${NIGHT_DATE}\",\"orgId\":\"${ORG_ID}\"}"
+SEED_RESP=$(post "/test/seed-events" "$SEED_BODY")
 SEED_MSG=$(extract '.data.message' "$SEED_RESP")
 SEED_COUNT=$(extract '.data.count' "$SEED_RESP")
 
