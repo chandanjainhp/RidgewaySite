@@ -143,7 +143,9 @@ api.interceptors.response.use(
       (Array.isArray(error.response?.data?.data) ? error.response.data.data : []);
 
     if (SHOULD_LOG_API && typeof window !== "undefined") {
-      console.error(`[API] error ${method} ${url} ${statusCode ?? "NO_STATUS"}: ${message}`, {
+      const isClientError = statusCode >= 400 && statusCode < 500;
+      const log = isClientError ? console.warn : console.error;
+      log(`[API] ${method} ${url} ${statusCode ?? "NO_STATUS"}: ${message}`, {
         method,
         url,
         statusCode,
@@ -164,13 +166,17 @@ api.interceptors.response.use(
       errorType = ERROR_TYPES.VALIDATION_ERROR;
     else if (statusCode >= 500) errorType = ERROR_TYPES.SERVER_ERROR;
 
-    // Intercept 403 globally and redirect
+    // 403 handling: only suspended orgs force a redirect. For regular forbidden
+    // responses, surface a toast and let the calling code decide what to do —
+    // the /forbidden page is reached only via middleware route protection.
     if (statusCode === 403 && typeof window !== "undefined") {
       const code = error.response?.data?.code;
       if (code === 'ORG_SUSPENDED') {
         window.location.href = "/suspended";
       } else {
-        window.location.href = "/forbidden";
+        const action = error.config?.method?.toUpperCase() || 'request';
+        const path = error.config?.url || 'resource';
+        toast.error(`You don't have permission for that ${action} on ${path}`);
       }
     }
 

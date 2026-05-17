@@ -39,11 +39,12 @@ router.delete('/documents/:docId', requireRole('org_admin', 'operator', 'super_a
 router.post('/documents/:docId/approve', requireRole('org_admin', 'super_admin'), asyncHandler(approveDocument));
 router.post('/documents/:docId/reject', requireRole('org_admin', 'super_admin'), asyncHandler(rejectDocument));
 
+// Org profile — GET open to all authenticated org members; controller restricts payload by role
+router.get('/me', asyncHandler(getOrgMe));
+
 // All remaining routes require org_admin or super_admin
 router.use(requireRole('org_admin', 'super_admin'));
 
-// Org profile
-router.get('/me', asyncHandler(getOrgMe));
 router.patch('/me/config', asyncHandler(updateOrgConfig));
 router.post('/setup/complete', asyncHandler(completeSetup));
 

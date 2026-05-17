@@ -32,7 +32,7 @@ export default function SuspendedPage() {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-6 shadow sm:rounded-xl sm:px-10 border border-red-100 text-center space-y-6">
           <p className="text-gray-600">
-            Access to the Ridgeway platform has been temporarily suspended for your organisation {user?.orgId?.name ? `(${user.orgId.name})` : ''}.
+            Access to the Sentinel platform has been temporarily suspended for your organisation {user?.orgId?.name ? `(${user.orgId.name})` : ''}.
           </p>
           
           <div className="bg-red-50 p-4 rounded-md">

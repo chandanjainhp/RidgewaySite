@@ -36,23 +36,89 @@ import {
   retryWebhookDelivery,
 } from '@/lib/api';
 
+const MONO = 'var(--font-mono)';
+const SANS = 'var(--font-sans)';
+
+const LABEL_STYLE = {
+  fontFamily: MONO,
+  fontSize: '10px',
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  letterSpacing: '0.12em',
+  color: 'var(--fg-3)',
+};
+
+const CARD_STYLE = {
+  background: 'var(--bg-surface-1)',
+  border: '1px solid var(--border-default)',
+  borderRadius: '2px',
+  overflow: 'hidden',
+};
+
+const BTN_PRIMARY = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '6px',
+  padding: '8px 14px',
+  fontFamily: SANS,
+  fontSize: '13px',
+  fontWeight: 500,
+  color: 'var(--bg-base)',
+  background: 'var(--accent)',
+  border: '1px solid var(--accent)',
+  borderRadius: '2px',
+  cursor: 'pointer',
+};
+
+const BTN_SECONDARY = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '6px',
+  padding: '8px 14px',
+  fontFamily: SANS,
+  fontSize: '13px',
+  fontWeight: 500,
+  color: 'var(--fg-2)',
+  background: 'var(--bg-surface-2)',
+  border: '1px solid var(--border-default)',
+  borderRadius: '2px',
+  cursor: 'pointer',
+};
+
 /* ─── helpers ─────────────────────────────────────────── */
 
 function stripHttps(url = '') {
   return url.replace(/^https?:\/\//, '');
 }
 
-function statusColor(status) {
-  if (status === 'delivered') return 'bg-green-100 text-green-800';
-  if (status === 'pending') return 'bg-amber-100 text-amber-800';
-  return 'bg-red-100 text-red-800';
+function statusBadgeStyle(status) {
+  let bg = 'var(--sev-harmless)';
+  if (status === 'failed') bg = 'var(--sev-serious)';
+  else if (status === 'pending') bg = 'var(--sev-info)';
+  else if (status === 'retry') bg = 'var(--sev-warning)';
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '2px 8px',
+    borderRadius: '2px',
+    fontFamily: MONO,
+    fontSize: '10px',
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+    color: 'var(--bg-base)',
+    background: bg,
+  };
 }
 
 function httpCodeColor(code) {
-  if (!code) return 'text-gray-400';
-  if (code >= 200 && code < 300) return 'text-green-600 font-mono';
-  if (code >= 400) return 'text-red-600 font-mono';
-  return 'text-amber-600 font-mono';
+  if (!code) return 'var(--fg-4)';
+  if (typeof code === 'number') {
+    if (code >= 200 && code < 300) return 'var(--sev-harmless)';
+    if (code >= 400) return 'var(--sev-serious)';
+    return 'var(--sev-warning)';
+  }
+  return 'var(--fg-3)';
 }
 
 function copyToClipboard(text) {
@@ -61,27 +127,43 @@ function copyToClipboard(text) {
 
 /* ─── sub-components ──────────────────────────────────── */
 
-function SectionCard({ title, icon: Icon, children, className = '' }) {
+function SectionCard({ title, icon: Icon, children }) {
   return (
-    <div className={`bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden ${className}`}>
-      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
-        {Icon && <Icon className="w-4 h-4 text-gray-500" />}
-        <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+    <div style={CARD_STYLE}>
+      <div style={{
+        padding: '12px 20px',
+        borderBottom: '1px solid var(--border-hairline)',
+        background: 'var(--bg-surface-2)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+      }}>
+        {Icon && <Icon size={12} style={{ color: 'var(--fg-3)' }} />}
+        <h2 style={{
+          ...LABEL_STYLE,
+          fontSize: '11px',
+          margin: 0,
+        }}>{title}</h2>
       </div>
-      <div className="p-6">{children}</div>
+      <div style={{ padding: '20px' }}>{children}</div>
     </div>
   );
 }
 
 function EventTypeBadge({ type }) {
-  const colors = {
-    'incident.created': 'bg-red-100 text-red-800',
-    'incident.classified': 'bg-orange-100 text-orange-800',
-    'briefing.approved': 'bg-blue-100 text-blue-800',
-    'investigation.completed': 'bg-purple-100 text-purple-800',
-  };
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium font-mono ${colors[type] || 'bg-gray-100 text-gray-700'}`}>
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      padding: '2px 8px',
+      borderRadius: '2px',
+      fontFamily: MONO,
+      fontSize: '11px',
+      fontWeight: 500,
+      color: 'var(--accent)',
+      background: 'var(--bg-surface-2)',
+      border: '1px solid var(--border-hairline)',
+    }}>
       {type}
     </span>
   );
@@ -113,58 +195,111 @@ function RotateSecretDialog({ onNewSecret }) {
   return (
     <Dialog.Root open={open} onOpenChange={(v) => { setOpen(v); if (!v) setConfirmed(false); }}>
       <Dialog.Trigger asChild>
-        <button className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-          <RefreshCw className="w-3.5 h-3.5" />
+        <button style={BTN_SECONDARY}>
+          <RefreshCw size={13} />
           Rotate Secret
         </button>
       </Dialog.Trigger>
 
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/50 z-40" />
-        <Dialog.Content className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-xl shadow-2xl p-6 focus:outline-none">
-          <div className="flex items-start gap-3 mb-4">
-            <div className="p-2 bg-amber-100 rounded-lg flex-shrink-0">
-              <AlertTriangle className="w-5 h-5 text-amber-600" />
+        <Dialog.Overlay style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 40 }} />
+        <Dialog.Content style={{
+          position: 'fixed',
+          zIndex: 50,
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '100%',
+          maxWidth: '480px',
+          background: 'var(--bg-surface-1)',
+          border: '1px solid var(--border-default)',
+          borderRadius: '2px',
+          padding: '24px',
+          outline: 'none',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '16px' }}>
+            <div style={{
+              padding: '8px',
+              background: 'var(--bg-surface-2)',
+              border: '1px solid var(--border-hairline)',
+              borderRadius: '2px',
+              flexShrink: 0,
+            }}>
+              <AlertTriangle size={18} style={{ color: 'var(--sev-warning)' }} />
             </div>
             <div>
-              <Dialog.Title className="text-base font-semibold text-gray-900">Rotate HMAC Secret</Dialog.Title>
-              <Dialog.Description className="text-sm text-gray-500 mt-1">
+              <Dialog.Title style={{
+                fontFamily: SANS,
+                fontSize: '14px',
+                fontWeight: 600,
+                color: 'var(--fg-1)',
+                margin: 0,
+              }}>Rotate HMAC Secret</Dialog.Title>
+              <Dialog.Description style={{
+                fontFamily: SANS,
+                fontSize: '13px',
+                color: 'var(--fg-3)',
+                marginTop: '4px',
+              }}>
                 A new secret will be generated. All existing webhook signatures will immediately become invalid.
               </Dialog.Description>
             </div>
           </div>
 
           <div
-            className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-md cursor-pointer select-none mb-6"
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '10px',
+              padding: '12px',
+              background: 'var(--bg-surface-2)',
+              border: '1px solid var(--border-hairline)',
+              borderRadius: '2px',
+              cursor: 'pointer',
+              userSelect: 'none',
+              marginBottom: '20px',
+            }}
             onClick={() => setConfirmed((v) => !v)}
           >
             <Checkbox.Root
               checked={confirmed}
               onCheckedChange={setConfirmed}
-              className="w-4 h-4 mt-0.5 flex-shrink-0 border-2 border-amber-400 rounded bg-white data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              style={{
+                width: '14px',
+                height: '14px',
+                marginTop: '2px',
+                flexShrink: 0,
+                border: '1px solid var(--border-strong)',
+                borderRadius: '2px',
+                background: confirmed ? 'var(--accent)' : 'var(--bg-base)',
+              }}
               onClick={(e) => e.stopPropagation()}
             >
               <Checkbox.Indicator>
-                <Check className="w-3 h-3 text-white" />
+                <Check size={10} style={{ color: 'var(--bg-base)' }} />
               </Checkbox.Indicator>
             </Checkbox.Root>
-            <span className="text-sm text-amber-800">
+            <span style={{ fontFamily: SANS, fontSize: '13px', color: 'var(--fg-2)' }}>
               I understand this will invalidate all existing signatures on every connected webhook consumer
             </span>
           </div>
 
-          <div className="flex justify-end gap-3">
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
             <Dialog.Close asChild>
-              <button className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-                Cancel
-              </button>
+              <button style={BTN_SECONDARY}>Cancel</button>
             </Dialog.Close>
             <button
               disabled={!confirmed || loading}
               onClick={handleRotate}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                ...BTN_PRIMARY,
+                background: 'var(--sev-serious)',
+                border: '1px solid var(--sev-serious)',
+                opacity: (!confirmed || loading) ? 0.5 : 1,
+                cursor: (!confirmed || loading) ? 'not-allowed' : 'pointer',
+              }}
             >
-              {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              {loading && <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />}
               Rotate Secret
             </button>
           </div>
@@ -189,54 +324,126 @@ function NewSecretRevealModal({ secret, onClose }) {
   return (
     <Dialog.Root open={!!secret} onOpenChange={(open) => { if (!open && acknowledged) onClose(); }}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/50 z-40" />
-        <Dialog.Content className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-white rounded-xl shadow-2xl p-6 focus:outline-none">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <KeyRound className="w-5 h-5 text-yellow-600" />
+        <Dialog.Overlay style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 40 }} />
+        <Dialog.Content style={{
+          position: 'fixed',
+          zIndex: 50,
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '100%',
+          maxWidth: '560px',
+          background: 'var(--bg-surface-1)',
+          border: '1px solid var(--border-default)',
+          borderRadius: '2px',
+          padding: '24px',
+          outline: 'none',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+            <div style={{
+              padding: '8px',
+              background: 'var(--bg-surface-2)',
+              border: '1px solid var(--border-hairline)',
+              borderRadius: '2px',
+            }}>
+              <KeyRound size={18} style={{ color: 'var(--sev-warning)' }} />
             </div>
-            <Dialog.Title className="text-base font-semibold text-gray-900">New HMAC Secret</Dialog.Title>
+            <Dialog.Title style={{
+              fontFamily: SANS,
+              fontSize: '14px',
+              fontWeight: 600,
+              color: 'var(--fg-1)',
+              margin: 0,
+            }}>New HMAC Secret</Dialog.Title>
           </div>
 
-          <p className="text-sm text-gray-600 mb-4">
+          <p style={{ fontFamily: SANS, fontSize: '13px', color: 'var(--fg-3)', marginBottom: '16px' }}>
             Copy this secret now. It will not be shown again. Store it securely and update all webhook consumers.
           </p>
 
-          <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4 mb-4">
-            <div className="flex items-center justify-between gap-3">
-              <code className="text-sm font-mono text-yellow-900 break-all flex-1">{secret}</code>
+          <div style={{
+            background: 'var(--bg-surface-2)',
+            border: '1px solid var(--border-default)',
+            borderRadius: '2px',
+            padding: '14px',
+            marginBottom: '16px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+              <code style={{
+                fontFamily: MONO,
+                fontSize: '12px',
+                color: 'var(--fg-1)',
+                wordBreak: 'break-all',
+                flex: 1,
+              }}>{secret}</code>
               <button
                 onClick={handleCopy}
-                className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-yellow-800 bg-yellow-200 rounded hover:bg-yellow-300 transition-colors"
+                style={{
+                  flexShrink: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '6px 10px',
+                  fontFamily: MONO,
+                  fontSize: '11px',
+                  fontWeight: 500,
+                  color: 'var(--fg-2)',
+                  background: 'var(--bg-surface-3)',
+                  border: '1px solid var(--border-hairline)',
+                  borderRadius: '2px',
+                  cursor: 'pointer',
+                }}
               >
-                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? <Check size={13} /> : <Copy size={13} />}
                 {copied ? 'Copied' : 'Copy'}
               </button>
             </div>
           </div>
 
           <div
-            className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-md cursor-pointer select-none mb-6"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '12px',
+              background: 'var(--bg-surface-2)',
+              border: '1px solid var(--border-hairline)',
+              borderRadius: '2px',
+              cursor: 'pointer',
+              userSelect: 'none',
+              marginBottom: '20px',
+            }}
             onClick={() => setAcknowledged((v) => !v)}
           >
             <Checkbox.Root
               checked={acknowledged}
               onCheckedChange={setAcknowledged}
-              className="w-4 h-4 flex-shrink-0 border-2 border-gray-400 rounded bg-white data-[state=checked]:bg-indigo-500 data-[state=checked]:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              style={{
+                width: '14px',
+                height: '14px',
+                flexShrink: 0,
+                border: '1px solid var(--border-strong)',
+                borderRadius: '2px',
+                background: acknowledged ? 'var(--accent)' : 'var(--bg-base)',
+              }}
               onClick={(e) => e.stopPropagation()}
             >
               <Checkbox.Indicator>
-                <Check className="w-3 h-3 text-white" />
+                <Check size={10} style={{ color: 'var(--bg-base)' }} />
               </Checkbox.Indicator>
             </Checkbox.Root>
-            <span className="text-sm text-gray-700">I have copied the secret to a secure location</span>
+            <span style={{ fontFamily: SANS, fontSize: '13px', color: 'var(--fg-2)' }}>I have copied the secret to a secure location</span>
           </div>
 
-          <div className="flex justify-end">
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button
               disabled={!acknowledged}
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                ...BTN_PRIMARY,
+                opacity: !acknowledged ? 0.5 : 1,
+                cursor: !acknowledged ? 'not-allowed' : 'pointer',
+              }}
             >
               Done
             </button>
@@ -267,71 +474,119 @@ function DeliveryRow({ delivery, onRetry }) {
 
   const isFailed = delivery.status === 'failed';
   const ts = delivery.timestamp ?? delivery.createdAt ?? delivery.sentAt;
+  const codeColor = httpCodeColor(delivery.responseStatus ?? delivery.httpStatus);
+
+  const tdStyle = { padding: '10px 14px', fontFamily: SANS, fontSize: '13px', color: 'var(--fg-2)' };
 
   return (
     <>
       <tr
-        className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+        style={{ borderBottom: '1px solid var(--border-hairline)', cursor: 'pointer' }}
         onClick={() => setExpanded((v) => !v)}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-surface-2)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
       >
-        <td className="px-4 py-3">
+        <td style={tdStyle}>
           <EventTypeBadge type={delivery.eventType} />
         </td>
-        <td className="px-4 py-3">
-          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize ${statusColor(delivery.status)}`}>
-            {delivery.status}
-          </span>
+        <td style={tdStyle}>
+          <span style={statusBadgeStyle(delivery.status)}>{delivery.status}</span>
         </td>
-        <td className="px-4 py-3 text-sm text-gray-600">{delivery.attempts ?? 1}</td>
-        <td className={`px-4 py-3 text-sm ${httpCodeColor(delivery.responseStatus ?? delivery.httpStatus)}`}>
+        <td style={{ ...tdStyle, color: 'var(--fg-3)' }}>{delivery.attempts ?? 1}</td>
+        <td style={{ ...tdStyle, fontFamily: MONO, color: codeColor }}>
           {delivery.responseStatus ?? delivery.httpStatus ?? '—'}
         </td>
-        <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
+        <td style={{ ...tdStyle, color: 'var(--fg-3)', whiteSpace: 'nowrap' }}>
           {ts ? format(new Date(ts), 'MMM d, HH:mm:ss') : '—'}
         </td>
-        <td className="px-4 py-3 text-right">
-          <div className="flex items-center justify-end gap-2">
+        <td style={{ ...tdStyle, textAlign: 'right' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
             {isFailed && (
               <button
                 onClick={(e) => { e.stopPropagation(); handleRetry(); }}
                 disabled={retrying}
-                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 disabled:opacity-50"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '4px 10px',
+                  fontFamily: SANS,
+                  fontSize: '11px',
+                  fontWeight: 500,
+                  color: 'var(--bg-base)',
+                  background: 'var(--accent)',
+                  border: '1px solid var(--accent)',
+                  borderRadius: '2px',
+                  cursor: retrying ? 'not-allowed' : 'pointer',
+                  opacity: retrying ? 0.5 : 1,
+                }}
               >
-                {retrying ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
+                {retrying ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : <RotateCcw size={11} />}
                 Retry
               </button>
             )}
-            {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+            {expanded
+              ? <ChevronUp size={14} style={{ color: 'var(--fg-3)' }} />
+              : <ChevronDown size={14} style={{ color: 'var(--fg-3)' }} />}
           </div>
         </td>
       </tr>
       {expanded && (
-        <tr className="bg-gray-50 border-b border-gray-100">
-          <td colSpan={6} className="px-4 py-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <tr style={{ background: 'var(--bg-surface-2)', borderBottom: '1px solid var(--border-hairline)' }}>
+          <td colSpan={6} style={{ padding: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
               <div>
-                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Payload</div>
-                <pre className="text-xs bg-gray-900 text-green-300 rounded-md p-3 overflow-x-auto max-h-48">
+                <div style={{ ...LABEL_STYLE, marginBottom: '8px' }}>Payload</div>
+                <pre style={{
+                  fontFamily: MONO,
+                  fontSize: '11px',
+                  background: 'var(--bg-base)',
+                  color: 'var(--fg-2)',
+                  border: '1px solid var(--border-hairline)',
+                  borderRadius: '2px',
+                  padding: '12px',
+                  overflowX: 'auto',
+                  maxHeight: '192px',
+                  margin: 0,
+                }}>
                   {JSON.stringify(delivery.payload ?? delivery.body ?? {}, null, 2)}
                 </pre>
               </div>
               <div>
-                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Response Body</div>
-                <pre className="text-xs bg-gray-900 text-green-300 rounded-md p-3 overflow-x-auto max-h-48">
+                <div style={{ ...LABEL_STYLE, marginBottom: '8px' }}>Response Body</div>
+                <pre style={{
+                  fontFamily: MONO,
+                  fontSize: '11px',
+                  background: 'var(--bg-base)',
+                  color: 'var(--fg-2)',
+                  border: '1px solid var(--border-hairline)',
+                  borderRadius: '2px',
+                  padding: '12px',
+                  overflowX: 'auto',
+                  maxHeight: '192px',
+                  margin: 0,
+                }}>
                   {delivery.responseBody ?? delivery.response ?? '(empty)'}
                 </pre>
               </div>
             </div>
             {Array.isArray(delivery.attemptsTimeline) && delivery.attemptsTimeline.length > 0 && (
-              <div className="mt-4">
-                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Attempt Timeline</div>
-                <div className="space-y-1">
+              <div style={{ marginTop: '16px' }}>
+                <div style={{ ...LABEL_STYLE, marginBottom: '8px' }}>Attempt Timeline</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   {delivery.attemptsTimeline.map((att, i) => (
-                    <div key={i} className="flex items-center gap-3 text-xs text-gray-600">
-                      <Clock className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                      <span className="text-gray-400">{att.at ? format(new Date(att.at), 'HH:mm:ss') : `Attempt ${i + 1}`}</span>
-                      <span className={httpCodeColor(att.status)}>{att.status}</span>
-                      {att.error && <span className="text-red-500">{att.error}</span>}
+                    <div key={i} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      fontFamily: MONO,
+                      fontSize: '11px',
+                      color: 'var(--fg-3)',
+                    }}>
+                      <Clock size={11} style={{ color: 'var(--fg-4)', flexShrink: 0 }} />
+                      <span style={{ color: 'var(--fg-4)' }}>{att.at ? format(new Date(att.at), 'HH:mm:ss') : `Attempt ${i + 1}`}</span>
+                      <span style={{ color: httpCodeColor(att.status) }}>{att.status}</span>
+                      {att.error && <span style={{ color: 'var(--sev-serious)' }}>{att.error}</span>}
                     </div>
                   ))}
                 </div>
@@ -386,26 +641,49 @@ function EventReferenceSection() {
 
   return (
     <Collapsible.Root open={open} onOpenChange={setOpen}>
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+      <div style={CARD_STYLE}>
         <Collapsible.Trigger asChild>
-          <button className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors">
-            <div className="flex items-center gap-2">
-              <Code2 className="w-4 h-4 text-gray-500" />
-              <span className="text-base font-semibold text-gray-900">Event Type Reference</span>
+          <button style={{
+            width: '100%',
+            padding: '12px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            textAlign: 'left',
+            background: 'var(--bg-surface-2)',
+            border: 'none',
+            borderBottom: open ? '1px solid var(--border-hairline)' : 'none',
+            cursor: 'pointer',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Code2 size={12} style={{ color: 'var(--fg-3)' }} />
+              <span style={{ ...LABEL_STYLE, fontSize: '11px' }}>Event Type Reference</span>
             </div>
-            {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+            {open
+              ? <ChevronUp size={14} style={{ color: 'var(--fg-3)' }} />
+              : <ChevronDown size={14} style={{ color: 'var(--fg-3)' }} />}
           </button>
         </Collapsible.Trigger>
 
         <Collapsible.Content>
-          <div className="px-6 pb-6 space-y-6 border-t border-gray-100 pt-4">
+          <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {EVENT_TYPES.map((evt) => (
               <div key={evt.type}>
-                <div className="flex items-start gap-3 mb-2">
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '8px' }}>
                   <EventTypeBadge type={evt.type} />
-                  <span className="text-sm text-gray-600">{evt.desc}</span>
+                  <span style={{ fontFamily: SANS, fontSize: '13px', color: 'var(--fg-3)' }}>{evt.desc}</span>
                 </div>
-                <pre className="text-xs bg-gray-900 text-green-300 rounded-md p-4 overflow-x-auto">
+                <pre style={{
+                  fontFamily: MONO,
+                  fontSize: '11px',
+                  background: 'var(--bg-base)',
+                  color: 'var(--fg-2)',
+                  border: '1px solid var(--border-hairline)',
+                  borderRadius: '2px',
+                  padding: '14px',
+                  overflowX: 'auto',
+                  margin: 0,
+                }}>
                   {JSON.stringify(evt.payload, null, 2)}
                 </pre>
               </div>
@@ -553,99 +831,180 @@ export default function WebhooksSettingsPage() {
     };
   }, []);
 
+  const inputStyle = {
+    flex: 1,
+    padding: '8px 12px',
+    fontFamily: SANS,
+    fontSize: '13px',
+    color: 'var(--fg-1)',
+    background: 'var(--bg-base)',
+    border: 'none',
+    outline: 'none',
+  };
+
+  const selectStyle = {
+    fontFamily: SANS,
+    fontSize: '13px',
+    color: 'var(--fg-2)',
+    background: 'var(--bg-surface-2)',
+    border: '1px solid var(--border-default)',
+    borderRadius: '2px',
+    padding: '6px 10px',
+    outline: 'none',
+  };
+
   return (
-    <div className="space-y-8 py-6">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', padding: '24px 0' }}>
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900 flex items-center gap-2">
-          <Webhook className="w-6 h-6 text-indigo-500" />
+        <h1 style={{
+          fontFamily: SANS,
+          fontSize: '22px',
+          fontWeight: 600,
+          letterSpacing: '-0.01em',
+          color: 'var(--fg-1)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          margin: 0,
+        }}>
+          <Webhook size={22} style={{ color: 'var(--accent)' }} />
           Webhooks
         </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Receive real-time HTTP POST notifications when events occur in Ridgeway.
+        <p style={{ fontFamily: SANS, fontSize: '13px', color: 'var(--fg-3)', marginTop: '6px' }}>
+          Receive real-time HTTP POST notifications when events occur in Sentinel.
         </p>
       </div>
 
       {/* Config Section */}
       <SectionCard title="Endpoint Configuration" icon={Webhook}>
         {configLoading ? (
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <Loader2 className="w-4 h-4 animate-spin" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: SANS, fontSize: '13px', color: 'var(--fg-3)' }}>
+            <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
             Loading configuration…
           </div>
         ) : (
-          <div className="space-y-5">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* URL Input */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label style={{ ...LABEL_STYLE, display: 'block', marginBottom: '8px' }}>
                 Webhook URL
               </label>
-              <div className="flex items-center border border-gray-300 rounded-md shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 overflow-hidden">
-                <span className="px-3 py-2 bg-gray-50 border-r border-gray-300 text-sm text-gray-500 select-none whitespace-nowrap">
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                border: '1px solid var(--border-default)',
+                borderRadius: '2px',
+                overflow: 'hidden',
+                background: 'var(--bg-base)',
+              }}>
+                <span style={{
+                  padding: '8px 12px',
+                  background: 'var(--bg-surface-2)',
+                  borderRight: '1px solid var(--border-hairline)',
+                  fontFamily: MONO,
+                  fontSize: '12px',
+                  color: 'var(--fg-3)',
+                  userSelect: 'none',
+                  whiteSpace: 'nowrap',
+                }}>
                   https://
                 </span>
                 <input
                   type="text"
-                  className="flex-1 px-3 py-2 text-sm focus:outline-none bg-white"
-                  placeholder="your-domain.com/api/webhooks/ridgeway"
+                  style={inputStyle}
+                  placeholder="your-domain.com/api/webhooks/sentinel"
                   value={urlSuffix}
                   onChange={(e) => setUrlSuffix(e.target.value)}
                 />
               </div>
-              <p className="text-xs text-gray-400 mt-1">Must be a publicly accessible HTTPS endpoint.</p>
+              <p style={{ fontFamily: SANS, fontSize: '11px', color: 'var(--fg-4)', marginTop: '6px' }}>Must be a publicly accessible HTTPS endpoint.</p>
             </div>
 
             {/* Active Toggle */}
-            <div className="flex items-center justify-between py-3 border-t border-gray-100">
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 0',
+              borderTop: '1px solid var(--border-hairline)',
+            }}>
               <div>
-                <div className="text-sm font-medium text-gray-700">Active</div>
-                <div className="text-xs text-gray-500 mt-0.5">Enable or disable webhook delivery without deleting your configuration.</div>
+                <div style={{ fontFamily: SANS, fontSize: '13px', fontWeight: 500, color: 'var(--fg-2)' }}>Active</div>
+                <div style={{ fontFamily: SANS, fontSize: '12px', color: 'var(--fg-3)', marginTop: '2px' }}>Enable or disable webhook delivery without deleting your configuration.</div>
               </div>
               <Switch.Root
                 checked={webhookActive}
                 onCheckedChange={setWebhookActive}
-                className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 data-[state=checked]:bg-indigo-600 data-[state=unchecked]:bg-gray-200"
+                style={{
+                  position: 'relative',
+                  display: 'inline-flex',
+                  height: '22px',
+                  width: '40px',
+                  alignItems: 'center',
+                  borderRadius: '11px',
+                  background: webhookActive ? 'var(--accent)' : 'var(--bg-surface-3)',
+                  border: '1px solid var(--border-default)',
+                  transition: 'background 120ms',
+                  cursor: 'pointer',
+                }}
               >
-                <Switch.Thumb className="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform data-[state=checked]:translate-x-6 data-[state=unchecked]:translate-x-1" />
+                <Switch.Thumb style={{
+                  display: 'inline-block',
+                  height: '16px',
+                  width: '16px',
+                  borderRadius: '50%',
+                  background: 'var(--bg-base)',
+                  transform: webhookActive ? 'translateX(20px)' : 'translateX(2px)',
+                  transition: 'transform 120ms',
+                }} />
               </Switch.Root>
             </div>
 
             {/* Actions Row */}
-            <div className="flex flex-wrap items-center gap-3 pt-1">
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px', paddingTop: '4px' }}>
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                style={{ ...BTN_PRIMARY, opacity: saving ? 0.5 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}
               >
-                {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {saving && <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />}
                 Save Configuration
               </button>
 
               <button
                 onClick={handleTest}
                 disabled={testing}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                style={{ ...BTN_SECONDARY, opacity: testing ? 0.5 : 1, cursor: testing ? 'not-allowed' : 'pointer' }}
               >
                 {testing
-                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  : <FlaskConical className="w-3.5 h-3.5" />}
+                  ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
+                  : <FlaskConical size={13} />}
                 {testing ? 'Testing…' : 'Test Webhook'}
               </button>
 
               {/* Inline test result */}
               {testResult && !testing && (
                 <div
-                  className={`flex items-start gap-2 px-3 py-2 rounded-md text-sm max-w-sm ${
-                    testResult.ok
-                      ? 'bg-green-50 border border-green-200 text-green-800'
-                      : 'bg-red-50 border border-red-200 text-red-800'
-                  }`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    borderRadius: '2px',
+                    fontFamily: MONO,
+                    fontSize: '11px',
+                    maxWidth: '380px',
+                    background: 'var(--bg-surface-2)',
+                    border: `1px solid ${testResult.ok ? 'var(--sev-harmless)' : 'var(--sev-serious)'}`,
+                    color: testResult.ok ? 'var(--sev-harmless)' : 'var(--sev-serious)',
+                  }}
                 >
                   {testResult.ok
-                    ? <Check className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                    : <X className="w-4 h-4 flex-shrink-0 mt-0.5" />}
-                  <span className="font-mono text-xs break-all">
-                    {testResult.ok ? '✓' : '✗'} {testResult.status} — {testResult.body}
+                    ? <Check size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
+                    : <X size={14} style={{ flexShrink: 0, marginTop: '2px' }} />}
+                  <span style={{ wordBreak: 'break-all' }}>
+                    {testResult.status} — {testResult.body}
                   </span>
                 </div>
               )}
@@ -656,37 +1015,60 @@ export default function WebhooksSettingsPage() {
 
       {/* HMAC Secret Section */}
       <SectionCard title="HMAC Signing Secret" icon={KeyRound}>
-        <p className="text-sm text-gray-600 mb-4">
-          Ridgeway signs every webhook payload with this secret using HMAC-SHA256. Verify the{' '}
-          <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">X-Ridgeway-Signature</code> header on every request.
+        <p style={{ fontFamily: SANS, fontSize: '13px', color: 'var(--fg-3)', marginBottom: '16px' }}>
+          Sentinel signs every webhook payload with this secret using HMAC-SHA256. Verify the{' '}
+          <code style={{
+            fontFamily: MONO,
+            fontSize: '11px',
+            background: 'var(--bg-surface-2)',
+            border: '1px solid var(--border-hairline)',
+            padding: '1px 6px',
+            borderRadius: '2px',
+            color: 'var(--accent)',
+          }}>X-Sentinel-Signature</code> header on every request.
         </p>
 
-        <div className="flex items-center gap-3 flex-wrap">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           {/* Masked display */}
-          <div className="flex items-center border border-gray-300 rounded-md shadow-sm overflow-hidden">
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            border: '1px solid var(--border-default)',
+            borderRadius: '2px',
+            overflow: 'hidden',
+          }}>
             <input
               type={showSecret ? 'text' : 'password'}
               readOnly
               value={showSecret ? secret : '•'.repeat(32)}
-              className="px-3 py-2 text-sm font-mono bg-gray-50 text-gray-700 focus:outline-none w-64"
+              style={{
+                padding: '8px 12px',
+                fontFamily: MONO,
+                fontSize: '12px',
+                background: 'var(--bg-surface-2)',
+                color: 'var(--fg-2)',
+                outline: 'none',
+                width: '260px',
+                border: 'none',
+              }}
             />
           </div>
 
           {/* Show / Hide */}
           <button
             onClick={showSecret ? handleHide : handleReveal}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+            style={BTN_SECONDARY}
           >
-            {showSecret ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            {showSecret ? <EyeOff size={13} /> : <Eye size={13} />}
             {showSecret ? 'Hide' : 'Show'}
           </button>
 
           {/* Copy (without visually revealing) */}
           <button
             onClick={handleCopySecret}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+            style={BTN_SECONDARY}
           >
-            <Copy className="w-3.5 h-3.5" />
+            <Copy size={13} />
             Copy
           </button>
 
@@ -695,7 +1077,7 @@ export default function WebhooksSettingsPage() {
         </div>
 
         {showSecret && (
-          <p className="text-xs text-amber-600 mt-2">Secret will auto-hide after 30 seconds.</p>
+          <p style={{ fontFamily: MONO, fontSize: '11px', color: 'var(--sev-warning)', marginTop: '10px' }}>Secret will auto-hide after 30 seconds.</p>
         )}
       </SectionCard>
 
@@ -719,21 +1101,17 @@ export default function WebhooksSettingsPage() {
         padding: '16px',
         display: 'flex', flexDirection: 'column', gap: '12px',
       }}>
-        <div style={{
-          fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)',
-          fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.12em',
-          color: 'var(--fg-3)',
-        }}>
+        <div style={LABEL_STYLE}>
           How webhooks work
         </div>
-        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-sm)', color: 'var(--fg-2)', margin: 0 }}>
-          Ridgeway POSTs a signed JSON payload to your endpoint when an investigation completes, a briefing is approved, or a critical incident is detected. Use webhooks to trigger Slack alerts, PagerDuty incidents, or custom automations.
+        <p style={{ fontFamily: SANS, fontSize: '13px', color: 'var(--fg-2)', margin: 0 }}>
+          Sentinel POSTs a signed JSON payload to your endpoint when an investigation completes, a briefing is approved, or a critical incident is detected. Use webhooks to trigger Slack alerts, PagerDuty incidents, or custom automations.
         </p>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {[
-            ['X-Ridgeway-Event', 'Event type (e.g. investigation.completed)'],
-            ['X-Ridgeway-Delivery', 'Unique delivery ID for idempotency'],
-            ['X-Ridgeway-Signature', 'HMAC-SHA256 of the payload body'],
+            ['X-Sentinel-Event', 'Event type (e.g. investigation.completed)'],
+            ['X-Sentinel-Delivery', 'Unique delivery ID for idempotency'],
+            ['X-Sentinel-Signature', 'HMAC-SHA256 of the payload body'],
           ].map(([header, desc]) => (
             <div key={header} style={{
               padding: '6px 10px',
@@ -743,8 +1121,8 @@ export default function WebhooksSettingsPage() {
               display: 'flex', flexDirection: 'column', gap: '2px',
               flex: '1', minWidth: '200px',
             }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--accent)', fontWeight: 600 }}>{header}</span>
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-xs)', color: 'var(--fg-3)' }}>{desc}</span>
+              <span style={{ fontFamily: MONO, fontSize: '10px', color: 'var(--accent)', fontWeight: 600 }}>{header}</span>
+              <span style={{ fontFamily: SANS, fontSize: '12px', color: 'var(--fg-3)' }}>{desc}</span>
             </div>
           ))}
         </div>
@@ -753,13 +1131,13 @@ export default function WebhooksSettingsPage() {
       {/* Delivery Log */}
       <SectionCard title="Delivery Log" icon={Clock}>
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3 mb-4">
-          <div>
-            <label className="text-xs font-medium text-gray-500 mr-2">Status</label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label style={LABEL_STYLE}>Status</label>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              style={selectStyle}
             >
               <option value="all">All</option>
               <option value="delivered">Delivered</option>
@@ -768,12 +1146,12 @@ export default function WebhooksSettingsPage() {
             </select>
           </div>
 
-          <div>
-            <label className="text-xs font-medium text-gray-500 mr-2">Event Type</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label style={LABEL_STYLE}>Event Type</label>
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              style={selectStyle}
             >
               <option value="all">All</option>
               {uniqueEventTypes.map((t) => (
@@ -783,44 +1161,70 @@ export default function WebhooksSettingsPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-md border border-gray-200">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-4 py-3 font-semibold">Event Type</th>
-                <th className="px-4 py-3 font-semibold">Status</th>
-                <th className="px-4 py-3 font-semibold">Attempts</th>
-                <th className="px-4 py-3 font-semibold">HTTP Code</th>
-                <th className="px-4 py-3 font-semibold">Timestamp</th>
-                <th className="px-4 py-3 font-semibold text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {deliveriesLoading ? (
+        {deliveriesLoading ? (
+          <div style={{
+            padding: '48px 16px',
+            textAlign: 'center',
+            fontFamily: SANS,
+            fontSize: '13px',
+            color: 'var(--fg-3)',
+            border: '1px solid var(--border-hairline)',
+            borderRadius: '2px',
+          }}>
+            <Loader2 size={18} style={{ animation: 'spin 1s linear infinite', display: 'block', margin: '0 auto 6px' }} />
+            Loading deliveries…
+          </div>
+        ) : rawDeliveries.length === 0 ? (
+          <div style={{
+            padding: '48px 16px',
+            textAlign: 'center',
+            fontFamily: SANS,
+            fontSize: '13px',
+            color: 'var(--fg-3)',
+            border: '1px solid var(--border-hairline)',
+            borderRadius: '2px',
+          }}>
+            No webhook deliveries yet.
+          </div>
+        ) : filteredDeliveries.length === 0 ? (
+          <div style={{
+            padding: '48px 16px',
+            textAlign: 'center',
+            fontFamily: SANS,
+            fontSize: '13px',
+            color: 'var(--fg-3)',
+            border: '1px solid var(--border-hairline)',
+            borderRadius: '2px',
+          }}>
+            No deliveries match the current filter.
+          </div>
+        ) : (
+          <div style={{
+            overflowX: 'auto',
+            border: '1px solid var(--border-hairline)',
+            borderRadius: '2px',
+          }}>
+            <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+              <thead style={{ background: 'var(--bg-surface-2)', borderBottom: '1px solid var(--border-default)' }}>
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
-                    <Loader2 className="w-5 h-5 animate-spin mx-auto mb-1" />
-                    Loading deliveries…
-                  </td>
+                  {['Event Type', 'Status', 'Attempts', 'HTTP Code', 'Timestamp'].map((h) => (
+                    <th key={h} style={{ ...LABEL_STYLE, padding: '10px 14px', textAlign: 'left' }}>{h}</th>
+                  ))}
+                  <th style={{ ...LABEL_STYLE, padding: '10px 14px', textAlign: 'right' }}>Actions</th>
                 </tr>
-              ) : filteredDeliveries.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
-                    No deliveries match the current filter.
-                  </td>
-                </tr>
-              ) : (
-                filteredDeliveries.map((d) => (
+              </thead>
+              <tbody>
+                {filteredDeliveries.map((d) => (
                   <DeliveryRow
                     key={d._id ?? d.id}
                     delivery={d}
                     onRetry={handleRetryDelivery}
                   />
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </SectionCard>
 
       {/* Event Reference Collapsible */}

@@ -105,7 +105,7 @@ const getFallbackSectionText = (sectionName, investigations, severityBuckets) =>
       .slice(0, 5);
 
     if (uncertainties.length === 0) {
-      return "No immediate follow-up gaps were recorded by the agent for this night.";
+      return "No immediate follow-up gaps were recorded by Argus for this night.";
     }
 
     return `The following follow-up checks are recommended: ${uncertainties.join(" ")}`;

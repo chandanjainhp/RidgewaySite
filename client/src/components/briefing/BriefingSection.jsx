@@ -86,7 +86,7 @@ export default function BriefingSection({ sectionName, sectionData, briefingId, 
           {isEdited ? (
             <span className="font-mono text-[10px] px-2 py-0.5 border border-amber-500/50 bg-amber-500/10 text-amber-500 uppercase tracking-widest">Edited by Maya</span>
           ) : (
-            <span className="font-mono text-[10px] px-2 py-0.5 border border-agent-blue/40 bg-agent-blue/10 text-agent-blue uppercase tracking-widest">Agent draft</span>
+            <span className="font-mono text-[10px] px-2 py-0.5 border border-agent-blue/40 bg-agent-blue/10 text-agent-blue uppercase tracking-widest">Argus draft</span>
           )}
         </div>
 

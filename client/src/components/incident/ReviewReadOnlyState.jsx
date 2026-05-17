@@ -33,7 +33,7 @@ export default function ReviewReadOnlyState({ currentReview, onChangeDecision })
       {currentReview.decision === "agreed" && (
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <Check size={14} />
-          You agreed with the agent's classification
+          You agreed with Argus's classification
         </div>
       )}
 

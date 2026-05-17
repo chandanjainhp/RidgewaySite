@@ -9,7 +9,7 @@ import { useAuthStore } from "@/store/authStore";
 import { Copy, Check, ChevronRight } from "lucide-react";
 
 const STEPS = [
-  { title: "Welcome to Ridgeway", description: "AI-powered overnight site intelligence" },
+  { title: "Welcome to Sentinel", description: "AI-powered overnight site intelligence" },
   { title: "Configure your site", description: "Tell us about your site so the AI can investigate accurately" },
   { title: "Connect your drones", description: "Generate an API key for your drone patrol system" },
   { title: "You're ready", description: "Your platform is configured and waiting for tonight's patrol" },
@@ -123,7 +123,7 @@ function StepSite({ form, setForm, onSave, isSaving }) {
         label="Organisation name"
         value={form.orgName}
         onChange={(e) => setForm((f) => ({ ...f, orgName: e.target.value }))}
-        placeholder="Ridgeway Industrial Ltd"
+        placeholder="Sentinel Industrial Ltd"
       />
       <OpsInput
         label="Site name"
@@ -367,7 +367,7 @@ export default function SetupPage() {
       if (typeof window !== "undefined") {
         document.cookie = `ridgeway_setup=1; path=/; max-age=86400; SameSite=Lax`;
       }
-      router.replace("/dashboard");
+      router.replace("/overview");
     },
     onError: () => toast.error("Failed to complete setup"),
   });

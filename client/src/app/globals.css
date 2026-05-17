@@ -1,4 +1,4 @@
-/* Design tokens: Ridgeway Night Watch color + type system */
+/* Design tokens: Sentinel Night Watch color + type system */
 @import '../colors_and_type.css';
 
 @import 'tailwindcss';
@@ -6,6 +6,24 @@
 @import 'leaflet/dist/leaflet.css';
 
 @custom-variant dark (&:is(.dark *));
+
+/* =============================================
+   Global keyboard focus indicator
+   In addition to (not replacement of) inline focus borders.
+============================================= */
+*:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="menuitem"]:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
 
 /* =============================================
    LIGHT MODE — CSS CUSTOM PROPERTIES

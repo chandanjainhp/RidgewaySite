@@ -1,5 +1,6 @@
 import AuditLog from '../models/auditLog.model.js';
 
+// Action strings are stable identifiers, do not rename even during product rebranding.
 export const logAudit = async (req, action, target, metadata = {}) => {
   try {
     if (!req.user) {

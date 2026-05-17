@@ -175,7 +175,7 @@ function OtpPageInner() {
           <span style={{
             fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 600,
             letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--fg-1)',
-          }}>Ridgeway Site</span>
+          }}>Sentinel</span>
           <span style={{ color: 'var(--border-strong)', fontSize: '14px', userSelect: 'none' }}>·</span>
           <span style={{
             fontFamily: 'var(--font-mono)', fontSize: '10px',

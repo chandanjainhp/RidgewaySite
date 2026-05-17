@@ -1,18 +1,67 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import api from '../../../../lib/api';
-import { deactivateOrgUser } from '@/lib/api';
-import { Users, Mail, UserX, AlertCircle, CheckCircle2 } from 'lucide-react';
+import api, { deactivateOrgUser } from '@/lib/api';
+import { Users, Mail, UserX, AlertCircle, CheckCircle2, UserPlus } from 'lucide-react';
 import { format } from 'date-fns';
+
+const MONO = 'var(--font-mono)';
+const SANS = 'var(--font-sans)';
+
+const labelStyle = {
+  fontFamily: MONO,
+  fontSize: '10px',
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  letterSpacing: '0.12em',
+  color: 'var(--fg-3)',
+};
+
+const cardStyle = {
+  background: 'var(--bg-surface-1)',
+  border: '1px solid var(--border-default)',
+  borderRadius: '2px',
+  overflow: 'hidden',
+};
+
+const cardHeaderStyle = {
+  padding: '12px 16px',
+  borderBottom: '1px solid var(--border-hairline)',
+  background: 'var(--bg-surface-2)',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+};
+
+const thStyle = {
+  padding: '10px 16px',
+  textAlign: 'left',
+  fontFamily: MONO,
+  fontSize: '10px',
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  letterSpacing: '0.1em',
+  color: 'var(--fg-3)',
+  borderBottom: '1px solid var(--border-default)',
+  background: 'var(--bg-surface-2)',
+};
+
+const tdStyle = {
+  padding: '12px 16px',
+  fontFamily: SANS,
+  fontSize: '13px',
+  color: 'var(--fg-2)',
+  borderBottom: '1px solid var(--border-hairline)',
+};
 
 export default function MembersSettingsPage() {
   const queryClient = useQueryClient();
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteError, setInviteError] = useState('');
   const [inviteSuccess, setInviteSuccess] = useState('');
+  const inviteInputRef = useRef(null);
 
   const { data: response, isLoading } = useQuery({
     queryKey: ['org-members'],
@@ -47,120 +96,291 @@ export default function MembersSettingsPage() {
     },
   });
 
+  const onlyAdmin = members.length === 1 && (members[0]?.role === 'org_admin' || members[0]?.role === 'super_admin');
+
+  const focusInvite = () => {
+    if (inviteInputRef.current) {
+      inviteInputRef.current.focus();
+      inviteInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
   return (
-    <div className="space-y-8 max-w-4xl mx-auto py-8">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Organisation Members</h1>
-        <p className="text-sm text-gray-500 mt-1">Manage who has access to your organisation's data.</p>
+        <h1 style={{
+          fontFamily: SANS,
+          fontSize: '20px',
+          fontWeight: 600,
+          color: 'var(--fg-1)',
+          margin: 0,
+          letterSpacing: '-0.01em',
+        }}>
+          Organisation Members
+        </h1>
+        <p style={{
+          fontFamily: SANS,
+          fontSize: '13px',
+          color: 'var(--fg-3)',
+          marginTop: '6px',
+          marginBottom: 0,
+        }}>
+          Manage who has access to your organisation's data.
+        </p>
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center">
-          <Users className="w-5 h-5 text-gray-500 mr-2" />
-          <h2 className="text-lg font-medium text-gray-900">Current Members</h2>
+      <div style={cardStyle}>
+        <div style={cardHeaderStyle}>
+          <Users size={14} style={{ color: 'var(--fg-3)' }} />
+          <h2 style={labelStyle}>Current Members</h2>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left text-gray-500">
-            <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th scope="col" className="px-6 py-3 font-semibold">User</th>
-                <th scope="col" className="px-6 py-3 font-semibold">Role</th>
-                <th scope="col" className="px-6 py-3 font-semibold">Status</th>
-                <th scope="col" className="px-6 py-3 font-semibold">Last Login</th>
-                <th scope="col" className="px-6 py-3 font-semibold text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
+
+        {onlyAdmin ? (
+          <div style={{
+            padding: '48px 24px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            textAlign: 'center',
+            gap: '16px',
+          }}>
+            <Users size={28} style={{ color: 'var(--fg-4)', opacity: 0.6 }} />
+            <div style={{
+              fontFamily: SANS,
+              fontSize: '13px',
+              color: 'var(--fg-3)',
+              maxWidth: '360px',
+              lineHeight: 1.5,
+            }}>
+              Invite your team to share the morning briefing workflow.
+            </div>
+            <button
+              type="button"
+              onClick={focusInvite}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 14px',
+                background: 'var(--accent)',
+                color: 'var(--bg-base)',
+                border: '1px solid var(--accent)',
+                borderRadius: '2px',
+                fontFamily: MONO,
+                fontSize: '11px',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                cursor: 'pointer',
+              }}
+            >
+              <UserPlus size={12} />
+              Invite Operator
+            </button>
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
                 <tr>
-                  <td colSpan="5" className="px-6 py-8 text-center text-gray-400">Loading members...</td>
+                  <th style={thStyle}>User</th>
+                  <th style={thStyle}>Role</th>
+                  <th style={thStyle}>Status</th>
+                  <th style={thStyle}>Last Login</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>Actions</th>
                 </tr>
-              ) : members.length === 0 ? (
-                <tr>
-                  <td colSpan="5" className="px-6 py-8 text-center text-gray-400">No members found.</td>
-                </tr>
-              ) : (
-                members.map((m) => (
-                  <tr key={m._id} className={`border-b ${!m.isActive ? 'bg-gray-50' : 'bg-white'} hover:bg-gray-50`}>
-                    <td className="px-6 py-4">
-                      <div className={`font-medium ${!m.isActive ? 'text-gray-500' : 'text-gray-900'}`}>{m.username}</div>
-                      <div className="text-gray-500 text-xs">{m.email}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="capitalize text-gray-700">{m.role.replace('_', ' ')}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                        m.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'
-                      }`}>
-                        {m.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-gray-500">
-                      {m.lastLoginAt ? format(new Date(m.lastLoginAt), 'MMM d, yyyy HH:mm') : 'Never'}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      {m.role !== 'org_admin' && m.role !== 'super_admin' && m.isActive && (
-                        <button
-                          onClick={() => {
-                            if (!window.confirm('Remove this member? They will lose access immediately.')) return;
-                            deactivateMutation.mutate(m._id);
-                          }}
-                          disabled={deactivateMutation.isPending}
-                          className="text-red-600 hover:text-red-800 text-sm font-medium inline-flex items-center disabled:opacity-50"
-                        >
-                          <UserX className="w-4 h-4 mr-1" />
-                          Remove
-                        </button>
-                      )}
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan="5" style={{ ...tdStyle, padding: '32px 16px', textAlign: 'center', color: 'var(--fg-4)', fontFamily: MONO, fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                      Loading members...
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : members.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" style={{ ...tdStyle, padding: '32px 16px', textAlign: 'center', color: 'var(--fg-4)', fontFamily: MONO, fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                      No members found.
+                    </td>
+                  </tr>
+                ) : (
+                  members.map((m) => (
+                    <tr
+                      key={m._id}
+                      style={{ background: !m.isActive ? 'var(--bg-surface-2)' : 'transparent' }}
+                    >
+                      <td style={tdStyle}>
+                        <div style={{
+                          fontFamily: SANS,
+                          fontWeight: 500,
+                          color: !m.isActive ? 'var(--fg-3)' : 'var(--fg-1)',
+                          fontSize: '13px',
+                        }}>
+                          {m.username}
+                        </div>
+                        <div style={{
+                          fontFamily: MONO,
+                          fontSize: '11px',
+                          color: 'var(--fg-3)',
+                          marginTop: '2px',
+                        }}>
+                          {m.email}
+                        </div>
+                      </td>
+                      <td style={tdStyle}>
+                        <span style={{
+                          textTransform: 'capitalize',
+                          color: 'var(--fg-2)',
+                          fontFamily: SANS,
+                          fontSize: '13px',
+                        }}>
+                          {m.role.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td style={tdStyle}>
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          padding: '2px 8px',
+                          borderRadius: '2px',
+                          fontFamily: MONO,
+                          fontSize: '10px',
+                          fontWeight: 600,
+                          letterSpacing: '0.08em',
+                          textTransform: 'uppercase',
+                          border: '1px solid',
+                          borderColor: m.isActive ? 'var(--sev-harmless)' : 'var(--border-default)',
+                          color: m.isActive ? 'var(--sev-harmless)' : 'var(--fg-4)',
+                          background: 'transparent',
+                        }}>
+                          {m.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td style={{ ...tdStyle, color: 'var(--fg-3)', fontFamily: MONO, fontSize: '11px' }}>
+                        {m.lastLoginAt ? format(new Date(m.lastLoginAt), 'MMM d, yyyy HH:mm') : 'Never'}
+                      </td>
+                      <td style={{ ...tdStyle, textAlign: 'right' }}>
+                        {m.role !== 'org_admin' && m.role !== 'super_admin' && m.isActive && (
+                          <button
+                            onClick={() => {
+                              if (!window.confirm('Remove this member? They will lose access immediately.')) return;
+                              deactivateMutation.mutate(m._id);
+                            }}
+                            disabled={deactivateMutation.isPending}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '4px 8px',
+                              background: 'transparent',
+                              border: '1px solid var(--border-default)',
+                              borderRadius: '2px',
+                              color: 'var(--sev-serious)',
+                              fontFamily: MONO,
+                              fontSize: '10px',
+                              fontWeight: 600,
+                              letterSpacing: '0.08em',
+                              textTransform: 'uppercase',
+                              cursor: deactivateMutation.isPending ? 'not-allowed' : 'pointer',
+                              opacity: deactivateMutation.isPending ? 0.5 : 1,
+                            }}
+                          >
+                            <UserX size={12} />
+                            Remove
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center">
-          <Mail className="w-5 h-5 text-gray-500 mr-2" />
-          <h2 className="text-lg font-medium text-gray-900">Invite New Operator</h2>
+      <div style={cardStyle}>
+        <div style={cardHeaderStyle}>
+          <Mail size={14} style={{ color: 'var(--fg-3)' }} />
+          <h2 style={labelStyle}>Invite New Operator</h2>
         </div>
-        <div className="p-6">
-          <p className="text-sm text-gray-500 mb-4">
+        <div style={{ padding: '20px' }}>
+          <p style={{
+            fontFamily: SANS,
+            fontSize: '13px',
+            color: 'var(--fg-3)',
+            marginTop: 0,
+            marginBottom: '16px',
+            lineHeight: 1.5,
+          }}>
             Operators can view incidents, acknowledge events, and review AI briefings. They cannot manage other users or organisation settings.
           </p>
 
           {inviteSuccess && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md flex items-center text-sm text-green-800">
-              <CheckCircle2 className="w-5 h-5 mr-2 text-green-500" />
+            <div style={{
+              marginBottom: '16px',
+              padding: '10px 12px',
+              background: 'var(--bg-surface-2)',
+              border: '1px solid var(--sev-harmless)',
+              borderRadius: '2px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontFamily: SANS,
+              fontSize: '13px',
+              color: 'var(--sev-harmless)',
+            }}>
+              <CheckCircle2 size={16} />
               {inviteSuccess}
             </div>
           )}
 
-          <form 
+          <form
             onSubmit={(e) => {
               e.preventDefault();
               setInviteError('');
               inviteMutation.mutate(inviteEmail);
-            }} 
-            className="flex flex-col sm:flex-row gap-3"
+            }}
+            style={{ display: 'flex', flexDirection: 'row', gap: '8px', flexWrap: 'wrap' }}
           >
-            <div className="flex-1 relative">
+            <div style={{ flex: 1, minWidth: '240px', position: 'relative' }}>
               <input
+                ref={inviteInputRef}
                 type="email"
                 required
                 placeholder="operator@company.com"
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${
-                  inviteError ? 'border-red-300' : 'border-gray-300'
-                }`}
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  background: 'var(--bg-base)',
+                  border: '1px solid',
+                  borderColor: inviteError ? 'var(--sev-serious)' : 'var(--border-default)',
+                  borderRadius: '2px',
+                  fontFamily: MONO,
+                  fontSize: '12px',
+                  color: 'var(--fg-1)',
+                  outline: 'none',
+                }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = inviteError ? 'var(--sev-serious)' : 'var(--border-default)'; }}
               />
               {inviteError && (
-                <p className="mt-1 text-xs text-red-600 flex items-center">
-                  <AlertCircle className="w-3 h-3 mr-1" />
+                <p style={{
+                  marginTop: '6px',
+                  marginBottom: 0,
+                  fontFamily: MONO,
+                  fontSize: '10px',
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  color: 'var(--sev-serious)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}>
+                  <AlertCircle size={11} />
                   {inviteError}
                 </p>
               )}
@@ -168,7 +388,24 @@ export default function MembersSettingsPage() {
             <button
               type="submit"
               disabled={!inviteEmail || inviteMutation.isPending}
-              className="inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 sm:w-auto w-full h-10"
+              style={{
+                display: 'inline-flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                padding: '8px 16px',
+                background: 'var(--accent)',
+                color: 'var(--bg-base)',
+                border: '1px solid var(--accent)',
+                borderRadius: '2px',
+                fontFamily: MONO,
+                fontSize: '11px',
+                fontWeight: 600,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                cursor: (!inviteEmail || inviteMutation.isPending) ? 'not-allowed' : 'pointer',
+                opacity: (!inviteEmail || inviteMutation.isPending) ? 0.5 : 1,
+                height: '36px',
+              }}
             >
               {inviteMutation.isPending ? 'Sending...' : 'Send Invite'}
             </button>

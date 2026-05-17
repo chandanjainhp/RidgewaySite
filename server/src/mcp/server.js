@@ -47,12 +47,12 @@ mcpServer.tool(
   'list_incidents',
   'Returns a list of operational incidents detected at this site. Use this when the user asks about incidents, alerts, problems, or security events within a time period.',
   {
-    startDate: z.string().optional(),
-    endDate: z.string().optional(),
-    severity: z.string().optional(),
-    status: z.string().optional(),
-    limit: z.number().optional().default(50),
-    skip: z.number().optional().default(0),
+    startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    severity: z.enum(['serious', 'minor', 'harmless', 'uncertain']).optional(),
+    status: z.enum(['open', 'investigating', 'reviewed', 'escalated', 'closed']).optional(),
+    limit: z.number().int().min(1).max(100).optional().default(50),
+    skip: z.number().int().min(0).optional().default(0),
   },
   async ({ startDate, endDate, severity, status, limit, skip }, extra) => {
     try {
@@ -101,7 +101,7 @@ mcpServer.tool(
   'get_incident',
   'Returns complete details for a single incident including all evidence and investigation results. Use this after list_incidents to get full information about a specific incident.',
   {
-    incidentId: z.string().min(1, 'incidentId is required'),
+    incidentId: z.string().length(24, 'incidentId must be a 24-character MongoDB ObjectId'),
   },
   async ({ incidentId }, extra) => {
     try {
@@ -148,8 +148,8 @@ mcpServer.tool(
   'list_events',
   'Returns raw operational events recorded during an overnight period. Use this when the user asks about specific detections, sensor events, or unreviewed items from a particular night.',
   {
-    nightDate: z.string().optional(),
-    type: z.string().optional(),
+    nightDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    type: z.enum(['motion_detected', 'badge_swipe_fail', 'vehicle_entry', 'fence_alert', 'environmental']).optional(),
     reviewed: z.boolean().optional(),
   },
   async ({ nightDate, type, reviewed }, extra) => {
@@ -189,7 +189,7 @@ mcpServer.tool(
   'get_investigation',
   'Returns the results of an AI-driven investigation into an incident. Use this when the user wants to understand why an incident was flagged or what the AI determined about it.',
   {
-    investigationId: z.string().min(1),
+    investigationId: z.string().length(24, 'investigationId must be a 24-character MongoDB ObjectId'),
   },
   async ({ investigationId }, extra) => {
     try {
@@ -211,7 +211,7 @@ mcpServer.tool(
   'start_investigation',
   'Starts an AI investigation into a specific incident. Use this when the user asks to investigate, analyse, or dig deeper into an incident. Note that investigation takes time to complete.',
   {
-    incidentId: z.string().min(1),
+    incidentId: z.string().length(24, 'incidentId must be a 24-character MongoDB ObjectId'),
   },
   async ({ incidentId }, extra) => {
     try {

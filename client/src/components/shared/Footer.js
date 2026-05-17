@@ -15,7 +15,7 @@ export default function Footer() {
               <div className="w-6 h-6 bg-gradient-to-br from-primary to-primary-light rounded flex items-center justify-center">
                 <span className="text-white text-sm">🏢</span>
               </div>
-              <span className="font-bold text-text-primary">Ridgeway OIP</span>
+              <span className="font-bold text-text-primary">Sentinel</span>
             </div>
             <p className="text-text-secondary text-sm">
               Overnight Intelligence Platform for industrial sites.
@@ -93,7 +93,7 @@ export default function Footer() {
         <div className="border-t border-surface-dark pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-text-secondary text-sm">
-              © {currentYear} Ridgeway Overnight Intelligence Platform. All rights reserved.
+              © {currentYear} Sentinel Overnight Intelligence Platform. All rights reserved.
             </p>
             <div className="flex gap-4 mt-4 md:mt-0">
               <a href="#twitter" className="text-text-secondary hover:text-primary transition">

@@ -63,7 +63,7 @@ const sendEmail = async (options) => {
     const mailGenerator = new Mailgen({
       theme: "default",
       product: {
-        name: process.env.EMAIL_FROM_NAME || "Ridgeway OIP",
+        name: process.env.EMAIL_FROM_NAME || "Sentinel",
         link: process.env.APP_URL || "http://localhost:8000",
       },
     });
@@ -127,7 +127,7 @@ const sendTestEmail = async (testEmail) => {
     const testContent = {
       body: {
         name: "Test User",
-        intro: "This is a test email from Ridgeway OIP",
+        intro: "This is a test email from Sentinel",
         action: {
           instructions: "If you received this email, your email is configured correctly!",
           button: {
@@ -142,7 +142,7 @@ const sendTestEmail = async (testEmail) => {
 
     await sendEmail({
       email: testEmail,
-      subject: "🧪 Test Email - Ridgeway OIP",
+      subject: "🧪 Test Email - Sentinel",
       mailgenContent: testContent,
     });
 
@@ -163,7 +163,7 @@ const emailVerificationMailgenContent = (username, otp) => {
   return {
     body: {
       name: username,
-      intro: "Welcome to Ridgeway OIP! We're excited to have you on board.",
+      intro: "Welcome to Sentinel! We're excited to have you on board.",
       action: {
         instructions: "To verify your email address, please enter this One-Time Password (OTP) in the application:",
         button: {
@@ -215,7 +215,7 @@ const accountConfirmationMailgenContent = (username) => {
       name: username,
       intro: "Your account has been confirmed successfully!",
       outro:
-        "You can now log in to your account and start using Ridgeway OIP. Happy investigating!",
+        "You can now log in to your account and start using Sentinel. Happy investigating!",
     },
   };
 };
@@ -231,7 +231,7 @@ const inviteMailgenContent = (email, orgName, inviteUrl) => {
   return {
     body: {
       name: email,
-      intro: `You've been invited to join the ${orgName} organisation on Ridgeway.`,
+      intro: `You've been invited to join the ${orgName} organisation on Sentinel.`,
       action: {
         instructions: "Please click the button below to set up your account and password:",
         button: {

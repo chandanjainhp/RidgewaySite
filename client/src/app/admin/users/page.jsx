@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   listAdminUsers,
@@ -166,6 +167,8 @@ function DeactivateDialog({ user, onConfirm, isPending }) {
 
 export default function UsersPage() {
   const queryClient = useQueryClient();
+  const { user: currentUser } = useAuth();
+  const currentUserId = currentUser?._id;
 
   // filters
   const [search, setSearch] = useState('');
@@ -211,6 +214,7 @@ export default function UsersPage() {
     keepPreviousData: true,
   });
   const users = usersData?.users ?? usersData?.data ?? [];
+  const superAdminCount = users.filter((u) => u.role === 'super_admin').length;
 
   // ── handlers ──
 
@@ -408,6 +412,8 @@ export default function UsersPage() {
                   const isStatusLoading = loadingStatus === u._id;
                   const isLogoutLoading = loadingLogout === u._id;
                   const inviteCooling = isInviteCoolingDown(u._id);
+                  const isSelf = u._id === currentUserId;
+                  const isLastAdmin = u.role === 'super_admin' && superAdminCount <= 1;
 
                   return (
                     <tr
@@ -447,7 +453,12 @@ export default function UsersPage() {
                             <select
                               className="text-xs border border-gray-300 rounded px-2 py-1 pr-6 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none appearance-none disabled:opacity-50 cursor-pointer"
                               value={u.role}
-                              disabled={isRoleLoading}
+                              disabled={isRoleLoading || isSelf || isLastAdmin}
+                              title={
+                                isSelf ? 'Cannot change your own role'
+                                : isLastAdmin ? 'Cannot demote the last super admin'
+                                : undefined
+                              }
                               onChange={(e) =>
                                 handleRoleChange(u._id, e.target.value)
                               }

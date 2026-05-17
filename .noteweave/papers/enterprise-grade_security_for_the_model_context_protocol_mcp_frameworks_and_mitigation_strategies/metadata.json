@@ -1,0 +1,12 @@
+{
+  "title": "Enterprise-Grade Security for the Model Context Protocol (MCP):   Frameworks and Mitigation Strategies",
+  "slug": "enterprise-grade_security_for_the_model_context_protocol_mcp_frameworks_and_mitigation_strategies",
+  "arxiv_id": "2504.08623",
+  "authors": [
+    "Vineeth Sai Narajala",
+    "Idan Habler"
+  ],
+  "year": 2025,
+  "abstract": "The Model Context Protocol (MCP), introduced by Anthropic, provides a standardized framework for artificial intelligence (AI) systems to interact with external data sources and tools in real-time. While MCP offers significant advantages for AI integration and capability extension, it introduces novel security challenges that demand rigorous analysis and mitigation. This paper builds upon foundational research into MCP architecture and preliminary security assessments to deliver enterprise-grade mitigation frameworks and detailed technical implementation strategies. Through systematic threat modeling and analysis of MCP implementations and analysis of potential attack vectors, including sophisticated threats like tool poisoning, we present actionable security patterns tailored for MCP implementers and adopters. The primary contribution of this research lies in translating theoretical security concerns into a practical, implementable framework with actionable controls, thereby providing essential guidance for the secure enterprise adoption and governance of integrated AI systems.",
+  "pdf_downloaded": true
+}

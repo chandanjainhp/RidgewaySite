@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { ChevronDown } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { getLatestBriefing } from "@/lib/api";
 
@@ -35,6 +36,7 @@ export default function TopBar() {
   const router = useRouter();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropRef = useRef(null);
+  const firstItemRef = useRef(null);
   const nightDate = useNightDate();
 
   const is = (prefix) =>
@@ -46,21 +48,48 @@ export default function TopBar() {
   const { data: briefingData } = useQuery({
     queryKey: ["briefing-status", nightDate],
     queryFn: () => getLatestBriefing(nightDate),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30 * 1000,
+    refetchInterval: 30 * 1000,
+    refetchIntervalInBackground: false,
     retry: false,
   });
   const hasDraftBriefing = briefingData?.status === "draft";
 
-  // Close dropdown on outside click
+  // Close dropdown on outside click + escape; focus first item on open
   useEffect(() => {
-    function handler(e) {
+    function clickHandler(e) {
       if (dropRef.current && !dropRef.current.contains(e.target)) {
         setDropdownOpen(false);
       }
     }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
+    function keyHandler(e) {
+      if (e.key === "Escape" && dropdownOpen) setDropdownOpen(false);
+    }
+    document.addEventListener("mousedown", clickHandler);
+    document.addEventListener("keydown", keyHandler);
+    if (dropdownOpen && firstItemRef.current) {
+      firstItemRef.current.focus();
+    }
+    return () => {
+      document.removeEventListener("mousedown", clickHandler);
+      document.removeEventListener("keydown", keyHandler);
+    };
+  }, [dropdownOpen]);
+
+  function handleMenuKeyDown(e) {
+    const items = dropRef.current?.querySelectorAll('[role="menuitem"]') || [];
+    if (!items.length) return;
+    const currentIndex = Array.from(items).indexOf(document.activeElement);
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      const next = items[(currentIndex + 1) % items.length];
+      next?.focus();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const prev = items[(currentIndex - 1 + items.length) % items.length];
+      prev?.focus();
+    }
+  }
 
   async function handleLogout() {
     localStorage.removeItem("ridgeway_token");
@@ -70,7 +99,7 @@ export default function TopBar() {
     document.cookie = "ridgeway_auth=; path=/; max-age=0; SameSite=Lax";
     document.cookie = "ridgeway_role=; path=/; max-age=0; SameSite=Lax";
     document.cookie = "ridgeway_setup=; path=/; max-age=0; SameSite=Lax";
-    router.replace("/login");
+    router.replace("/");
   }
 
   const displayUser = currentUser?.email || currentUser?.username || "";
@@ -108,7 +137,7 @@ export default function TopBar() {
           width: "7px", height: "7px", borderRadius: "50%",
           background: "var(--accent)", flexShrink: 0,
         }} />
-        <Link href="/dashboard" style={{
+        <Link href="/overview" style={{
           fontFamily: MONO,
           fontSize: "12px",
           fontWeight: 700,
@@ -117,7 +146,7 @@ export default function TopBar() {
           textTransform: "uppercase",
           textDecoration: "none",
         }}>
-          Ridgeway
+          Sentinel
         </Link>
       </div>
 
@@ -126,6 +155,9 @@ export default function TopBar() {
 
       {/* Primary Nav */}
       <nav style={{ display: "flex", alignItems: "center", gap: "20px", flex: 1 }}>
+        <Link href="/overview" style={navLink(is(["/overview", "/dashboard"]))}>
+          Overview
+        </Link>
         <Link href="/investigate" style={navLink(is(["/investigate", "/incident"]))}>
           Investigate
         </Link>
@@ -142,9 +174,6 @@ export default function TopBar() {
               background: "var(--accent)",
             }} />
           )}
-        </Link>
-        <Link href="/dashboard" style={navLink(is("/dashboard"))}>
-          Overview
         </Link>
       </nav>
 
@@ -171,18 +200,25 @@ export default function TopBar() {
 
         {/* User dropdown */}
         {currentUser && (
-          <div ref={dropRef} style={{ position: "relative" }}>
+          <div ref={dropRef} style={{ position: "relative" }} onKeyDown={handleMenuKeyDown}>
             <button
               onClick={() => setDropdownOpen((v) => !v)}
+              aria-label="Open account menu"
+              aria-haspopup="menu"
+              aria-expanded={dropdownOpen}
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
-                background: "none",
-                border: "none",
+                background: "var(--bg-surface-2)",
+                border: "1px solid var(--border-default)",
+                borderRadius: "2px",
                 cursor: "pointer",
-                padding: 0,
+                padding: "4px 8px 4px 4px",
+                transition: "background var(--dur-fast)",
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-3)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-surface-2)"; }}
             >
               {/* Avatar */}
               <div style={{
@@ -212,13 +248,13 @@ export default function TopBar() {
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
                 }}>
-                  {displayUser}
+                  {displayUser.length > 18 ? displayUser.slice(0, 18) + "…" : displayUser}
                 </span>
                 {userRole && (
                   <span style={{
                     fontFamily: MONO,
-                    fontSize: "9px",
-                    color: "var(--fg-4)",
+                    fontSize: "11px",
+                    color: "var(--fg-3)",
                     letterSpacing: "0.08em",
                     textTransform: "uppercase",
                   }}>
@@ -226,41 +262,54 @@ export default function TopBar() {
                   </span>
                 )}
               </div>
+              <ChevronDown
+                size={14}
+                style={{
+                  color: "var(--fg-3)",
+                  transition: "transform var(--dur-fast) var(--ease-out)",
+                  transform: dropdownOpen ? "rotate(180deg)" : "rotate(0deg)",
+                }}
+                aria-hidden="true"
+              />
             </button>
 
             {/* Dropdown */}
             {dropdownOpen && (
-              <div style={{
-                position: "absolute",
-                top: "calc(100% + 8px)",
-                right: 0,
-                width: "200px",
-                background: "var(--bg-surface-1)",
-                border: "1px solid var(--border-default)",
-                borderRadius: "2px",
-                boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
-                zIndex: 2000,
-              }}>
+              <div
+                role="menu"
+                aria-label="Account menu"
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 8px)",
+                  right: 0,
+                  width: "240px",
+                  background: "var(--bg-surface-1)",
+                  border: "1px solid var(--border-default)",
+                  borderRadius: "var(--radius-sm, 4px)",
+                  boxShadow: "var(--shadow-modal, 0 4px 16px rgba(0,0,0,0.4))",
+                  padding: "4px",
+                  zIndex: 2000,
+                }}
+              >
                 {/* User info header */}
                 <div style={{
-                  padding: "12px 14px",
+                  padding: "12px 16px",
                   borderBottom: "1px solid var(--border-hairline)",
+                  marginBottom: "4px",
                 }}>
                   <div style={{
                     fontFamily: MONO,
-                    fontSize: "11px",
+                    fontSize: "12px",
                     color: "var(--fg-1)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    marginBottom: "2px",
+                    wordBreak: "break-all",
+                    marginBottom: "4px",
                   }}>
                     {displayUser}
                   </div>
                   <div style={{
                     fontFamily: MONO,
-                    fontSize: "9px",
-                    color: "var(--fg-4)",
+                    fontSize: "11px",
+                    color: "var(--fg-3)",
                     letterSpacing: "0.08em",
                     textTransform: "uppercase",
                   }}>
@@ -268,57 +317,74 @@ export default function TopBar() {
                   </div>
                 </div>
 
-                {/* Links */}
-                <div style={{ padding: "6px 0" }}>
-                  {[
-                    { label: "Profile", href: "/profile" },
-                    ...(isAdmin ? [{ label: "Settings", href: "/settings/general" }] : []),
-                    ...(userRole === "super_admin" ? [{ label: "Admin Panel", href: "/admin/orgs" }] : []),
-                  ].map(({ label, href }) => (
-                    <Link
-                      key={href}
-                      href={href}
-                      onClick={() => setDropdownOpen(false)}
-                      style={{
-                        display: "block",
-                        padding: "7px 14px",
-                        fontFamily: "var(--font-sans)",
-                        fontSize: "13px",
-                        color: "var(--fg-2)",
-                        textDecoration: "none",
-                        transition: "background 120ms",
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-2)"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-                    >
-                      {label}
-                    </Link>
-                  ))}
-                </div>
-
-                {/* Divider + sign out */}
-                <div style={{ borderTop: "1px solid var(--border-hairline)", padding: "6px 0 4px" }}>
-                  <button
-                    onClick={() => { setDropdownOpen(false); handleLogout(); }}
+                {/* Items */}
+                {[
+                  { label: "Profile", href: "/profile" },
+                  {
+                    label: "Settings",
+                    href: isAdmin ? "/settings/general" : "/settings/documents",
+                  },
+                  ...(userRole === "super_admin"
+                    ? [{ label: "Admin Panel", href: "/admin/orgs" }]
+                    : []),
+                ].map(({ label, href }, idx) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    role="menuitem"
+                    ref={idx === 0 ? firstItemRef : null}
+                    onClick={() => setDropdownOpen(false)}
                     style={{
                       display: "block",
-                      width: "100%",
-                      textAlign: "left",
-                      padding: "7px 14px",
+                      padding: "10px 16px",
                       fontFamily: "var(--font-sans)",
-                      fontSize: "13px",
-                      color: "var(--sev-serious)",
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      transition: "background 120ms",
+                      fontSize: "var(--text-sm, 13px)",
+                      color: "var(--fg-2)",
+                      textDecoration: "none",
+                      transition: "background 120ms, color 120ms",
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-2)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "var(--bg-surface-3)";
+                      e.currentTarget.style.color = "var(--fg-1)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent";
+                      e.currentTarget.style.color = "var(--fg-2)";
+                    }}
                   >
-                    Sign out
-                  </button>
-                </div>
+                    {label}
+                  </Link>
+                ))}
+
+                {/* Divider */}
+                <div style={{
+                  height: "1px",
+                  background: "var(--border-hairline)",
+                  margin: "4px 0",
+                }} />
+
+                {/* Sign out */}
+                <button
+                  role="menuitem"
+                  onClick={() => { setDropdownOpen(false); handleLogout(); }}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "10px 16px",
+                    fontFamily: "var(--font-sans)",
+                    fontSize: "var(--text-sm, 13px)",
+                    color: "var(--sev-serious-text, var(--sev-serious))",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    transition: "background 120ms",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-3)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                >
+                  Sign out
+                </button>
               </div>
             )}
           </div>

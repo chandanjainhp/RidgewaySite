@@ -1,6 +1,6 @@
 import { ApiResponse } from "../utils/api-response.js";
 import Event from "../models/event.model.js";
-import { SITE_LOCATIONS } from "../db/graph.js";
+import Organisation from "../models/organisation.model.js";
 import {
   getSiteMapData,
   getEventPins,
@@ -10,40 +10,6 @@ import {
   simulateFollowUpMission,
 } from "../tools/droneSimulator.tool.js";
 
-const SEEDED_PATROL = {
-  patrolId: "D-Night-04",
-  waypoints: [
-    {
-      location: "Gate 3",
-      lat: 51.5065,
-      lng: -0.0890,
-      time: "03:12",
-      observation: "Loose wire on fence sensor. No physical breach.",
-    },
-    {
-      location: "Block C",
-      lat: 51.5055,
-      lng: -0.0870,
-      time: "03:28",
-      observation: "One untagged vehicle near loading bay. Plate unreadable.",
-    },
-    {
-      location: "Storage Yard B",
-      lat: 51.5045,
-      lng: -0.0910,
-      time: "03:45",
-      observation: "No anomaly detected at time of flyover.",
-    },
-    {
-      location: "Access Point 7",
-      lat: 51.5035,
-      lng: -0.0925,
-      time: "04:05",
-      observation: "Badge reader functioning normally. No persons present.",
-    },
-  ],
-};
-
 const toHHMM = (dateValue, offsetMinutes = 0) => {
   const d = new Date(dateValue);
   d.setMinutes(d.getMinutes() + offsetMinutes);
@@ -51,7 +17,12 @@ const toHHMM = (dateValue, offsetMinutes = 0) => {
 };
 
 export const getMapGeometry = async (req, res) => {
-  const data = await getSiteMapData();
+  let orgConfig = null;
+  if (req.user?.orgId) {
+    const org = await Organisation.findById(req.user.orgId).select('config').lean();
+    orgConfig = org?.config || null;
+  }
+  const data = await getSiteMapData(orgConfig);
   res.status(200).json(new ApiResponse(200, data, "Map geometry fetched successfully"));
 };
 
@@ -68,7 +39,7 @@ export const getDroneRoute = async (req, res) => {
     ],
   }).sort({ timestamp: 1 });
 
-  let data = SEEDED_PATROL;
+  let data = { patrolId, waypoints: [] };
 
   if (patrolEvent) {
     const observations = Array.isArray(patrolEvent.rawData?.observations)
@@ -76,30 +47,20 @@ export const getDroneRoute = async (req, res) => {
       : [];
 
     const waypoints = observations
-      .map((obs, idx) => {
-        const locationName = obs.location || patrolEvent.location?.name;
-        const siteLocation = SITE_LOCATIONS.find(
-          (loc) => loc.name.toLowerCase() === String(locationName || "").toLowerCase()
-        );
-
-        return {
-          location: locationName || "Unknown",
-          lat: siteLocation?.coordinates?.lat ?? patrolEvent.location?.coordinates?.lat ?? null,
-          lng: siteLocation?.coordinates?.lng ?? patrolEvent.location?.coordinates?.lng ?? null,
-          time:
-            typeof obs.time === "string" && obs.time.includes(":")
-              ? obs.time
-              : toHHMM(patrolEvent.timestamp, idx * 16),
-          observation: obs.finding || obs.observation || "Drone observation",
-        };
-      })
+      .map((obs, idx) => ({
+        location: obs.location || patrolEvent.location?.name || "Unknown",
+        lat: patrolEvent.location?.coordinates?.lat ?? null,
+        lng: patrolEvent.location?.coordinates?.lng ?? null,
+        time:
+          typeof obs.time === "string" && obs.time.includes(":")
+            ? obs.time
+            : toHHMM(patrolEvent.timestamp, idx * 16),
+        observation: obs.finding || obs.observation || "Drone observation",
+      }))
       .filter((wp) => wp.lat !== null && wp.lng !== null);
 
     if (waypoints.length > 0) {
-      data = {
-        patrolId,
-        waypoints,
-      };
+      data = { patrolId, waypoints };
     }
   }
 
@@ -107,18 +68,18 @@ export const getDroneRoute = async (req, res) => {
 };
 
 export const getMapEventPins = async (req, res) => {
-  const data = await getEventPins(req.query.nightDate);
+  const data = await getEventPins(req.query.nightDate, req.orgFilter);
   res.status(200).json(new ApiResponse(200, data, "Event pins fetched successfully"));
 };
 
 export const getDroneState = async (req, res) => {
   const { patrolId } = req.params;
   const { time } = req.query;
-  const data = await getDroneStateAtTime(patrolId, time);
+  const data = await getDroneStateAtTime(patrolId, time, req.orgFilter);
   res.status(200).json(new ApiResponse(200, data, "Drone state fetched successfully"));
 };
 
 export const simulateMission = async (req, res) => {
-  const data = await simulateFollowUpMission(req.body.locations || []);
+  const data = await simulateFollowUpMission(req.body.locations || [], req.orgFilter);
   res.status(200).json(new ApiResponse(200, data, "Mission simulated successfully"));
 };

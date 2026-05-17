@@ -6,20 +6,96 @@ import { toast } from 'sonner';
 import { Settings, Globe, Sparkles, AlertTriangle, Loader2, Save } from 'lucide-react';
 import { getOrgMe, updateOrgConfig } from '@/lib/api';
 
+const MONO = 'var(--font-mono)';
+const SANS = 'var(--font-sans)';
+
+const LABEL_STYLE = {
+  fontFamily: MONO,
+  fontSize: '10px',
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  letterSpacing: '0.12em',
+  color: 'var(--fg-3)',
+};
+
+const SECTION_HEADER_STYLE = {
+  padding: '12px 20px',
+  borderBottom: '1px solid var(--border-hairline)',
+  background: 'var(--bg-surface-2)',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+};
+
+const SECTION_TITLE_STYLE = {
+  fontFamily: MONO,
+  fontSize: '11px',
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  letterSpacing: '0.12em',
+  color: 'var(--fg-2)',
+};
+
+const CARD_STYLE = {
+  background: 'var(--bg-surface-1)',
+  border: '1px solid var(--border-default)',
+  borderRadius: '2px',
+  overflow: 'hidden',
+};
+
+const INPUT_BASE_STYLE = {
+  width: '100%',
+  padding: '8px 10px',
+  background: 'var(--bg-base)',
+  border: '1px solid var(--border-default)',
+  borderRadius: '2px',
+  fontFamily: SANS,
+  fontSize: '13px',
+  color: 'var(--fg-1)',
+  outline: 'none',
+  transition: 'border-color 120ms',
+};
+
 /* ── helpers ── */
-function planBadge(plan) {
-  const map = {
-    trial:      'bg-gray-100 text-gray-700',
-    standard:   'bg-blue-100 text-blue-700',
-    enterprise: 'bg-purple-100 text-purple-700',
+function planBadgeStyle(plan) {
+  const base = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '2px 8px',
+    borderRadius: '2px',
+    fontFamily: MONO,
+    fontSize: '10px',
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.1em',
+    border: '1px solid var(--border-hairline)',
   };
-  return map[plan] ?? 'bg-gray-100 text-gray-600';
+  if (plan === 'enterprise') {
+    return { ...base, background: 'var(--bg-surface-3)', color: 'var(--accent)' };
+  }
+  if (plan === 'standard') {
+    return { ...base, background: 'var(--bg-surface-2)', color: 'var(--sev-info)' };
+  }
+  return { ...base, background: 'var(--bg-surface-2)', color: 'var(--fg-3)' };
 }
 
-function statusBadge(status) {
-  if (status === 'active') return 'bg-green-100 text-green-700';
-  if (status === 'suspended') return 'bg-red-100 text-red-700';
-  return 'bg-gray-100 text-gray-600';
+function statusBadgeStyle(status) {
+  const base = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '2px 8px',
+    borderRadius: '2px',
+    fontFamily: MONO,
+    fontSize: '10px',
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.1em',
+    border: '1px solid var(--border-hairline)',
+    background: 'var(--bg-surface-2)',
+  };
+  if (status === 'active') return { ...base, color: 'var(--sev-harmless)' };
+  if (status === 'suspended') return { ...base, color: 'var(--sev-serious)' };
+  return { ...base, color: 'var(--fg-3)' };
 }
 
 function capitalize(s) {
@@ -95,8 +171,16 @@ export default function GeneralSettingsPage() {
   /* ── render ── */
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-24 text-gray-400">
-        <Loader2 className="w-6 h-6 animate-spin mr-2" />
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '96px 0',
+        color: 'var(--fg-3)',
+        fontFamily: SANS,
+        fontSize: '13px',
+      }}>
+        <Loader2 size={16} className="animate-spin" style={{ marginRight: '8px' }} />
         Loading organisation settings…
       </div>
     );
@@ -104,56 +188,101 @@ export default function GeneralSettingsPage() {
 
   if (isError || !org) {
     return (
-      <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700 text-sm">
-        <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        border: '1px solid var(--border-default)',
+        borderLeft: '2px solid var(--sev-serious)',
+        background: 'var(--bg-surface-1)',
+        borderRadius: '2px',
+        padding: '12px 16px',
+        color: 'var(--sev-serious)',
+        fontFamily: SANS,
+        fontSize: '13px',
+      }}>
+        <AlertTriangle size={14} style={{ flexShrink: 0 }} />
         Failed to load organisation settings. Please refresh the page.
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '28px', fontFamily: SANS }}>
       {/* page header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900 flex items-center gap-2">
-          <Settings className="w-5 h-5 text-indigo-500" />
+        <h1 style={{
+          fontFamily: SANS,
+          fontSize: '20px',
+          fontWeight: 600,
+          letterSpacing: '-0.01em',
+          color: 'var(--fg-1)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          margin: 0,
+        }}>
+          <Settings size={16} style={{ color: 'var(--accent)' }} />
           General Settings
         </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Organisation-level configuration for your Ridgeway workspace.
+        <p style={{
+          fontFamily: SANS,
+          fontSize: '12px',
+          color: 'var(--fg-3)',
+          marginTop: '6px',
+          margin: '6px 0 0 0',
+        }}>
+          Organisation-level configuration for your Sentinel workspace.
         </p>
       </div>
 
       {/* ── organisation info (read-only) ── */}
-      <section className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
-          <h2 className="text-base font-semibold text-gray-900">Organisation</h2>
+      <section style={CARD_STYLE}>
+        <div style={SECTION_HEADER_STYLE}>
+          <h2 style={SECTION_TITLE_STYLE}>Organisation</h2>
         </div>
-        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6 px-6 py-6">
+        <dl style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          columnGap: '32px',
+          rowGap: '20px',
+          padding: '20px',
+          margin: 0,
+        }}>
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-gray-500 mb-1">Name</dt>
-            <dd className="text-sm font-medium text-gray-900">{org.name}</dd>
+            <dt style={{ ...LABEL_STYLE, marginBottom: '6px' }}>Name</dt>
+            <dd style={{ fontFamily: SANS, fontSize: '13px', color: 'var(--fg-1)', margin: 0 }}>
+              {org.name}
+            </dd>
           </div>
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-gray-500 mb-1">Slug</dt>
-            <dd>
-              <code className="font-mono text-sm bg-gray-100 text-gray-800 px-2 py-0.5 rounded">
+            <dt style={{ ...LABEL_STYLE, marginBottom: '6px' }}>Slug</dt>
+            <dd style={{ margin: 0 }}>
+              <code style={{
+                fontFamily: MONO,
+                fontSize: '12px',
+                background: 'var(--bg-surface-2)',
+                color: 'var(--fg-2)',
+                padding: '2px 8px',
+                borderRadius: '2px',
+                border: '1px solid var(--border-hairline)',
+              }}>
                 {org.slug}
               </code>
             </dd>
           </div>
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-gray-500 mb-1">Plan</dt>
-            <dd>
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${planBadge(org.plan)}`}>
+            <dt style={{ ...LABEL_STYLE, marginBottom: '6px' }}>Plan</dt>
+            <dd style={{ margin: 0 }}>
+              <span style={planBadgeStyle(org.plan)}>
                 {capitalize(org.plan)}
               </span>
             </dd>
           </div>
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-gray-500 mb-1">Status</dt>
-            <dd>
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusBadge(org.status)}`}>
+            <dt style={{ ...LABEL_STYLE, marginBottom: '6px' }}>Status</dt>
+            <dd style={{ margin: 0 }}>
+              <span style={statusBadgeStyle(org.status)}>
                 {capitalize(org.status)}
               </span>
             </dd>
@@ -163,18 +292,18 @@ export default function GeneralSettingsPage() {
 
       {/* ── editable config ── */}
       <form onSubmit={handleSave}>
-        <section className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
-            <Globe className="w-4 h-4 text-gray-500" />
-            <h2 className="text-base font-semibold text-gray-900">Configuration</h2>
+        <section style={CARD_STYLE}>
+          <div style={SECTION_HEADER_STYLE}>
+            <Globe size={13} style={{ color: 'var(--fg-3)' }} />
+            <h2 style={SECTION_TITLE_STYLE}>Configuration</h2>
           </div>
 
-          <div className="px-6 py-6 space-y-6">
+          <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* webhook url */}
             <div>
               <label
                 htmlFor="webhookUrl"
-                className="block text-sm font-medium text-gray-700 mb-1"
+                style={{ ...LABEL_STYLE, display: 'block', marginBottom: '6px' }}
               >
                 Webhook URL
               </label>
@@ -182,24 +311,41 @@ export default function GeneralSettingsPage() {
                 id="webhookUrl"
                 type="text"
                 autoComplete="off"
-                placeholder="https://your-server.com/webhooks/ridgeway"
+                placeholder="https://your-server.com/webhooks/sentinel"
                 value={webhookUrl}
                 onChange={(e) => {
                   setWebhookUrl(e.target.value);
                   setWebhookError(validateWebhook(e.target.value));
                 }}
-                className={`w-full px-3 py-2 border rounded-lg text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${
-                  webhookError ? 'border-red-400 bg-red-50' : 'border-gray-300'
-                }`}
+                style={{
+                  ...INPUT_BASE_STYLE,
+                  borderColor: webhookError ? 'var(--sev-serious)' : 'var(--border-default)',
+                  background: webhookError ? 'var(--bg-surface-2)' : 'var(--bg-base)',
+                }}
               />
               {webhookError && (
-                <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3" />
+                <p style={{
+                  marginTop: '6px',
+                  fontFamily: SANS,
+                  fontSize: '11px',
+                  color: 'var(--sev-serious)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  margin: '6px 0 0 0',
+                }}>
+                  <AlertTriangle size={11} />
                   {webhookError}
                 </p>
               )}
-              <p className="mt-1.5 text-xs text-gray-500">
-                Ridgeway will POST event payloads to this URL. Must use HTTPS.
+              <p style={{
+                marginTop: '6px',
+                fontFamily: SANS,
+                fontSize: '11px',
+                color: 'var(--fg-3)',
+                margin: '6px 0 0 0',
+              }}>
+                Sentinel will POST event payloads to this URL. Must use HTTPS.
               </p>
             </div>
 
@@ -208,11 +354,28 @@ export default function GeneralSettingsPage() {
               <div>
                 <label
                   htmlFor="promptOverride"
-                  className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5"
+                  style={{
+                    ...LABEL_STYLE,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    marginBottom: '6px',
+                  }}
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-purple-500" />
+                  <Sparkles size={11} style={{ color: 'var(--accent)' }} />
                   AI Prompt Override
-                  <span className="ml-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-700">
+                  <span style={{
+                    marginLeft: '4px',
+                    padding: '2px 6px',
+                    borderRadius: '2px',
+                    fontFamily: MONO,
+                    fontSize: '9px',
+                    fontWeight: 600,
+                    background: 'var(--bg-surface-3)',
+                    color: 'var(--accent)',
+                    border: '1px solid var(--border-hairline)',
+                    letterSpacing: '0.1em',
+                  }}>
                     Enterprise
                   </span>
                 </label>
@@ -222,9 +385,19 @@ export default function GeneralSettingsPage() {
                   placeholder="Custom instructions prepended to all AI investigation prompts for this organisation"
                   value={promptOverride}
                   onChange={(e) => setPromptOverride(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm shadow-sm resize-y focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  style={{
+                    ...INPUT_BASE_STYLE,
+                    resize: 'vertical',
+                    fontFamily: SANS,
+                  }}
                 />
-                <p className="mt-1.5 text-xs text-gray-500">
+                <p style={{
+                  marginTop: '6px',
+                  fontFamily: SANS,
+                  fontSize: '11px',
+                  color: 'var(--fg-3)',
+                  margin: '6px 0 0 0',
+                }}>
                   These instructions are prepended to every AI investigation prompt. Use them to enforce site-specific
                   terminology, reporting standards, or escalation logic.
                 </p>
@@ -233,16 +406,39 @@ export default function GeneralSettingsPage() {
           </div>
 
           {/* footer / save */}
-          <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+          <div style={{
+            padding: '12px 20px',
+            background: 'var(--bg-surface-2)',
+            borderTop: '1px solid var(--border-hairline)',
+            display: 'flex',
+            justifyContent: 'flex-end',
+          }}>
             <button
               type="submit"
               disabled={!isDirty || saveMutation.isPending || !!webhookError}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 14px',
+                borderRadius: '2px',
+                fontFamily: MONO,
+                fontSize: '11px',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+                color: 'var(--bg-base)',
+                background: 'var(--accent)',
+                border: '1px solid var(--accent)',
+                cursor: (!isDirty || saveMutation.isPending || !!webhookError) ? 'not-allowed' : 'pointer',
+                opacity: (!isDirty || saveMutation.isPending || !!webhookError) ? 0.4 : 1,
+                transition: 'opacity 120ms',
+              }}
             >
               {saveMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 size={13} className="animate-spin" />
               ) : (
-                <Save className="w-4 h-4" />
+                <Save size={13} />
               )}
               {saveMutation.isPending ? 'Saving…' : 'Save Changes'}
             </button>
@@ -251,19 +447,47 @@ export default function GeneralSettingsPage() {
       </form>
 
       {/* ── danger zone ── */}
-      <section className="rounded-xl border border-red-200 bg-red-50/40 overflow-hidden">
-        <div className="px-6 py-4 border-b border-red-200">
-          <h2 className="text-base font-semibold text-red-700 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4" />
+      <section style={{
+        background: 'var(--bg-surface-1)',
+        border: '1px solid var(--border-default)',
+        borderLeft: '2px solid var(--sev-serious)',
+        borderRadius: '2px',
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          padding: '12px 20px',
+          borderBottom: '1px solid var(--border-hairline)',
+          background: 'var(--bg-surface-2)',
+        }}>
+          <h2 style={{
+            ...SECTION_TITLE_STYLE,
+            color: 'var(--sev-serious)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            margin: 0,
+          }}>
+            <AlertTriangle size={13} />
             Danger Zone
           </h2>
         </div>
-        <div className="px-6 py-5">
-          <p className="text-sm text-red-800">
+        <div style={{ padding: '16px 20px' }}>
+          <p style={{
+            fontFamily: SANS,
+            fontSize: '13px',
+            color: 'var(--fg-2)',
+            margin: 0,
+          }}>
             For account closure requests, contact{' '}
             <a
               href="mailto:support@ridgeway.io"
-              className="font-medium underline underline-offset-2 hover:text-red-900"
+              style={{
+                fontFamily: MONO,
+                fontSize: '12px',
+                color: 'var(--accent)',
+                textDecoration: 'underline',
+                textUnderlineOffset: '2px',
+              }}
             >
               support@ridgeway.io
             </a>

@@ -18,7 +18,7 @@ export default function Navbar({ transparent = false }) {
                 <span className="text-white font-bold text-lg">🏢</span>
               </div>
               <span className="text-xl font-bold text-text-primary hidden sm:inline">
-                Ridgeway OIP
+                Sentinel
               </span>
             </Link>
           </div>

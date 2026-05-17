@@ -9,12 +9,12 @@ const MONO = 'var(--font-mono)';
 const SANS = 'var(--font-sans)';
 
 const ALL_NAV_ITEMS = [
-  { name: 'General',      path: '/settings/general',      icon: Settings, adminOnly: false },
-  { name: 'API Keys',     path: '/settings/api-keys',     icon: Key,      adminOnly: false },
-  { name: 'Members',      path: '/settings/members',      icon: Users,    adminOnly: true  },
-  { name: 'Documents',    path: '/settings/documents',    icon: BookOpen, adminOnly: false },
-  { name: 'Webhooks',     path: '/settings/webhooks',     icon: Webhook,  adminOnly: true  },
-  { name: 'Integrations', path: '/settings/integrations', icon: Plug,     adminOnly: false },
+  { name: 'General',      path: '/settings/general',      icon: Settings, adminOnly: false, helpAnchor: null },
+  { name: 'API Keys',     path: '/settings/api-keys',     icon: Key,      adminOnly: false, helpAnchor: '#drones' },
+  { name: 'Members',      path: '/settings/members',      icon: Users,    adminOnly: true,  helpAnchor: null },
+  { name: 'Documents',    path: '/settings/documents',    icon: BookOpen, adminOnly: false, helpAnchor: '#security' },
+  { name: 'Webhooks',     path: '/settings/webhooks',     icon: Webhook,  adminOnly: true,  helpAnchor: '#webhooks' },
+  { name: 'Integrations', path: '/settings/integrations', icon: Plug,     adminOnly: false, helpAnchor: '#mcp' },
 ];
 
 export default function SettingsLayout({ children }) {
@@ -117,7 +117,7 @@ export default function SettingsLayout({ children }) {
           borderTop: '1px solid var(--border-hairline)',
         }}>
           <Link
-            href="/dashboard"
+            href="/overview"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -182,6 +182,46 @@ export default function SettingsLayout({ children }) {
         padding: '32px 24px',
       }}>
         <div style={{ maxWidth: '860px', margin: '0 auto' }}>
+          {/* Breadcrumb header */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '10px',
+            marginBottom: '24px',
+            fontFamily: MONO, fontSize: '10px',
+            letterSpacing: '0.12em', textTransform: 'uppercase',
+          }}>
+            <span style={{ color: 'var(--fg-3)' }}>Settings</span>
+            {(() => {
+              const current = ALL_NAV_ITEMS.find(
+                (n) => pathname === n.path || pathname.startsWith(n.path + '/')
+              );
+              if (!current) return null;
+              return (
+                <>
+                  <span style={{ color: 'var(--fg-4)' }}>/</span>
+                  <span style={{ color: 'var(--fg-1)' }}>{current.name}</span>
+                  {current.helpAnchor && (
+                    <Link
+                      href={`/docs${current.helpAnchor}`}
+                      style={{
+                        marginLeft: '12px',
+                        color: 'var(--accent)',
+                        textDecoration: 'none',
+                        fontSize: '10px',
+                      }}
+                    >
+                      ? Learn more
+                    </Link>
+                  )}
+                </>
+              );
+            })()}
+            {orgName && (
+              <>
+                <span style={{ flex: 1 }} />
+                <span style={{ color: 'var(--fg-4)' }}>{orgName}</span>
+              </>
+            )}
+          </div>
           {children}
         </div>
       </div>

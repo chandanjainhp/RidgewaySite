@@ -162,6 +162,8 @@ export default function EventPanel({ nightDate: nightDateProp }) {
             <button
               key={key}
               onClick={() => toggleSeverityFilter(key)}
+              aria-pressed={isOn}
+              aria-label={`Filter by ${cfg.label} severity`}
               style={{
                 display: "inline-flex", alignItems: "center", gap: "6px",
                 fontFamily: "var(--font-sans)", fontSize: "10px", fontWeight: 600,
@@ -190,16 +192,19 @@ export default function EventPanel({ nightDate: nightDateProp }) {
       <div style={{ flex: 1, overflowY: "auto", background: "var(--bg-base)" }}>
         {allIncidents.length === 0 && (
           <div style={{
-            padding: "32px 16px", textAlign: "center",
-            display: "flex", flexDirection: "column", gap: "6px", alignItems: "center",
+            padding: "48px 24px", textAlign: "center",
+            display: "flex", flexDirection: "column", gap: "10px", alignItems: "center",
           }}>
             <span style={{
               fontFamily: "var(--font-mono)", fontSize: "10px",
-              color: "var(--fg-4)", letterSpacing: "0.12em", textTransform: "uppercase",
-            }}>No overnight events</span>
+              color: "var(--fg-3)", letterSpacing: "0.12em", textTransform: "uppercase",
+            }}>No overnight events for {nightDate}</span>
             <span style={{
-              fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--fg-4)",
-            }}>{nightDate}</span>
+              fontFamily: "var(--font-sans)", fontSize: "12px",
+              color: "var(--fg-3)", maxWidth: "260px", lineHeight: 1.5,
+            }}>
+              Patrol either did not run or did not detect anything reportable.
+            </span>
           </div>
         )}
 

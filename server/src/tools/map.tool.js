@@ -75,61 +75,56 @@ export const getEventsNearLocation = async (locationName, radiusMeters = 200) =>
  * Cached in Redis for 1 hour
  * @returns {Promise<object>} map geometry for client
  */
-export const getSiteMapData = async () => {
+export const getSiteMapData = async (orgConfig = null) => {
   try {
-    const redis = getRedis();
+    const coordinates = orgConfig?.coordinates || null;
+    const geometry = orgConfig?.siteGeometry || null;
 
-    // Try to load from Redis cache
-    try {
-      const cached = await redis.get(CACHE_KEY_MAP_DATA);
-      if (cached) {
-        console.log(`[MapTool] Loaded site map data from cache`);
-        return JSON.parse(cached);
-      }
-    } catch (cacheError) {
-      console.warn(`[MapTool] Cache miss, regenerating map data:`, cacheError.message);
+    // No org geometry configured — return empty payload. Never fall back to
+    // global SITE_LOCATIONS (those are London demo coords and would leak).
+    if (!geometry || !Array.isArray(geometry.locations) || geometry.locations.length === 0) {
+      return {
+        timestamp: new Date().toISOString(),
+        coordinates,
+        locations: [],
+        roads: [],
+        boundaries: [],
+        configured: false,
+      };
     }
 
-    // Build map data from site locations
-    const locations = SITE_LOCATIONS.map((loc) => ({
+    const locations = geometry.locations.map((loc) => ({
       id: loc.id,
       name: loc.name,
-      type: loc.type, // 'gate' | 'yard' | 'block' | 'accesspoint'
+      type: loc.type,
       coordinates: loc.coordinates,
-      zone: mapTypeToZone(loc.type),
+      zone: loc.zone || mapTypeToZone(loc.type),
     }));
 
-    // Generate roads (connections between adjacent locations)
-    const roads = generateRoadConnections(locations);
+    const roads = Array.isArray(geometry.roads) && geometry.roads.length > 0
+      ? geometry.roads
+      : generateRoadConnections(locations);
 
-    // Generate perimeter boundary
-    const boundaries = generateBoundaries(locations);
+    const boundaries = Array.isArray(geometry.boundaries) && geometry.boundaries.length > 0
+      ? geometry.boundaries
+      : generateBoundaries(locations);
 
-    const mapData = {
+    return {
       timestamp: new Date().toISOString(),
+      coordinates,
       locations,
       roads,
       boundaries,
+      configured: true,
     };
-
-    // Cache in Redis
-    try {
-      await redis.setex(CACHE_KEY_MAP_DATA, CACHE_TTL, JSON.stringify(mapData));
-    } catch (cacheError) {
-      console.warn(`[MapTool] Failed to cache map data:`, cacheError.message);
-    }
-
-    console.log(
-      `[MapTool] Generated site map: ${locations.length} locations, ${roads.length} roads, ${boundaries.length} boundaries`
-    );
-
-    return mapData;
   } catch (error) {
     console.error(`[MapTool] Error in getSiteMapData:`, error.message);
     return {
+      coordinates: null,
       locations: [],
       roads: [],
       boundaries: [],
+      configured: false,
       error: error.message,
     };
   }
@@ -141,20 +136,11 @@ export const getSiteMapData = async () => {
  * @param {Date|string} nightDate - optional night date
  * @returns {Promise<array>} ordered waypoints for route playback
  */
-export const getDroneRouteGeometry = async (patrolId, nightDate = new Date()) => {
+export const getDroneRouteGeometry = async (patrolId, nightDate = new Date(), orgFilter = null) => {
   try {
-    const cacheKey = `${CACHE_KEY_DRONE_ROUTE}${patrolId}`;
-    const redis = getRedis();
-
-    // Try cache first
-    try {
-      const cached = await redis.get(cacheKey);
-      if (cached) {
-        console.log(`[MapTool] Loaded drone route from cache: ${patrolId}`);
-        return JSON.parse(cached);
-      }
-    } catch (cacheError) {
-      // Cache miss is fine, regenerate
+    if (orgFilter === null || orgFilter === undefined) {
+      console.warn('[MapTool] getDroneRouteGeometry called without orgFilter — refusing');
+      return [];
     }
 
     // Query drone observations sorted by time
@@ -165,35 +151,22 @@ export const getDroneRouteGeometry = async (patrolId, nightDate = new Date()) =>
     endOfDay.setHours(23, 59, 59, 999);
 
     const droneEvents = await Event.find({
+      ...orgFilter,
       type: 'drone_observation',
       timestamp: { $gte: startOfDay, $lte: endOfDay },
     }).sort({ timestamp: 1 });
 
     console.log(`[MapTool] Retrieved ${droneEvents.length} drone observations for route`);
 
-    // Build waypoint sequence
-    const waypoints = droneEvents.map((event, index) => {
-      const location = SITE_LOCATIONS.find(
-        (loc) => loc.name.toLowerCase() === event.location.name.toLowerCase()
-      );
-
-      return {
-        index,
-        location: event.location.name,
-        coordinates: location?.coordinates || event.location.coordinates,
-        timestamp: event.timestamp.toISOString(),
-        time: event.timestamp.toISOString().split('T')[1].substring(0, 5),
-        observation: event.rawData?.observation || 'patrol waypoint',
-        confidence: event.rawData?.confidence || 'partial',
-      };
-    });
-
-    // Cache the route
-    try {
-      await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(waypoints));
-    } catch (cacheError) {
-      console.warn(`[MapTool] Failed to cache drone route:`, cacheError.message);
-    }
+    const waypoints = droneEvents.map((event, index) => ({
+      index,
+      location: event.location.name,
+      coordinates: event.location.coordinates,
+      timestamp: event.timestamp.toISOString(),
+      time: event.timestamp.toISOString().split('T')[1].substring(0, 5),
+      observation: event.rawData?.observation || 'patrol waypoint',
+      confidence: event.rawData?.confidence || 'partial',
+    }));
 
     return waypoints;
   } catch (error) {
@@ -207,16 +180,21 @@ export const getDroneRouteGeometry = async (patrolId, nightDate = new Date()) =>
  * @param {Date|string} nightDate - the night to retrieve
  * @returns {Promise<array>} event pins for map
  */
-export const getEventPins = async (nightDate = new Date()) => {
+export const getEventPins = async (nightDate = new Date(), orgFilter = null) => {
   try {
+    if (orgFilter === null || orgFilter === undefined) {
+      console.warn('[MapTool] getEventPins called without orgFilter — refusing');
+      return [];
+    }
+
     const startOfDay = new Date(nightDate);
     startOfDay.setHours(0, 0, 0, 0);
 
     const endOfDay = new Date(nightDate);
     endOfDay.setHours(23, 59, 59, 999);
 
-    // Query all events for the night
     const events = await Event.find({
+      ...orgFilter,
       timestamp: { $gte: startOfDay, $lte: endOfDay },
     }).sort({ timestamp: 1 });
 

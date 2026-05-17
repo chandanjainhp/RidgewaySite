@@ -99,7 +99,7 @@ export default function BriefingPage() {
       return (
         <div className="w-full px-6 py-3 bg-agent-blue/10 border-b border-agent-blue/40 font-mono text-xs text-agent-blue uppercase tracking-widest flex items-center gap-2 print:hidden">
           <span className="w-2 h-2 rounded-full bg-agent-blue"></span>
-          Agent has drafted the briefing — review each section below
+          Argus has drafted the briefing — review each section below
         </div>
       );
     }
@@ -177,7 +177,7 @@ export default function BriefingPage() {
       <AppShell variant="briefing">
         <div className="w-full max-w-3xl mx-auto flex flex-col items-center justify-center h-full gap-8 px-8">
           <div className="text-center">
-            <h2 className="text-white text-2xl font-bold mb-2">Agent is completing the investigation...</h2>
+            <h2 className="text-white text-2xl font-bold mb-2">Argus is completing the investigation...</h2>
             <p className="text-text-secondary text-sm">The briefing will appear once all incidents have been classified.</p>
           </div>
           <div className="w-full bg-surface-3 rounded-full h-2 border border-border overflow-hidden">

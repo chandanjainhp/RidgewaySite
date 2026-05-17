@@ -1,10 +1,10 @@
-# Ridgeway Site - Overnight Intelligence Platform
+# Sentinel — Overnight Intelligence Platform
 
-AI-first intelligence platform that transforms fragmented overnight operational signals into a validated morning briefing for industrial site operators.
+AI-first intelligence platform that transforms fragmented overnight operational signals into a validated morning briefing for industrial site operators. The in-product AI agent is named **Argus**.
 
 ## Overview
 
-Ridgeway Site is a full-stack, multi-tenant platform that processes overnight sensor events and incidents, runs AI-driven investigations, and delivers structured morning briefings. It supports Role-Based Access Control (RBAC), RAG-powered document intelligence, a Model Context Protocol (MCP) server for AI agent integration, and a full webhook/audit system.
+Sentinel is a full-stack, multi-tenant platform that processes overnight sensor events and incidents, runs AI-driven investigations (powered by Argus, the platform's always-watching agent), and delivers structured morning briefings. It supports Role-Based Access Control (RBAC), RAG-powered document intelligence, a Model Context Protocol (MCP) server for AI agent integration, and a full webhook/audit system.
 
 ---
 
@@ -70,6 +70,7 @@ RidgewaySite/
 │   │   │   ├── admin/              # Super-admin panel (org/user/job management)
 │   │   │   ├── briefing/           # Morning briefing view
 │   │   │   ├── dashboard/          # Main operational dashboard
+│   │   │   ├── docs/               # In-app developer documentation
 │   │   │   ├── incident/           # Incident detail view
 │   │   │   ├── investigate/        # AI investigation runner
 │   │   │   ├── settings/
@@ -96,7 +97,7 @@ RidgewaySite/
 │   │   ├── queues/                 # BullMQ queue definitions
 │   │   ├── routes/                 # Express routers
 │   │   ├── services/               # Embedding, webhook, email services
-│   │   ├── scripts/                # One-off scripts (seedTestData.js)
+│   │   ├── scripts/                # One-off scripts (seedTestData.js, clearSeedData.js)
 │   │   ├── tools/                  # MCP tool implementations
 │   │   ├── utils/                  # Logger, async handler, helpers
 │   │   └── validators/             # Zod/Joi validators
@@ -155,7 +156,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 # Option B: OpenRouter
 OPENROUTER_API_KEY=sk-or-...
-OPENROUTER_MODEL=anthropic/claude-3-sonnet   # optional, defaults to claude-3-sonnet
+OPENROUTER_MODEL=anthropic/claude-sonnet-4   # tool-capable allowlist: claude-sonnet-4, claude-3.5-sonnet, claude-3-haiku
 
 # Option C: LM Studio (local model, OpenAI-compatible)
 OPENAI_BASE_URL=http://localhost:1234/v1     # set this to activate LM Studio provider
@@ -164,7 +165,7 @@ LMSTUDIO_MAX_TOKENS=800                     # optional cap on output tokens (def
 
 # Embeddings (used by all providers for RAG)
 OPENAI_API_KEY=your-openai-key             # or "lm-studio" when using LM Studio
-EMBEDDING_MODEL=text-embedding-3-small     # or your local model name
+EMBEDDING_MODEL=text-embedding-3-small     # OpenAI default; for LM Studio use text-embedding-nomic-embed-text-v1.5-embedding (or whatever id LM Studio exposes)
 
 # Qdrant
 QDRANT_URL=http://localhost:6333
@@ -385,6 +386,18 @@ bun run start  # Production mode
 ```bash
 cd server
 MONGODB_URL=mongodb://... bun run src/scripts/seedTestData.js
+```
+
+**Clear seed data** (removes all seeded records — does not touch real org data):
+```bash
+cd server
+MONGODB_URL=mongodb://... bun run src/scripts/clearSeedData.js
+```
+
+**Backfill `orgId` on legacy reviews** (one-off migration for pre-RBAC review docs):
+```bash
+cd server
+MONGODB_URL=mongodb://... bun run src/scripts/migrate-review-orgId.js
 ```
 
 ### Client

@@ -1,5 +1,5 @@
 {
-  "name": " RidgewaySite",
+  "name": "sentinel-server",
   "version": "1.0.0",
   "description": "Deliver a hosted, AI-first intelligence platform that transforms fragmented overnight operational signals into a validated morning briefing for industrial site operators.",
   "main": "src/index.js",

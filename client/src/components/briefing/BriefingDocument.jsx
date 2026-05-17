@@ -32,7 +32,7 @@ export default function BriefingDocument({ briefing, isApproved }) {
     <>
       {/* Print head — invisible on screen */}
       <div className="hidden print:block print:mb-6 print:pb-4 print:border-b print:border-black">
-        <h1 className="text-2xl font-bold text-black">Ridgeway Site — Morning Briefing</h1>
+        <h1 className="text-2xl font-bold text-black">Sentinel — Morning Briefing</h1>
         <p className="text-sm text-gray-600 mt-1">{new Date().toLocaleDateString("en-GB", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
       </div>
 
@@ -42,15 +42,33 @@ export default function BriefingDocument({ briefing, isApproved }) {
         {briefing === null ? (
           SECTION_ORDER.map((key) => <SectionSkeleton key={key} />)
         ) : (
-          SECTION_ORDER.map((key) => (
-            <BriefingSection
-              key={key}
-              sectionName={key}
-              sectionData={briefing.sections?.[key] || { agentDraft: "", mayaVersion: null, isEdited: false }}
-              briefingId={briefing.id}
-              isApproved={isApproved}
-            />
-          ))
+          <>
+            {SECTION_ORDER.map((key) => (
+              <BriefingSection
+                key={key}
+                sectionName={key}
+                sectionData={briefing.sections?.[key] || { agentDraft: "", mayaVersion: null, isEdited: false }}
+                briefingId={briefing.id}
+                isApproved={isApproved}
+              />
+            ))}
+            {Array.isArray(briefing.ragSources) && briefing.ragSources.length > 0 && (
+              <div
+                style={{
+                  padding: "16px 32px",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "var(--text-xs)",
+                  color: "var(--fg-3)",
+                  letterSpacing: "0.04em",
+                }}
+              >
+                <span style={{ textTransform: "uppercase", marginRight: "8px", color: "var(--fg-4)" }}>
+                  Argus referenced:
+                </span>
+                {briefing.ragSources.join(" · ")}
+              </div>
+            )}
+          </>
         )}
       </article>
 

@@ -12,6 +12,9 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import { listOrgApiKeys, createOrgApiKey, revokeOrgApiKey } from '@/lib/api';
 
+const MONO = 'var(--font-mono)';
+const SANS = 'var(--font-sans)';
+
 const SCOPES = [
   { id: 'events:read',          desc: 'Read overnight events' },
   { id: 'incidents:read',       desc: 'Read incidents and evidence' },
@@ -28,22 +31,104 @@ const EXPIRY_OPTIONS = [
   { label: '1 year',    value: '365' },
 ];
 
+const LABEL_STYLE = {
+  display: 'block',
+  fontFamily: MONO,
+  fontSize: '10px',
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  letterSpacing: '0.12em',
+  color: 'var(--fg-3)',
+  marginBottom: '6px',
+};
+
+const INPUT_STYLE = {
+  width: '100%',
+  padding: '8px 10px',
+  background: 'var(--bg-surface-2)',
+  border: '1px solid var(--border-default)',
+  borderRadius: '2px',
+  color: 'var(--fg-1)',
+  fontFamily: SANS,
+  fontSize: '13px',
+  outline: 'none',
+};
+
+const PRIMARY_BTN = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '6px',
+  padding: '8px 14px',
+  background: 'var(--accent)',
+  color: 'var(--bg-base)',
+  border: '1px solid var(--accent)',
+  borderRadius: '2px',
+  fontFamily: MONO,
+  fontSize: '11px',
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  letterSpacing: '0.1em',
+  cursor: 'pointer',
+};
+
+const SECONDARY_BTN = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '6px',
+  padding: '8px 14px',
+  background: 'transparent',
+  color: 'var(--fg-2)',
+  border: '1px solid var(--border-default)',
+  borderRadius: '2px',
+  fontFamily: MONO,
+  fontSize: '11px',
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  letterSpacing: '0.1em',
+  cursor: 'pointer',
+};
+
 /* ── helpers ── */
 
 function ScopeBadges({ scopes }) {
   const visible = (scopes ?? []).slice(0, 3);
   const extra   = (scopes ?? []).slice(3);
   return (
-    <div className="flex flex-wrap gap-1">
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
       {visible.map((s) => (
-        <span key={s} className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-mono font-medium bg-indigo-50 text-indigo-700">
+        <span
+          key={s}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: '2px 6px',
+            borderRadius: '2px',
+            border: '1px solid var(--border-hairline)',
+            background: 'var(--bg-surface-2)',
+            color: 'var(--accent)',
+            fontFamily: MONO,
+            fontSize: '10px',
+            letterSpacing: '0.04em',
+          }}
+        >
           {s}
         </span>
       ))}
       {extra.length > 0 && (
         <span
           title={extra.join(', ')}
-          className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 cursor-default"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: '2px 6px',
+            borderRadius: '2px',
+            border: '1px solid var(--border-hairline)',
+            background: 'var(--bg-surface-2)',
+            color: 'var(--fg-3)',
+            fontFamily: MONO,
+            fontSize: '10px',
+            cursor: 'default',
+          }}
         >
           +{extra.length}
         </span>
@@ -150,132 +235,312 @@ export default function ApiKeysSettingsPage() {
 
   const canCreate = keyName.trim() && selectedScopes.length > 0 && !createMutation.isPending;
 
+  const thStyle = {
+    padding: '10px 14px',
+    textAlign: 'left',
+    fontFamily: MONO,
+    fontSize: '10px',
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.12em',
+    color: 'var(--fg-3)',
+    borderBottom: '1px solid var(--border-default)',
+    background: 'var(--bg-surface-2)',
+  };
+
+  const tdStyle = {
+    padding: '12px 14px',
+    fontFamily: SANS,
+    fontSize: '13px',
+    color: 'var(--fg-2)',
+    borderBottom: '1px solid var(--border-hairline)',
+  };
+
   /* ── render ── */
   return (
-    <div className="space-y-8">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
 
       {/* page header */}
-      <div className="flex items-start justify-between gap-4">
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900 flex items-center gap-2">
-            <Key className="w-5 h-5 text-indigo-500" />
+          <h1 style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontFamily: SANS,
+            fontSize: '18px',
+            fontWeight: 600,
+            color: 'var(--fg-1)',
+            margin: 0,
+            letterSpacing: '-0.01em',
+          }}>
+            <Key size={16} style={{ color: 'var(--accent)' }} />
             API Keys
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Create keys to connect external applications and AI agents to your Ridgeway data.
+          <p style={{
+            marginTop: '6px',
+            marginBottom: 0,
+            fontFamily: SANS,
+            fontSize: '12px',
+            color: 'var(--fg-3)',
+          }}>
+            Create keys to connect external applications and AI agents to your Sentinel data.
           </p>
         </div>
         {isAdmin && (
-          <button
-            onClick={openModal}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-sm flex-shrink-0"
-          >
-            <Plus className="w-4 h-4" />
+          <button onClick={openModal} style={{ ...PRIMARY_BTN, flexShrink: 0 }}>
+            <Plus size={12} />
             Create API key
           </button>
         )}
       </div>
 
       {/* keys table */}
-      <section className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
-          <Key className="w-4 h-4 text-gray-500" />
-          <h2 className="text-base font-semibold text-gray-900">Active Keys</h2>
+      <section style={{
+        background: 'var(--bg-surface-1)',
+        border: '1px solid var(--border-default)',
+        borderRadius: '2px',
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          padding: '12px 16px',
+          borderBottom: '1px solid var(--border-hairline)',
+          background: 'var(--bg-surface-2)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+        }}>
+          <Key size={12} style={{ color: 'var(--fg-3)' }} />
+          <h2 style={{
+            margin: 0,
+            fontFamily: MONO,
+            fontSize: '10px',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.12em',
+            color: 'var(--fg-2)',
+          }}>
+            Active Keys
+          </h2>
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-16 text-gray-400">
-            <Loader2 className="w-6 h-6 animate-spin mr-2" />
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '64px 0',
+            color: 'var(--fg-3)',
+            fontFamily: MONO,
+            fontSize: '11px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.1em',
+          }}>
+            <Loader2 size={16} className="animate-spin" style={{ marginRight: '8px' }} />
             Loading keys…
           </div>
         ) : isError ? (
-          <div className="px-6 py-8">
-            <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700 text-sm">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          <div style={{ padding: '24px' }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              border: '1px solid var(--sev-serious)',
+              background: 'var(--bg-surface-2)',
+              borderRadius: '2px',
+              padding: '12px 14px',
+              color: 'var(--sev-serious)',
+              fontFamily: SANS,
+              fontSize: '13px',
+            }}>
+              <AlertTriangle size={14} style={{ flexShrink: 0 }} />
               Failed to load API keys.
-              <button onClick={() => refetch()} className="ml-auto font-medium hover:underline text-red-600">
+              <button
+                onClick={() => refetch()}
+                style={{
+                  marginLeft: 'auto',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--sev-serious)',
+                  fontFamily: MONO,
+                  fontSize: '10px',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.1em',
+                  cursor: 'pointer',
+                }}
+              >
                 Retry
               </button>
             </div>
           </div>
         ) : keys.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center px-6">
-            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-              <Key className="w-6 h-6 text-gray-400" />
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '64px 24px',
+            textAlign: 'center',
+          }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '2px',
+              background: 'var(--bg-surface-2)',
+              border: '1px solid var(--border-hairline)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '12px',
+            }}>
+              <Key size={18} style={{ color: 'var(--fg-4)' }} />
             </div>
-            <p className="text-sm font-medium text-gray-700 mb-1">No API keys yet</p>
-            <p className="text-xs text-gray-500 mb-4">Create a key to connect external tools or AI agents.</p>
+            <p style={{
+              margin: '0 0 4px 0',
+              fontFamily: SANS,
+              fontSize: '13px',
+              fontWeight: 600,
+              color: 'var(--fg-2)',
+            }}>
+              No API keys yet
+            </p>
+            <p style={{
+              margin: '0 0 16px 0',
+              fontFamily: SANS,
+              fontSize: '12px',
+              color: 'var(--fg-3)',
+            }}>
+              Create a key to connect external tools or AI agents.
+            </p>
             {isAdmin && (
-              <button
-                onClick={openModal}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-sm"
-              >
-                <Plus className="w-4 h-4" />
+              <button onClick={openModal} style={PRIMARY_BTN}>
+                <Plus size={12} />
                 Create API key
               </button>
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b border-gray-200">
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
                 <tr>
-                  <th className="px-6 py-3 font-semibold">Name</th>
-                  <th className="px-6 py-3 font-semibold">Key prefix</th>
-                  <th className="px-6 py-3 font-semibold">Scopes</th>
-                  <th className="px-6 py-3 font-semibold">Created</th>
-                  <th className="px-6 py-3 font-semibold">Last used</th>
-                  {isAdmin && <th className="px-6 py-3 font-semibold text-right">Actions</th>}
+                  <th style={thStyle}>Name</th>
+                  <th style={thStyle}>Key prefix</th>
+                  <th style={thStyle}>Scopes</th>
+                  <th style={thStyle}>Created</th>
+                  <th style={thStyle}>Last used</th>
+                  {isAdmin && <th style={{ ...thStyle, textAlign: 'right' }}>Actions</th>}
                 </tr>
               </thead>
               <tbody>
                 {keys.map((k) => (
-                  <tr key={k._id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="px-6 py-4 font-medium text-gray-900">{k.name}</td>
-                    <td className="px-6 py-4">
-                      <code className="text-xs font-mono bg-gray-100 text-gray-800 px-2 py-1 rounded">
+                  <tr key={k._id}>
+                    <td style={{ ...tdStyle, color: 'var(--fg-1)', fontWeight: 500 }}>{k.name}</td>
+                    <td style={tdStyle}>
+                      <code style={{
+                        fontFamily: MONO,
+                        fontSize: '11px',
+                        background: 'var(--bg-surface-2)',
+                        color: 'var(--fg-1)',
+                        padding: '2px 6px',
+                        borderRadius: '2px',
+                        border: '1px solid var(--border-hairline)',
+                      }}>
                         {k.keyPrefix}
                       </code>
                     </td>
-                    <td className="px-6 py-4">
+                    <td style={tdStyle}>
                       <ScopeBadges scopes={k.scopes} />
                     </td>
-                    <td className="px-6 py-4 text-gray-500 whitespace-nowrap">
+                    <td style={{ ...tdStyle, color: 'var(--fg-3)', whiteSpace: 'nowrap' }}>
                       {k.createdAt ? format(new Date(k.createdAt), 'MMM d, yyyy') : '—'}
                     </td>
-                    <td className="px-6 py-4 text-gray-500 whitespace-nowrap">
+                    <td style={{ ...tdStyle, color: 'var(--fg-3)', whiteSpace: 'nowrap' }}>
                       {k.lastUsedAt
                         ? formatDistanceToNow(new Date(k.lastUsedAt), { addSuffix: true })
                         : 'Never'}
                     </td>
                     {isAdmin && (
-                      <td className="px-6 py-4 text-right">
-                        <div className="relative inline-block">
+                      <td style={{ ...tdStyle, textAlign: 'right' }}>
+                        <div style={{ position: 'relative', display: 'inline-block' }}>
                           <button
                             onClick={() => setRevokeId(revokeId === k._id ? null : k._id)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-md hover:bg-red-50 transition-colors"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '5px 10px',
+                              fontFamily: MONO,
+                              fontSize: '10px',
+                              fontWeight: 600,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.1em',
+                              color: 'var(--sev-serious)',
+                              background: 'transparent',
+                              border: '1px solid var(--border-default)',
+                              borderRadius: '2px',
+                              cursor: 'pointer',
+                            }}
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 size={11} />
                             Revoke
                           </button>
                           {revokeId === k._id && (
-                            <div className="absolute right-0 top-full mt-1 z-10 w-64 bg-white border border-gray-200 rounded-lg shadow-lg p-4">
-                              <p className="text-sm text-gray-700 mb-3">
+                            <div style={{
+                              position: 'absolute',
+                              right: 0,
+                              top: '100%',
+                              marginTop: '4px',
+                              zIndex: 10,
+                              width: '256px',
+                              background: 'var(--bg-surface-1)',
+                              border: '1px solid var(--border-strong)',
+                              borderRadius: '2px',
+                              padding: '14px',
+                              textAlign: 'left',
+                            }}>
+                              <p style={{
+                                margin: '0 0 12px 0',
+                                fontFamily: SANS,
+                                fontSize: '12px',
+                                color: 'var(--fg-2)',
+                              }}>
                                 Revoke this key? All requests using it will fail immediately.
                               </p>
-                              <div className="flex justify-end gap-2">
+                              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                                 <button
                                   onClick={() => setRevokeId(null)}
-                                  className="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+                                  style={{
+                                    ...SECONDARY_BTN,
+                                    padding: '5px 10px',
+                                    fontSize: '10px',
+                                  }}
                                 >
                                   Cancel
                                 </button>
                                 <button
                                   onClick={() => revokeMutation.mutate(k._id)}
                                   disabled={revokeMutation.isPending}
-                                  className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50"
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    padding: '5px 10px',
+                                    fontFamily: MONO,
+                                    fontSize: '10px',
+                                    fontWeight: 600,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.1em',
+                                    color: 'var(--bg-base)',
+                                    background: 'var(--sev-serious)',
+                                    border: '1px solid var(--sev-serious)',
+                                    borderRadius: '2px',
+                                    cursor: revokeMutation.isPending ? 'not-allowed' : 'pointer',
+                                    opacity: revokeMutation.isPending ? 0.5 : 1,
+                                  }}
                                 >
-                                  {revokeMutation.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
+                                  {revokeMutation.isPending && <Loader2 size={10} className="animate-spin" />}
                                   Revoke
                                 </button>
                               </div>
@@ -303,27 +568,73 @@ export default function ApiKeysSettingsPage() {
         }}
       >
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black/50 z-40" />
-          <Dialog.Content className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-white rounded-xl shadow-2xl focus:outline-none">
+          <Dialog.Overlay style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            zIndex: 40,
+          }} />
+          <Dialog.Content style={{
+            position: 'fixed',
+            zIndex: 50,
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '100%',
+            maxWidth: '520px',
+            background: 'var(--bg-surface-1)',
+            border: '1px solid var(--border-strong)',
+            borderRadius: '2px',
+            outline: 'none',
+          }}>
 
             {/* modal header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-              <Dialog.Title className="text-base font-semibold text-gray-900">
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '14px 18px',
+              borderBottom: '1px solid var(--border-default)',
+            }}>
+              <Dialog.Title style={{
+                margin: 0,
+                fontFamily: MONO,
+                fontSize: '11px',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.12em',
+                color: 'var(--fg-1)',
+              }}>
                 {modalState === 'form' ? 'Create API Key' : 'Your New API Key'}
               </Dialog.Title>
               {modalState === 'form' ? (
                 <Dialog.Close asChild>
-                  <button className="text-gray-400 hover:text-gray-600">
-                    <X className="w-5 h-5" />
+                  <button style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--fg-3)',
+                    cursor: 'pointer',
+                    padding: 0,
+                    display: 'flex',
+                  }}>
+                    <X size={16} />
                   </button>
                 </Dialog.Close>
               ) : (
                 <button
                   onClick={closeModal}
                   disabled={!keyAcked}
-                  className="text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--fg-3)',
+                    cursor: keyAcked ? 'pointer' : 'not-allowed',
+                    opacity: keyAcked ? 1 : 0.3,
+                    padding: 0,
+                    display: 'flex',
+                  }}
                 >
-                  <X className="w-5 h-5" />
+                  <X size={16} />
                 </button>
               )}
             </div>
@@ -331,61 +642,103 @@ export default function ApiKeysSettingsPage() {
             {/* form state */}
             {modalState === 'form' && (
               <form onSubmit={handleCreate}>
-                <div className="px-6 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
+                <div style={{
+                  padding: '18px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '18px',
+                  maxHeight: '70vh',
+                  overflowY: 'auto',
+                }}>
 
                   {/* name */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Name
-                    </label>
+                    <label style={LABEL_STYLE}>Name</label>
                     <input
                       type="text"
                       required
                       placeholder="e.g. Claude.ai integration"
                       value={keyName}
                       onChange={(e) => setKeyName(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                      style={INPUT_STYLE}
                     />
                   </div>
 
                   {/* scopes */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Scopes
-                    </label>
-                    <div className="space-y-2.5">
+                    <label style={LABEL_STYLE}>Scopes</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       {SCOPES.map((scope) => (
-                        <label key={scope.id} className="flex items-start gap-3 cursor-pointer">
+                        <label key={scope.id} style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '10px',
+                          cursor: 'pointer',
+                        }}>
                           <Checkbox.Root
                             checked={selectedScopes.includes(scope.id)}
                             onCheckedChange={() => toggleScope(scope.id)}
-                            className="mt-0.5 w-4 h-4 flex-shrink-0 border-2 border-gray-300 rounded bg-white data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            style={{
+                              marginTop: '2px',
+                              width: '14px',
+                              height: '14px',
+                              flexShrink: 0,
+                              border: '1px solid var(--border-strong)',
+                              borderRadius: '2px',
+                              background: 'var(--bg-surface-2)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: 0,
+                            }}
                           >
                             <Checkbox.Indicator>
-                              <Check className="w-3 h-3 text-white" />
+                              <Check size={10} style={{ color: 'var(--accent)' }} />
                             </Checkbox.Indicator>
                           </Checkbox.Root>
                           <div>
-                            <span className="text-sm font-mono font-medium text-gray-800">{scope.id}</span>
-                            <span className="text-xs text-gray-500 ml-2">{scope.desc}</span>
+                            <span style={{
+                              fontFamily: MONO,
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              color: 'var(--fg-1)',
+                            }}>
+                              {scope.id}
+                            </span>
+                            <span style={{
+                              fontFamily: SANS,
+                              fontSize: '12px',
+                              color: 'var(--fg-3)',
+                              marginLeft: '8px',
+                            }}>
+                              {scope.desc}
+                            </span>
                           </div>
                         </label>
                       ))}
                     </div>
                     {selectedScopes.length === 0 && (
-                      <p className="mt-2 text-xs text-gray-400">Select at least one scope.</p>
+                      <p style={{
+                        marginTop: '8px',
+                        marginBottom: 0,
+                        fontFamily: MONO,
+                        fontSize: '10px',
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                        color: 'var(--fg-4)',
+                      }}>
+                        Select at least one scope.
+                      </p>
                     )}
                   </div>
 
                   {/* expiry */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Expiry
-                    </label>
+                    <label style={LABEL_STYLE}>Expiry</label>
                     <select
                       value={expiresIn}
                       onChange={(e) => setExpiresIn(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      style={INPUT_STYLE}
                     >
                       {EXPIRY_OPTIONS.map((opt) => (
                         <option key={opt.label} value={opt.value}>{opt.label}</option>
@@ -394,28 +747,47 @@ export default function ApiKeysSettingsPage() {
                   </div>
 
                   {createError && (
-                    <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700 text-sm">
-                      <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      border: '1px solid var(--sev-serious)',
+                      background: 'var(--bg-surface-2)',
+                      borderRadius: '2px',
+                      padding: '10px 12px',
+                      color: 'var(--sev-serious)',
+                      fontFamily: SANS,
+                      fontSize: '12px',
+                    }}>
+                      <AlertTriangle size={14} style={{ flexShrink: 0 }} />
                       {createError}
                     </div>
                   )}
                 </div>
 
-                <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
+                <div style={{
+                  padding: '14px 18px',
+                  background: 'var(--bg-surface-2)',
+                  borderTop: '1px solid var(--border-hairline)',
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: '10px',
+                }}>
                   <Dialog.Close asChild>
-                    <button
-                      type="button"
-                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
+                    <button type="button" style={SECONDARY_BTN}>
                       Cancel
                     </button>
                   </Dialog.Close>
                   <button
                     type="submit"
                     disabled={!canCreate}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
+                    style={{
+                      ...PRIMARY_BTN,
+                      opacity: canCreate ? 1 : 0.4,
+                      cursor: canCreate ? 'pointer' : 'not-allowed',
+                    }}
                   >
-                    {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {createMutation.isPending && <Loader2 size={12} className="animate-spin" />}
                     {createMutation.isPending ? 'Creating…' : 'Create Key'}
                   </button>
                 </div>
@@ -424,47 +796,105 @@ export default function ApiKeysSettingsPage() {
 
             {/* reveal state */}
             {modalState === 'reveal' && (
-              <div className="px-6 py-5 space-y-4">
-                <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                  <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-amber-800 font-medium">
+              <div style={{
+                padding: '18px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px',
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                  padding: '12px 14px',
+                  background: 'var(--bg-surface-2)',
+                  border: '1px solid var(--sev-warning)',
+                  borderRadius: '2px',
+                }}>
+                  <AlertTriangle size={16} style={{ color: 'var(--sev-warning)', flexShrink: 0, marginTop: '1px' }} />
+                  <p style={{
+                    margin: 0,
+                    fontFamily: SANS,
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    color: 'var(--sev-warning)',
+                  }}>
                     This key will never be shown again. Copy it now and store it securely.
                   </p>
                 </div>
 
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                  <div className="flex items-center gap-3">
-                    <code className="flex-1 text-sm font-mono text-gray-900 break-all">{newKey}</code>
+                <div style={{
+                  borderRadius: '2px',
+                  border: '1px solid var(--border-default)',
+                  background: 'var(--bg-surface-2)',
+                  padding: '12px',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <code style={{
+                      flex: 1,
+                      fontFamily: MONO,
+                      fontSize: '12px',
+                      color: 'var(--fg-1)',
+                      wordBreak: 'break-all',
+                    }}>
+                      {newKey}
+                    </code>
                     <button
                       onClick={handleCopyKey}
-                      className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                      style={{
+                        ...SECONDARY_BTN,
+                        flexShrink: 0,
+                        padding: '5px 10px',
+                        fontSize: '10px',
+                      }}
                     >
                       {keyCopied
-                        ? <Check className="w-3.5 h-3.5 text-green-600" />
-                        : <Copy className="w-3.5 h-3.5" />}
+                        ? <Check size={11} style={{ color: 'var(--sev-harmless)' }} />
+                        : <Copy size={11} />}
                       {keyCopied ? 'Copied!' : 'Copy'}
                     </button>
                   </div>
                 </div>
 
-                <label className="flex items-center gap-3 cursor-pointer">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
                   <Checkbox.Root
                     checked={keyAcked}
                     onCheckedChange={setKeyAcked}
-                    className="w-4 h-4 flex-shrink-0 border-2 border-gray-300 rounded bg-white data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    style={{
+                      width: '14px',
+                      height: '14px',
+                      flexShrink: 0,
+                      border: '1px solid var(--border-strong)',
+                      borderRadius: '2px',
+                      background: 'var(--bg-surface-2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 0,
+                    }}
                   >
                     <Checkbox.Indicator>
-                      <Check className="w-3 h-3 text-white" />
+                      <Check size={10} style={{ color: 'var(--accent)' }} />
                     </Checkbox.Indicator>
                   </Checkbox.Root>
-                  <span className="text-sm text-gray-700">I have copied my key</span>
+                  <span style={{
+                    fontFamily: SANS,
+                    fontSize: '13px',
+                    color: 'var(--fg-2)',
+                  }}>
+                    I have copied my key
+                  </span>
                 </label>
 
-                <div className="flex justify-end pt-1">
+                <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '4px' }}>
                   <button
                     onClick={closeModal}
                     disabled={!keyAcked}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
+                    style={{
+                      ...PRIMARY_BTN,
+                      opacity: keyAcked ? 1 : 0.4,
+                      cursor: keyAcked ? 'pointer' : 'not-allowed',
+                    }}
                   >
                     Done
                   </button>

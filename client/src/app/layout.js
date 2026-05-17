@@ -3,8 +3,8 @@ import Providers from "@/components/shared/Providers";
 import RootFrame from "@/components/layout/RootFrame";
 
 export const metadata = {
-  title: "6:10 Assistant | Ridgeway Site",
-  description: "Ridgeway Site Overnight Intelligence Platform. Mission Control.",
+  title: "6:10 Assistant | Sentinel",
+  description: "Sentinel Overnight Intelligence Platform. Mission Control.",
   icons: {
     icon: [
       { url: "/icon-light-32x32.png", media: "(prefers-color-scheme: light)" },

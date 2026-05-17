@@ -18,6 +18,9 @@ import {
   rejectOrgDocument,
 } from '@/lib/api';
 
+const MONO = 'var(--font-mono)';
+const SANS = 'var(--font-sans)';
+
 /* ── helpers ─────────────────────────────────────────────── */
 
 function formatFileSize(bytes) {
@@ -48,30 +51,73 @@ function validateFile(file) {
   return null;
 }
 
+/* ── shared button styles ─────────────────────────────────── */
+
+const primaryBtnStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '6px',
+  padding: '8px 12px',
+  background: 'var(--accent)',
+  color: 'var(--bg-base)',
+  border: '1px solid var(--accent)',
+  borderRadius: '2px',
+  fontFamily: MONO,
+  fontSize: '10px',
+  fontWeight: 700,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+  cursor: 'pointer',
+};
+
+const secondaryBtnStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '6px',
+  padding: '8px 12px',
+  background: 'var(--bg-surface-1)',
+  color: 'var(--fg-2)',
+  border: '1px solid var(--border-default)',
+  borderRadius: '2px',
+  fontFamily: MONO,
+  fontSize: '10px',
+  fontWeight: 600,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+  cursor: 'pointer',
+};
+
+const dangerBtnStyle = {
+  ...primaryBtnStyle,
+  background: 'var(--sev-serious)',
+  border: '1px solid var(--sev-serious)',
+  color: 'var(--bg-base)',
+};
+
 /* ── FileTypeIcon ─────────────────────────────────────────── */
 
-function FileTypeIcon({ mimeType, className = 'w-5 h-5' }) {
+function FileTypeIcon({ mimeType, size = 16 }) {
   if (mimeType === 'application/pdf') {
-    return <FileText className={`${className} text-red-500`} />;
+    return <FileText size={size} style={{ color: 'var(--sev-serious)', flexShrink: 0 }} />;
   }
   if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-    return <FileText className={`${className} text-blue-500`} />;
+    return <FileText size={size} style={{ color: 'var(--sev-info)', flexShrink: 0 }} />;
   }
   if (mimeType === 'text/plain') {
-    return <FileText className={`${className} text-gray-400`} />;
+    return <FileText size={size} style={{ color: 'var(--fg-3)', flexShrink: 0 }} />;
   }
-  return <File className={`${className} text-gray-400`} />;
+  return <File size={size} style={{ color: 'var(--fg-3)', flexShrink: 0 }} />;
 }
 
 /* ── StatusBadge ──────────────────────────────────────────── */
 
 const BADGE_STYLES = {
-  pending:  { color: 'var(--sev-minor)',    bg: 'rgba(232,154,43,0.10)', label: 'PENDING' },
+  pending:  { color: 'var(--sev-warning)',  bg: 'rgba(232,154,43,0.10)', label: 'PENDING' },
   approved: { color: 'var(--accent)',       bg: 'rgba(184,212,232,0.10)', label: 'APPROVED' },
   indexing: { color: 'var(--accent)',       bg: 'rgba(184,212,232,0.10)', label: 'INDEXING', spin: true },
   indexed:  { color: 'var(--sev-harmless)', bg: 'rgba(125,138,106,0.12)', label: 'ACTIVE' },
-  rejected: { color: 'var(--sev-serious)', bg: 'rgba(255,56,56,0.10)',   label: 'REJECTED' },
-  failed:   { color: 'var(--sev-serious)', bg: 'rgba(255,56,56,0.10)',   label: 'FAILED' },
+  rejected: { color: 'var(--sev-serious)',  bg: 'rgba(255,56,56,0.10)',   label: 'REJECTED' },
+  failed:   { color: 'var(--sev-serious)',  bg: 'rgba(255,56,56,0.10)',   label: 'FAILED' },
 };
 
 function StatusBadge({ status, chunkCount }) {
@@ -85,7 +131,7 @@ function StatusBadge({ status, chunkCount }) {
       padding: '2px 8px',
       background: s.bg,
       color: s.color,
-      fontFamily: 'var(--font-mono)',
+      fontFamily: MONO,
       fontSize: '10px',
       fontWeight: 700,
       letterSpacing: '0.1em',
@@ -98,6 +144,62 @@ function StatusBadge({ status, chunkCount }) {
     </span>
   );
 }
+
+/* ── modal shell ──────────────────────────────────────────── */
+
+const modalOverlay = {
+  position: 'fixed', inset: 0, zIndex: 50,
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  background: 'rgba(0,0,0,0.55)',
+};
+
+const modalCard = {
+  background: 'var(--bg-surface-1)',
+  border: '1px solid var(--border-default)',
+  borderRadius: '2px',
+  width: '100%',
+  maxWidth: '440px',
+  margin: '0 16px',
+  overflow: 'hidden',
+  fontFamily: SANS,
+};
+
+const modalHeader = {
+  padding: '14px 20px',
+  borderBottom: '1px solid var(--border-hairline)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+};
+
+const modalTitle = {
+  fontFamily: MONO,
+  fontSize: '11px',
+  fontWeight: 700,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+  color: 'var(--fg-1)',
+};
+
+const modalFooter = {
+  padding: '14px 20px',
+  borderTop: '1px solid var(--border-hairline)',
+  display: 'flex',
+  justifyContent: 'flex-end',
+  gap: '8px',
+  background: 'var(--bg-surface-2)',
+};
+
+const iconBtnStyle = {
+  background: 'transparent',
+  border: 'none',
+  color: 'var(--fg-3)',
+  cursor: 'pointer',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '4px',
+};
 
 /* ── UploadModal ──────────────────────────────────────────── */
 
@@ -149,16 +251,16 @@ function UploadModal({ onClose, onSuccess }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-900">Upload document</h2>
-          <button onClick={onClose} disabled={uploading} className="text-gray-400 hover:text-gray-600 disabled:opacity-40">
-            <X className="w-4 h-4" />
+    <div style={modalOverlay}>
+      <div style={modalCard}>
+        <div style={modalHeader}>
+          <h2 style={modalTitle}>Upload document</h2>
+          <button onClick={onClose} disabled={uploading} style={{ ...iconBtnStyle, opacity: uploading ? 0.4 : 1 }}>
+            <X size={14} />
           </button>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {!file ? (
             <>
               <div
@@ -166,40 +268,64 @@ function UploadModal({ onClose, onSuccess }) {
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                  isDragging
-                    ? 'border-indigo-400 bg-indigo-50'
-                    : 'border-gray-300 hover:border-indigo-300 hover:bg-gray-50'
-                }`}
+                style={{
+                  border: `1px dashed ${isDragging ? 'var(--accent)' : 'var(--border-default)'}`,
+                  background: isDragging ? 'rgba(184,212,232,0.06)' : 'var(--bg-surface-2)',
+                  borderRadius: '2px',
+                  padding: '28px',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  transition: 'border-color 120ms, background 120ms',
+                }}
               >
-                <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm font-medium text-gray-700">Drop a file here or click to browse</p>
-                <p className="text-xs text-gray-400 mt-1">PDF, DOCX, TXT · max 10 MB</p>
+                <Upload size={22} style={{ color: 'var(--fg-3)', display: 'block', margin: '0 auto 8px' }} />
+                <p style={{ fontFamily: SANS, fontSize: '13px', color: 'var(--fg-2)', margin: 0 }}>
+                  Drop a file here or click to browse
+                </p>
+                <p style={{
+                  fontFamily: MONO, fontSize: '10px', color: 'var(--fg-4)',
+                  letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: '6px',
+                }}>
+                  PDF · DOCX · TXT · max 10 MB
+                </p>
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept=".pdf,.docx,.txt"
-                  className="hidden"
+                  style={{ display: 'none' }}
                   onChange={(e) => e.target.files[0] && selectFile(e.target.files[0])}
                 />
               </div>
               {fileError && (
-                <p className="text-xs text-red-600 flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                <p style={{
+                  fontFamily: SANS, fontSize: '12px', color: 'var(--sev-serious)',
+                  display: 'flex', alignItems: 'center', gap: '6px', margin: 0,
+                }}>
+                  <AlertTriangle size={12} style={{ flexShrink: 0 }} />
                   {fileError}
                 </p>
               )}
             </>
           ) : (
-            <div className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50">
-              <FileTypeIcon mimeType={file.type} className="w-5 h-5 flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
-                <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '10px',
+              padding: '10px', border: '1px solid var(--border-hairline)',
+              borderRadius: '2px', background: 'var(--bg-surface-2)',
+            }}>
+              <FileTypeIcon mimeType={file.type} size={16} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{
+                  fontFamily: SANS, fontSize: '13px', color: 'var(--fg-1)',
+                  margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>{file.name}</p>
+                <p style={{
+                  fontFamily: MONO, fontSize: '10px', color: 'var(--fg-3)',
+                  letterSpacing: '0.08em', margin: '2px 0 0',
+                }}>{formatFileSize(file.size)}</p>
               </div>
               {!uploading && (
-                <button onClick={() => setFile(null)} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
-                  <X className="w-4 h-4" />
+                <button onClick={() => setFile(null)} style={iconBtnStyle}>
+                  <X size={14} />
                 </button>
               )}
             </div>
@@ -207,41 +333,51 @@ function UploadModal({ onClose, onSuccess }) {
 
           {uploading && (
             <div>
-              <div className="flex justify-between text-xs text-gray-500 mb-1.5">
+              <div style={{
+                display: 'flex', justifyContent: 'space-between',
+                fontFamily: MONO, fontSize: '10px', color: 'var(--fg-3)',
+                letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '6px',
+              }}>
                 <span>Uploading…</span>
                 <span>{progress}%</span>
               </div>
-              <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-indigo-500 transition-all duration-200 rounded-full"
-                  style={{ width: `${progress}%` }}
-                />
+              <div style={{
+                height: '4px', background: 'var(--bg-surface-3)',
+                borderRadius: '2px', overflow: 'hidden',
+              }}>
+                <div style={{
+                  height: '100%', background: 'var(--accent)',
+                  width: `${progress}%`, transition: 'width 200ms',
+                }} />
               </div>
             </div>
           )}
 
           {uploadError && (
-            <p className="text-xs text-red-600 flex items-center gap-1">
-              <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+            <p style={{
+              fontFamily: SANS, fontSize: '12px', color: 'var(--sev-serious)',
+              display: 'flex', alignItems: 'center', gap: '6px', margin: 0,
+            }}>
+              <AlertTriangle size={12} style={{ flexShrink: 0 }} />
               {uploadError}
             </p>
           )}
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50">
+        <div style={modalFooter}>
           <button
             onClick={onClose}
             disabled={uploading}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 transition-colors"
+            style={{ ...secondaryBtnStyle, opacity: uploading ? 0.4 : 1 }}
           >
             Cancel
           </button>
           <button
             onClick={handleUpload}
             disabled={!file || uploading}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
+            style={{ ...primaryBtnStyle, opacity: (!file || uploading) ? 0.4 : 1, cursor: (!file || uploading) ? 'not-allowed' : 'pointer' }}
           >
-            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+            {uploading ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Upload size={12} />}
             {uploading ? 'Uploading…' : 'Upload'}
           </button>
         </div>
@@ -266,39 +402,50 @@ function RejectModal({ docId, onClose, onSuccess }) {
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-900">Reject document</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X className="w-4 h-4" />
+    <div style={modalOverlay}>
+      <div style={{ ...modalCard, maxWidth: '380px' }}>
+        <div style={modalHeader}>
+          <h2 style={modalTitle}>Reject document</h2>
+          <button onClick={onClose} style={iconBtnStyle}>
+            <X size={14} />
           </button>
         </div>
-        <div className="p-6">
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            Reason <span className="text-gray-400 font-normal">(optional)</span>
+        <div style={{ padding: '20px' }}>
+          <label style={{
+            display: 'block',
+            fontFamily: MONO, fontSize: '10px', fontWeight: 600,
+            letterSpacing: '0.1em', textTransform: 'uppercase',
+            color: 'var(--fg-3)', marginBottom: '8px',
+          }}>
+            Reason <span style={{ color: 'var(--fg-4)', fontWeight: 400 }}>(optional)</span>
           </label>
           <textarea
             rows={3}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Explain why this document is being rejected…"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            style={{
+              width: '100%',
+              padding: '8px 10px',
+              border: '1px solid var(--border-default)',
+              borderRadius: '2px',
+              background: 'var(--bg-base)',
+              color: 'var(--fg-1)',
+              fontFamily: SANS,
+              fontSize: '13px',
+              resize: 'none',
+              outline: 'none',
+            }}
           />
         </div>
-        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
+        <div style={modalFooter}>
+          <button onClick={onClose} style={secondaryBtnStyle}>Cancel</button>
           <button
             onClick={() => rejectMutation.mutate()}
             disabled={rejectMutation.isPending}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-40 transition-colors"
+            style={{ ...dangerBtnStyle, opacity: rejectMutation.isPending ? 0.4 : 1 }}
           >
-            {rejectMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+            {rejectMutation.isPending && <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />}
             Reject
           </button>
         </div>
@@ -323,16 +470,25 @@ function DeleteConfirmModal({ doc, onClose, onSuccess }) {
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 overflow-hidden">
-        <div className="px-6 py-5">
-          <div className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-9 h-9 bg-red-100 rounded-full flex items-center justify-center">
-              <Trash2 className="w-4 h-4 text-red-600" />
+    <div style={modalOverlay}>
+      <div style={{ ...modalCard, maxWidth: '380px' }}>
+        <div style={{ padding: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+            <div style={{
+              flexShrink: 0, width: '32px', height: '32px',
+              background: 'rgba(255,56,56,0.12)',
+              border: '1px solid var(--sev-serious)',
+              borderRadius: '2px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Trash2 size={14} style={{ color: 'var(--sev-serious)' }} />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-gray-900">Delete document?</h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <h2 style={modalTitle}>Delete document?</h2>
+              <p style={{
+                fontFamily: SANS, fontSize: '13px', color: 'var(--fg-3)',
+                marginTop: '8px', margin: '8px 0 0', lineHeight: 1.5,
+              }}>
                 {doc.status === 'indexed'
                   ? 'This document is indexed. Deleting it will remove its content from AI context.'
                   : 'This action cannot be undone.'}
@@ -340,19 +496,14 @@ function DeleteConfirmModal({ doc, onClose, onSuccess }) {
             </div>
           </div>
         </div>
-        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
+        <div style={modalFooter}>
+          <button onClick={onClose} style={secondaryBtnStyle}>Cancel</button>
           <button
             onClick={() => deleteMutation.mutate()}
             disabled={deleteMutation.isPending}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-40 transition-colors"
+            style={{ ...dangerBtnStyle, opacity: deleteMutation.isPending ? 0.4 : 1 }}
           >
-            {deleteMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+            {deleteMutation.isPending && <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />}
             Delete
           </button>
         </div>
@@ -418,23 +569,23 @@ export default function DocumentsPage() {
   function getExpandedContent(doc) {
     if (doc.status === 'rejected') {
       return (
-        <span className="text-sm text-gray-600">
-          <span className="font-medium text-red-700">Rejection reason: </span>
+        <span style={{ fontFamily: SANS, fontSize: '12px', color: 'var(--fg-3)' }}>
+          <span style={{ fontWeight: 600, color: 'var(--sev-serious)' }}>Rejection reason: </span>
           {doc.rejectionReason || 'No reason provided'}
         </span>
       );
     }
     if (doc.status === 'failed') {
       return (
-        <span className="text-sm text-red-700">
-          <span className="font-medium">Error: </span>
+        <span style={{ fontFamily: SANS, fontSize: '12px', color: 'var(--sev-serious)' }}>
+          <span style={{ fontWeight: 600 }}>Error: </span>
           {doc.errorMessage || 'Unknown error'}
         </span>
       );
     }
     if (doc.status === 'indexed') {
       return (
-        <span className="text-sm text-gray-600">
+        <span style={{ fontFamily: SANS, fontSize: '12px', color: 'var(--fg-3)' }}>
           Indexed {doc.chunkCount} chunk{doc.chunkCount !== 1 ? 's' : ''} on {formatDate(doc.indexedAt)}
         </span>
       );
@@ -445,29 +596,40 @@ export default function DocumentsPage() {
       indexing: 'Being processed — this may take a minute for large documents',
     };
     return (
-      <span className="text-sm text-gray-500">
+      <span style={{ fontFamily: SANS, fontSize: '12px', color: 'var(--fg-3)' }}>
         Uploaded {formatDate(doc.createdAt)} — {desc[doc.status] ?? doc.status}
       </span>
     );
   }
 
+  const cardStyle = {
+    background: 'var(--bg-surface-1)',
+    border: '1px solid var(--border-default)',
+    borderRadius: '2px',
+    overflow: 'hidden',
+  };
+
   /* loading skeleton */
   if (isLoading) {
     return (
-      <div className="space-y-8">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', fontFamily: SANS }}>
         <div>
-          <div className="h-8 w-48 bg-gray-200 rounded animate-pulse mb-2" />
-          <div className="h-4 w-96 bg-gray-100 rounded animate-pulse" />
+          <div style={{ height: '24px', width: '180px', background: 'var(--bg-surface-2)', borderRadius: '2px', marginBottom: '8px' }} />
+          <div style={{ height: '12px', width: '320px', background: 'var(--bg-surface-2)', borderRadius: '2px' }} />
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div style={cardStyle}>
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="px-6 py-4 border-b border-gray-100 flex items-center gap-4">
-              <div className="h-5 w-5 bg-gray-200 rounded animate-pulse" />
-              <div className="flex-1 space-y-1.5">
-                <div className="h-4 w-48 bg-gray-200 rounded animate-pulse" />
-                <div className="h-3 w-24 bg-gray-100 rounded animate-pulse" />
+            <div key={i} style={{
+              padding: '14px 20px',
+              borderBottom: '1px solid var(--border-hairline)',
+              display: 'flex', alignItems: 'center', gap: '12px',
+            }}>
+              <div style={{ height: '16px', width: '16px', background: 'var(--bg-surface-2)', borderRadius: '2px' }} />
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ height: '12px', width: '180px', background: 'var(--bg-surface-2)', borderRadius: '2px' }} />
+                <div style={{ height: '10px', width: '80px', background: 'var(--bg-surface-2)', borderRadius: '2px' }} />
               </div>
-              <div className="h-5 w-20 bg-gray-100 rounded-full animate-pulse" />
+              <div style={{ height: '14px', width: '60px', background: 'var(--bg-surface-2)', borderRadius: '2px' }} />
             </div>
           ))}
         </div>
@@ -477,80 +639,141 @@ export default function DocumentsPage() {
 
   if (isError) {
     return (
-      <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700 text-sm">
-        <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: '8px',
+        border: '1px solid var(--sev-serious)',
+        background: 'rgba(255,56,56,0.08)',
+        padding: '12px 14px',
+        color: 'var(--sev-serious)',
+        fontFamily: SANS, fontSize: '13px',
+        borderRadius: '2px',
+      }}>
+        <AlertTriangle size={14} style={{ flexShrink: 0 }} />
         Failed to load documents. Please refresh the page.
       </div>
     );
   }
 
+  const labelStyle = {
+    fontFamily: MONO,
+    fontSize: '10px',
+    fontWeight: 700,
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+    color: 'var(--fg-3)',
+  };
+
+  const inputStyle = {
+    width: '100%',
+    padding: '8px 10px',
+    border: '1px solid var(--border-default)',
+    borderRadius: '2px',
+    background: 'var(--bg-base)',
+    color: 'var(--fg-1)',
+    fontFamily: SANS,
+    fontSize: '13px',
+    outline: 'none',
+  };
+
   return (
-    <div className="space-y-6">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', fontFamily: SANS }}>
       {/* Page header */}
-      <div className="flex items-start justify-between gap-4">
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900 flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-indigo-500" />
+          <h1 style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            fontFamily: MONO,
+            fontSize: '13px',
+            fontWeight: 700,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            color: 'var(--fg-1)',
+            margin: 0,
+          }}>
+            <BookOpen size={14} style={{ color: 'var(--accent)' }} />
             Knowledge base
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p style={{
+            fontFamily: SANS, fontSize: '12px',
+            color: 'var(--fg-3)', marginTop: '6px', margin: '6px 0 0',
+            lineHeight: 1.5, maxWidth: '560px',
+          }}>
             Upload documents to improve AI investigation accuracy. Approved documents are used as context in all investigations.
           </p>
         </div>
-        <button
-          onClick={() => setShowUploadModal(true)}
-          className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-sm transition-colors"
-        >
-          <Upload className="w-4 h-4" />
+        <button onClick={() => setShowUploadModal(true)} style={{ ...primaryBtnStyle, flexShrink: 0 }}>
+          <Upload size={12} />
           Upload document
         </button>
       </div>
 
       {/* How it works banner */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <div style={cardStyle}>
         <button
           onClick={() => setShowHowItWorks((v) => !v)}
-          className="w-full flex items-center justify-between px-5 py-3.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 16px',
+            background: 'transparent',
+            border: 'none',
+            color: 'var(--fg-2)',
+            fontFamily: MONO,
+            fontSize: '10px',
+            fontWeight: 600,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            cursor: 'pointer',
+          }}
         >
-          <span className="flex items-center gap-2">
-            <Info className="w-4 h-4 text-indigo-400" />
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+            <Info size={12} style={{ color: 'var(--accent)' }} />
             How does this work?
           </span>
           {showHowItWorks
-            ? <ChevronDown className="w-4 h-4 text-gray-400" />
-            : <ChevronRight className="w-4 h-4 text-gray-400" />
+            ? <ChevronDown size={14} style={{ color: 'var(--fg-3)' }} />
+            : <ChevronRight size={14} style={{ color: 'var(--fg-3)' }} />
           }
         </button>
         {showHowItWorks && (
-          <div className="px-5 pb-5 border-t border-gray-100">
-            <ol className="space-y-2 mt-4 text-sm text-gray-600">
-              <li><span className="font-semibold text-gray-800">1. Upload</span> — Upload PDF, DOCX, or TXT files up to 10 MB</li>
-              <li><span className="font-semibold text-gray-800">2. Review</span> — An org admin reviews and approves the document</li>
-              <li><span className="font-semibold text-gray-800">3. Indexing</span> — Approved documents are automatically processed</li>
-              <li><span className="font-semibold text-gray-800">4. Ready</span> — The AI uses approved documents during investigations</li>
+          <div style={{ padding: '14px 16px 16px', borderTop: '1px solid var(--border-hairline)' }}>
+            <ol style={{
+              listStyle: 'none', padding: 0, margin: 0,
+              display: 'flex', flexDirection: 'column', gap: '6px',
+              fontFamily: SANS, fontSize: '12px', color: 'var(--fg-3)',
+            }}>
+              <li><span style={{ fontWeight: 600, color: 'var(--fg-2)' }}>1. Upload</span> — Upload PDF, DOCX, or TXT files up to 10 MB</li>
+              <li><span style={{ fontWeight: 600, color: 'var(--fg-2)' }}>2. Review</span> — An org admin reviews and approves the document</li>
+              <li><span style={{ fontWeight: 600, color: 'var(--fg-2)' }}>3. Indexing</span> — Approved documents are automatically processed</li>
+              <li><span style={{ fontWeight: 600, color: 'var(--fg-2)' }}>4. Ready</span> — The AI uses approved documents during investigations</li>
             </ol>
           </div>
         )}
       </div>
 
       {/* Filter bar */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-0 max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 0, maxWidth: '280px' }}>
+          <Search size={14} style={{
+            position: 'absolute', left: '10px', top: '50%',
+            transform: 'translateY(-50%)', color: 'var(--fg-4)', pointerEvents: 'none',
+          }} />
           <input
             type="text"
             placeholder="Search by filename…"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            style={{ ...inputStyle, paddingLeft: '32px' }}
           />
         </div>
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-gray-400" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Filter size={14} style={{ color: 'var(--fg-4)' }} />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="border border-gray-300 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+            style={{ ...inputStyle, width: 'auto', paddingRight: '24px' }}
           >
             <option value="all">All statuses</option>
             <option value="pending">Pending</option>
@@ -562,44 +785,58 @@ export default function DocumentsPage() {
           </select>
         </div>
         {isFetching && !isLoading && (
-          <RefreshCw className="w-3.5 h-3.5 text-gray-300 animate-spin" />
+          <RefreshCw size={12} style={{ color: 'var(--fg-4)', animation: 'spin 1s linear infinite' }} />
         )}
       </div>
 
       {/* Content */}
       {docs.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
-          <BookOpen className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-          <h3 className="text-base font-semibold text-gray-700 mb-1">No documents yet</h3>
-          <p className="text-sm text-gray-400 mb-5 max-w-sm mx-auto">
-            Upload site documents, SOPs, or compliance reports to enhance AI investigation accuracy.
+        <div style={{ ...cardStyle, padding: '48px 24px', textAlign: 'center' }}>
+          <BookOpen size={32} style={{ color: 'var(--fg-4)', display: 'block', margin: '0 auto 14px' }} />
+          <h3 style={{
+            fontFamily: MONO, fontSize: '11px', fontWeight: 700,
+            letterSpacing: '0.12em', textTransform: 'uppercase',
+            color: 'var(--fg-2)', margin: '0 0 10px',
+          }}>
+            No documents yet
+          </h3>
+          <p style={{
+            fontFamily: SANS, fontSize: '13px', color: 'var(--fg-3)',
+            maxWidth: '420px', margin: '0 auto 18px', lineHeight: 1.6,
+          }}>
+            Upload your site procedures, contractor schedules, and safety manuals. Claude uses them during investigations.
           </p>
           <button
             onClick={() => setShowUploadModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-sm transition-colors"
+            style={{ ...primaryBtnStyle, margin: '0 auto' }}
           >
-            <Upload className="w-4 h-4" />
+            <Upload size={12} />
             Upload document
           </button>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-10 text-center">
-          <p className="text-sm text-gray-400">No documents match your filters.</p>
+        <div style={{ ...cardStyle, padding: '40px 24px', textAlign: 'center' }}>
+          <p style={{ fontFamily: SANS, fontSize: '13px', color: 'var(--fg-3)', margin: 0 }}>
+            No documents match your filters.
+          </p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs font-semibold uppercase tracking-wide text-gray-500 bg-gray-50 border-b border-gray-100">
+        <div style={cardStyle}>
+          <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', fontFamily: SANS }}>
+            <thead style={{
+              background: 'var(--bg-surface-2)',
+              borderBottom: '1px solid var(--border-hairline)',
+            }}>
               <tr>
-                <th className="w-8 px-3 py-3" />
-                <th className="px-4 py-3">Document</th>
-                <th className="px-4 py-3">Uploaded by</th>
-                <th className="px-4 py-3">Size</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th style={{ width: '32px', padding: '10px 12px' }} />
+                <th style={{ ...labelStyle, padding: '10px 14px' }}>Document</th>
+                <th style={{ ...labelStyle, padding: '10px 14px' }}>Uploaded by</th>
+                <th style={{ ...labelStyle, padding: '10px 14px' }}>Size</th>
+                <th style={{ ...labelStyle, padding: '10px 14px' }}>Status</th>
+                <th style={{ ...labelStyle, padding: '10px 14px', textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {filtered.map((doc) => {
                 const expanded = expandedRows.has(doc._id);
                 const isCurrentUser =
@@ -608,75 +845,143 @@ export default function DocumentsPage() {
                 return (
                   <React.Fragment key={doc._id}>
                     <tr
-                      className="hover:bg-gray-50 cursor-pointer transition-colors"
+                      style={{
+                        borderTop: '1px solid var(--border-hairline)',
+                        cursor: 'pointer',
+                        transition: 'background 120ms',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-surface-2)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                       onClick={() => toggleRow(doc._id)}
                     >
-                      <td className="px-3 py-4 text-gray-400">
+                      <td style={{ padding: '12px', color: 'var(--fg-4)' }}>
                         {expanded
-                          ? <ChevronDown className="w-3.5 h-3.5" />
-                          : <ChevronRight className="w-3.5 h-3.5" />
+                          ? <ChevronDown size={12} />
+                          : <ChevronRight size={12} />
                         }
                       </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-2.5">
-                          <FileTypeIcon mimeType={doc.mimeType} className="w-4 h-4 flex-shrink-0" />
+                      <td style={{ padding: '12px 14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <FileTypeIcon mimeType={doc.mimeType} size={14} />
                           <div>
-                            <p className="font-medium text-gray-900 truncate max-w-[200px]">
+                            <p style={{
+                              fontFamily: SANS, fontSize: '13px', color: 'var(--fg-1)',
+                              margin: 0, overflow: 'hidden', textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap', maxWidth: '220px',
+                            }}>
                               {doc.originalName || doc.filename}
                             </p>
-                            <p className="text-xs text-gray-400">{formatDate(doc.createdAt)}</p>
+                            <p style={{
+                              fontFamily: MONO, fontSize: '10px', color: 'var(--fg-4)',
+                              letterSpacing: '0.08em', margin: '2px 0 0',
+                            }}>{formatDate(doc.createdAt)}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-4">
+                      <td style={{ padding: '12px 14px' }}>
                         {isCurrentUser ? (
-                          <span className="text-xs font-medium text-indigo-600">You</span>
+                          <span style={{
+                            fontFamily: MONO, fontSize: '10px', fontWeight: 700,
+                            letterSpacing: '0.1em', textTransform: 'uppercase',
+                            color: 'var(--accent)',
+                          }}>You</span>
                         ) : doc.uploadedBy?.username ? (
-                          <span className="text-xs text-gray-700">{doc.uploadedBy.username}</span>
+                          <span style={{ fontFamily: SANS, fontSize: '12px', color: 'var(--fg-2)' }}>
+                            {doc.uploadedBy.username}
+                          </span>
                         ) : (
-                          <span className="text-xs text-gray-400">Team member</span>
+                          <span style={{ fontFamily: SANS, fontSize: '12px', color: 'var(--fg-4)' }}>
+                            Team member
+                          </span>
                         )}
                       </td>
-                      <td className="px-4 py-4 text-gray-500 text-xs">{formatFileSize(doc.fileSize)}</td>
-                      <td className="px-4 py-4">
+                      <td style={{
+                        padding: '12px 14px',
+                        fontFamily: MONO, fontSize: '11px', color: 'var(--fg-3)',
+                      }}>{formatFileSize(doc.fileSize)}</td>
+                      <td style={{ padding: '12px 14px' }}>
                         <StatusBadge status={doc.status} chunkCount={doc.chunkCount} />
                         {doc.status === 'indexing' && (
-                          <p className="text-xs text-gray-400 mt-0.5">May take a minute for large files</p>
+                          <p style={{
+                            fontFamily: SANS, fontSize: '11px', color: 'var(--fg-4)',
+                            margin: '4px 0 0',
+                          }}>May take a minute for large files</p>
                         )}
                       </td>
-                      <td className="px-4 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-2">
+                      <td
+                        style={{ padding: '12px 14px', textAlign: 'right' }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
                           {doc.status === 'pending' && isAdmin && (
                             <>
                               <button
                                 onClick={() => approveMutation.mutate(doc._id)}
                                 disabled={approveMutation.isPending && approveMutation.variables === doc._id}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-md hover:bg-green-100 disabled:opacity-40 transition-colors"
+                                style={{
+                                  display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                  padding: '5px 9px',
+                                  background: 'rgba(125,138,106,0.12)',
+                                  color: 'var(--sev-harmless)',
+                                  border: '1px solid var(--sev-harmless)',
+                                  borderRadius: '2px',
+                                  fontFamily: MONO, fontSize: '10px', fontWeight: 700,
+                                  letterSpacing: '0.1em', textTransform: 'uppercase',
+                                  cursor: 'pointer',
+                                }}
                               >
-                                <Check className="w-3 h-3" />
+                                <Check size={10} />
                                 Approve
                               </button>
                               <button
                                 onClick={() => setRejectDocId(doc._id)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 transition-colors"
+                                style={{
+                                  display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                  padding: '5px 9px',
+                                  background: 'rgba(255,56,56,0.10)',
+                                  color: 'var(--sev-serious)',
+                                  border: '1px solid var(--sev-serious)',
+                                  borderRadius: '2px',
+                                  fontFamily: MONO, fontSize: '10px', fontWeight: 700,
+                                  letterSpacing: '0.1em', textTransform: 'uppercase',
+                                  cursor: 'pointer',
+                                }}
                               >
-                                <X className="w-3 h-3" />
+                                <X size={10} />
                                 Reject
                               </button>
                             </>
                           )}
                           {doc.status === 'pending' && !isAdmin && (
-                            <span className="text-xs text-gray-400 italic">Awaiting review</span>
+                            <span style={{
+                              fontFamily: MONO, fontSize: '10px', color: 'var(--fg-4)',
+                              letterSpacing: '0.1em', textTransform: 'uppercase',
+                              fontStyle: 'italic',
+                            }}>Awaiting review</span>
                           )}
                           {doc.status === 'indexing' && (
-                            <span className="text-xs text-gray-400 italic">Processing…</span>
+                            <span style={{
+                              fontFamily: MONO, fontSize: '10px', color: 'var(--fg-4)',
+                              letterSpacing: '0.1em', textTransform: 'uppercase',
+                              fontStyle: 'italic',
+                            }}>Processing…</span>
                           )}
                           {(doc.status === 'indexed' || doc.status === 'rejected' || doc.status === 'failed') && (
                             <button
                               onClick={() => setDeleteDoc(doc)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-200 rounded-md hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors"
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                padding: '5px 9px',
+                                background: 'var(--bg-surface-2)',
+                                color: 'var(--fg-3)',
+                                border: '1px solid var(--border-default)',
+                                borderRadius: '2px',
+                                fontFamily: MONO, fontSize: '10px', fontWeight: 700,
+                                letterSpacing: '0.1em', textTransform: 'uppercase',
+                                cursor: 'pointer',
+                              }}
                             >
-                              <Trash2 className="w-3 h-3" />
+                              <Trash2 size={10} />
                               Delete
                             </button>
                           )}
@@ -684,9 +989,9 @@ export default function DocumentsPage() {
                       </td>
                     </tr>
                     {expanded && (
-                      <tr className="bg-indigo-50/40">
+                      <tr style={{ background: 'var(--bg-surface-2)' }}>
                         <td />
-                        <td colSpan={5} className="px-4 py-3">
+                        <td colSpan={5} style={{ padding: '10px 14px' }}>
                           {getExpandedContent(doc)}
                         </td>
                       </tr>

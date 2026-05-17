@@ -308,12 +308,15 @@ export default function OrganisationsPage() {
         ...(statusFilter ? { status: statusFilter } : {}),
         ...(planFilter ? { plan: planFilter } : {}),
       }),
-    getNextPageParam: (last, all) =>
-      Array.isArray(last) && last.length === 20 ? all.length + 1 : undefined,
+    getNextPageParam: (last, all) => {
+      const loaded = all.length * 20;
+      const total = last?.total ?? 0;
+      return loaded < total ? all.length + 1 : undefined;
+    },
     initialPageParam: 1,
   });
 
-  const allOrgs = data?.pages.flatMap((page) => (Array.isArray(page) ? page : [])) ?? [];
+  const allOrgs = data?.pages.flatMap((page) => page?.data ?? (Array.isArray(page) ? page : [])) ?? [];
 
   const statusMutation = useMutation({
     mutationFn: ({ orgId, status }) => updateAdminOrgStatus(orgId, status),
@@ -324,11 +327,12 @@ export default function OrganisationsPage() {
         if (!old) return old;
         return {
           ...old,
-          pages: old.pages.map((page) =>
-            Array.isArray(page)
-              ? page.map((org) => (org._id === orgId ? { ...org, status } : org))
-              : page
-          ),
+          pages: old.pages.map((page) => ({
+            ...page,
+            data: (page?.data ?? []).map((org) =>
+              org._id === orgId ? { ...org, status } : org
+            ),
+          })),
         };
       });
       return { previous };

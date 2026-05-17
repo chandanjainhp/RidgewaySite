@@ -20,6 +20,7 @@ import mapRouter from './routes/map.routes.js';
 import adminRouter from './routes/admin.routes.js';
 import orgRouter from './routes/org.routes.js';
 import mcpRouter from './routes/mcp.routes.js';
+import testRouter from './routes/test.routes.js';
 
 const app = express();
 
@@ -63,6 +64,12 @@ app.use('/api/v1/map', mapRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/org', orgRouter);
 app.use('/api/v1/mcp', mcpRouter);
+
+// DEVELOPMENT ONLY — test routes for seeding events and manual investigation trigger
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api/v1/test', testRouter);
+  console.log('[app] ⚠ Test routes mounted at /api/v1/test (dev only)');
+}
 
 // 404 handler for unmatched routes
 app.use(notFoundHandler);

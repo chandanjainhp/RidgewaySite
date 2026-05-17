@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { Plane, Radar, Search, FileText, Shield, Settings, Server } from "lucide-react";
 
 /* ── helpers ─────────────────────────────────────────── */
 const SEV = {
@@ -85,6 +86,224 @@ const STEPS = [
   { n: "04", label: "Briefing Approved", desc: "A final morning report is shared with all stakeholders before shift start." },
 ];
 
+const STAGES = [
+  { Icon: Plane, label: "Patrol", desc: "Drones move through your site overnight, capturing sensor events." },
+  { Icon: Radar, label: "Events", desc: "Motion, badge swipes, vehicle movement — all ingested and grouped." },
+  { Icon: Search, label: "Investigate", desc: "Argus runs a ReAct loop with RAG and Claude to classify each incident." },
+  { Icon: FileText, label: "Briefing", desc: "A structured morning briefing, ready for your approval." },
+];
+
+function StageCard({ Icon, label, desc }) {
+  return (
+    <div style={{
+      background: "var(--bg-surface-1)",
+      border: "1px solid var(--border-default)",
+      borderRadius: "var(--radius-sm, 4px)",
+      padding: "20px",
+      display: "flex", flexDirection: "column", gap: "12px",
+      transition: "background var(--dur-fast, 120ms)",
+    }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-2)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-surface-1)"; }}
+    >
+      <Icon size={24} color="var(--accent)" aria-hidden="true" />
+      <div style={{
+        fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 600,
+        letterSpacing: "0.14em", textTransform: "uppercase",
+        color: "var(--fg-1)",
+      }}>{label}</div>
+      <p style={{
+        fontFamily: "var(--font-sans)", fontSize: "13px",
+        color: "var(--fg-3)", lineHeight: 1.55, margin: 0,
+      }}>{desc}</p>
+    </div>
+  );
+}
+
+function StageRow() {
+  return (
+    <div className="stage-row" style={{
+      display: "grid",
+      gridTemplateColumns: "1fr 24px 1fr 24px 1fr 24px 1fr",
+      alignItems: "stretch",
+      gap: "0",
+    }}>
+      {STAGES.map((s, i) => (
+        <React.Fragment key={s.label}>
+          <StageCard {...s} />
+          {i < STAGES.length - 1 && (
+            <div aria-hidden="true" className="stage-arrow" style={{
+              color: "var(--accent)",
+              fontFamily: "var(--font-mono)",
+              fontSize: "22px",
+              textAlign: "center",
+              alignSelf: "center",
+            }}>→</div>
+          )}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+function RoleCard({ Icon, iconColor, labelColor, label, title, desc, ctaLabel, ctaHref, ctaColor }) {
+  return (
+    <div style={{
+      background: "var(--bg-surface-1)",
+      border: "1px solid var(--border-default)",
+      borderRadius: "var(--radius-sm, 4px)",
+      padding: "24px",
+      display: "flex", flexDirection: "column", gap: "10px",
+      transition: "background var(--dur-fast, 120ms)",
+    }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-2)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-surface-1)"; }}
+    >
+      <Icon size={28} color={iconColor} aria-hidden="true" />
+      <div style={{
+        fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600,
+        letterSpacing: "0.14em", textTransform: "uppercase",
+        color: labelColor,
+      }}>{label}</div>
+      <h3 style={{
+        fontFamily: "var(--font-sans)", fontSize: "18px",
+        fontWeight: 500, color: "var(--fg-1)", margin: 0,
+      }}>{title}</h3>
+      <p style={{
+        fontFamily: "var(--font-sans)", fontSize: "13px",
+        color: "var(--fg-3)", lineHeight: 1.55, margin: 0, flex: 1,
+      }}>{desc}</p>
+      <Link href={ctaHref} style={{
+        marginTop: "10px", fontSize: "14px", fontWeight: 500,
+        color: ctaColor, textDecoration: "none",
+      }}>{ctaLabel}</Link>
+    </div>
+  );
+}
+
+function StepCard({ n, title, desc, ctaLabel, ctaHref }) {
+  return (
+    <div style={{
+      background: "var(--bg-surface-2)",
+      border: "1px solid var(--border-default)",
+      borderRadius: "var(--radius-sm, 4px)",
+      padding: "24px",
+      display: "flex", flexDirection: "column", gap: "10px",
+    }}>
+      <div style={{
+        fontFamily: "var(--font-mono)", fontSize: "32px",
+        fontWeight: 700, color: "var(--fg-4)",
+        letterSpacing: "-0.02em", lineHeight: 1,
+      }}>{n}</div>
+      <h3 style={{
+        fontFamily: "var(--font-sans)", fontSize: "17px",
+        fontWeight: 500, color: "var(--fg-1)", margin: 0,
+      }}>{title}</h3>
+      <p style={{
+        fontFamily: "var(--font-sans)", fontSize: "13px",
+        color: "var(--fg-3)", lineHeight: 1.55, margin: 0, flex: 1,
+      }}>{desc}</p>
+      <Link href={ctaHref} style={{
+        marginTop: "8px", fontSize: "14px", fontWeight: 500,
+        color: "var(--accent)", textDecoration: "none",
+      }}>{ctaLabel}</Link>
+    </div>
+  );
+}
+
+function LandingFooter() {
+  return (
+    <footer style={{
+      background: "var(--bg-surface-1)",
+      borderTop: "1px solid var(--border-hairline)",
+      padding: "48px 24px",
+    }}>
+      <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: "32px",
+        }}>
+          <div>
+            <div style={{
+              fontFamily: "var(--font-mono)", fontSize: "16px",
+              fontWeight: 700, letterSpacing: "0.15em",
+              textTransform: "uppercase", color: "var(--fg-1)",
+            }}>Sentinel</div>
+            <div style={{
+              marginTop: "6px",
+              fontSize: "12px", color: "var(--fg-4)",
+            }}>Night Watch design system</div>
+          </div>
+          <FooterCol heading="Product" links={[
+            ["How it works", "/docs#how-it-works"],
+            ["Security", "/docs#security"],
+            ["MCP integration", "/docs#mcp"],
+            ["API reference", "/docs#api"],
+          ]} />
+          <FooterCol heading="Resources" links={[
+            ["Documentation", "/docs"],
+            ["Sign in", "/login"],
+            ["Create account", "/register"],
+            ["Admin sign in", "/admin/login"],
+          ]} />
+          <div>
+            <div style={{
+              fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600,
+              letterSpacing: "0.14em", textTransform: "uppercase",
+              color: "var(--fg-3)", marginBottom: "12px",
+            }}>Status</div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{
+                width: "8px", height: "8px", borderRadius: "50%",
+                background: "var(--sev-harmless)",
+              }} />
+              <span style={{ fontSize: "13px", color: "var(--fg-2)" }}>All systems operational</span>
+            </div>
+            <div style={{
+              marginTop: "6px",
+              fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--fg-4)",
+            }}>Last updated: 2026-04-18 06:00 UTC</div>
+          </div>
+        </div>
+
+        <div style={{
+          marginTop: "32px", paddingTop: "16px",
+          borderTop: "1px solid var(--border-hairline)",
+          textAlign: "center", fontSize: "12px", color: "var(--fg-4)",
+        }}>
+          © 2026 Sentinel — Built for industrial site operators
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+function FooterCol({ heading, links }) {
+  return (
+    <div>
+      <div style={{
+        fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600,
+        letterSpacing: "0.14em", textTransform: "uppercase",
+        color: "var(--fg-3)", marginBottom: "12px",
+      }}>{heading}</div>
+      <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
+        {links.map(([label, href]) => (
+          <li key={label}>
+            <Link href={href} style={{
+              fontSize: "14px", color: "var(--fg-2)", textDecoration: "none",
+              transition: "color var(--dur-fast, 120ms)",
+            }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "var(--fg-1)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--fg-2)"; }}
+            >{label}</Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export default function LandingPage() {
   const [time, setTime] = useState("--:--:--");
 
@@ -106,6 +325,22 @@ export default function LandingPage() {
   return (
     <div style={{ background: "var(--bg-base)", minHeight: "100vh", color: "var(--fg-1)" }}>
 
+      {/* Skip-to-content */}
+      <a
+        href="#main"
+        style={{
+          position: "absolute", left: "-9999px", top: "8px",
+          background: "var(--bg-surface-2)", color: "var(--fg-1)",
+          padding: "8px 14px", zIndex: 200,
+          fontFamily: "var(--font-mono)", fontSize: "11px",
+          textDecoration: "none", border: "1px solid var(--accent)",
+        }}
+        onFocus={(e) => { e.currentTarget.style.left = "8px"; }}
+        onBlur={(e) => { e.currentTarget.style.left = "-9999px"; }}
+      >
+        Skip to content
+      </a>
+
       {/* ══ NAV ══════════════════════════════════════════ */}
       <header style={{
         position: "fixed", top: 0, left: 0, right: 0, height: "48px",
@@ -124,7 +359,7 @@ export default function LandingPage() {
           <span style={{
             fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600,
             letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--fg-1)",
-          }}>Ridgeway Site</span>
+          }}>Sentinel</span>
           <span style={{ color: "var(--border-strong)", fontSize: "16px", lineHeight: 1, userSelect: "none" }}>·</span>
           <span style={{
             fontFamily: "var(--font-mono)", fontSize: "10px",
@@ -169,7 +404,7 @@ export default function LandingPage() {
       </header>
 
       {/* ══ HERO ═════════════════════════════════════════ */}
-      <section style={{
+      <section id="main" style={{
         minHeight: "100vh", paddingTop: "48px",
         display: "grid", gridTemplateColumns: "1fr 1fr",
         position: "relative", overflow: "hidden",
@@ -279,6 +514,17 @@ export default function LandingPage() {
             </Link>
           </div>
 
+          {/* Admin sign-in — small */}
+          <div style={{ marginTop: "12px" }}>
+            <Link href="/admin/login" style={{
+              fontFamily: "var(--font-mono)", fontSize: "11px",
+              color: "var(--sev-serious)", textDecoration: "none",
+              letterSpacing: "0.08em",
+            }}>
+              Admin sign in →
+            </Link>
+          </div>
+
           {/* Stats strip */}
           <div style={{
             marginTop: "56px", paddingTop: "24px",
@@ -334,7 +580,7 @@ export default function LandingPage() {
               <span style={{
                 fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 600,
                 letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--fg-1)",
-              }}>Agent Activity</span>
+              }}>Argus Activity</span>
               <span style={{
                 marginLeft: "auto", fontFamily: "var(--font-mono)",
                 fontSize: "10px", color: "var(--fg-4)",
@@ -413,231 +659,130 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ══ FEATURES ═════════════════════════════════════ */}
-      <section id="features" style={{
+      {/* ══ SECTION 2 — HOW IT WORKS (4 stages) ══════════ */}
+      <section id="how-it-works" style={{
         background: "var(--bg-surface-1)",
         borderTop: "1px solid var(--border-default)",
-        borderBottom: "1px solid var(--border-default)",
         padding: "clamp(48px,8vw,80px) clamp(24px,6vw,80px)",
         scrollMarginTop: "48px",
       }}>
         <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
-          {/* Label + headline */}
-          <div style={{ marginBottom: "48px" }}>
-            <div style={{
-              fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 600,
-              letterSpacing: "0.14em", textTransform: "uppercase",
-              color: "var(--fg-4)", marginBottom: "14px",
-            }}>Platform Capabilities</div>
-            <h2 style={{
-              fontFamily: "var(--font-sans)",
-              fontSize: "clamp(22px, 3vw, 36px)",
-              fontWeight: 500, lineHeight: 1.1,
-              letterSpacing: "-0.015em", color: "var(--fg-1)",
-            }}>Built for overnight ops. Ready by sunrise.</h2>
-          </div>
-
-          {/* Feature panels — 1px gap grid */}
-          <div style={{
-            display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-            gap: "1px", background: "var(--border-default)",
-          }}>
-            {FEATURES.map((f) => {
-              const s = SEV[f.sev];
-              return (
-                <div key={f.label} style={{
-                  background: "var(--bg-surface-2)", padding: "32px",
-                  display: "flex", flexDirection: "column", gap: "16px",
-                }}>
-                  {/* Panel header row */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <span style={{
-                      width: "8px", height: "8px", borderRadius: "50%",
-                      background: s.dot, flexShrink: 0,
-                    }} />
-                    <span style={{
-                      fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 600,
-                      letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--fg-1)",
-                    }}>{f.label}</span>
-                  </div>
-
-                  <div style={{ height: "1px", background: "var(--border-hairline)" }} />
-
-                  <p style={{
-                    fontFamily: "var(--font-sans)", fontSize: "13px",
-                    color: "var(--fg-2)", lineHeight: "var(--lh-loose)", flex: 1,
-                  }}>{f.desc}</p>
-
-                  <div style={{
-                    fontFamily: "var(--font-mono)", fontSize: "11px",
-                    color: s.text, letterSpacing: "0.04em",
-                  }}>{f.stat}</div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* ══ HOW IT WORKS ═════════════════════════════════ */}
-      <section id="how-it-works" style={{
-        background: "var(--bg-base)",
-        padding: "clamp(48px,8vw,80px) clamp(24px,6vw,80px)",
-        scrollMarginTop: "48px",
-      }}>
-        <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
-          <div style={{ marginBottom: "52px" }}>
-            <div style={{
-              fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 600,
-              letterSpacing: "0.14em", textTransform: "uppercase",
-              color: "var(--fg-4)", marginBottom: "14px",
-            }}>Workflow</div>
-            <h2 style={{
-              fontFamily: "var(--font-sans)",
-              fontSize: "clamp(22px, 3vw, 36px)",
-              fontWeight: 500, lineHeight: 1.1,
-              letterSpacing: "-0.015em", color: "var(--fg-1)",
-            }}>From first signal to approved narrative.</h2>
-          </div>
-
-          {/* Steps — 1px gap grid */}
-          <div style={{
-            display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: "1px", background: "var(--border-default)",
-          }}>
-            {STEPS.map((step, i) => (
-              <div key={step.n} style={{
-                background: "var(--bg-base)", padding: "32px 28px",
-                position: "relative",
-              }}>
-                {/* Large step number as watermark */}
-                <div style={{
-                  fontFamily: "var(--font-mono)", fontSize: "clamp(28px, 4vw, 40px)",
-                  fontWeight: 700, color: "var(--border-strong)",
-                  lineHeight: 1, marginBottom: "20px",
-                  letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums",
-                }}>{step.n}</div>
-
-                <div style={{
-                  fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 600,
-                  letterSpacing: "0.12em", textTransform: "uppercase",
-                  color: "var(--fg-1)", marginBottom: "12px",
-                }}>{step.label}</div>
-
-                <p style={{
-                  fontFamily: "var(--font-sans)", fontSize: "13px",
-                  color: "var(--fg-3)", lineHeight: "var(--lh-loose)",
-                }}>{step.desc}</p>
-
-                {/* Accent connector on the right edge */}
-                {i < STEPS.length - 1 && (
-                  <div style={{
-                    position: "absolute", top: "32px", right: 0,
-                    width: "1px", height: "40px",
-                    background: "linear-gradient(to bottom, var(--accent), transparent)",
-                    opacity: 0.35,
-                  }} />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ══ CTA ══════════════════════════════════════════ */}
-      <section style={{
-        background: "var(--accent-deep)",
-        borderTop: "1px solid var(--accent-dim)",
-        borderBottom: "1px solid var(--border-default)",
-        padding: "clamp(48px,8vw,80px) clamp(24px,6vw,80px)",
-        textAlign: "center",
-      }}>
-        <div style={{ maxWidth: "520px", margin: "0 auto" }}>
           <div style={{
             fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 600,
             letterSpacing: "0.14em", textTransform: "uppercase",
-            color: "var(--accent-dim)", marginBottom: "20px",
-          }}>Ready when you are</div>
-
+            color: "var(--fg-3)", marginBottom: "14px",
+          }}>How it works</div>
           <h2 style={{
             fontFamily: "var(--font-sans)",
-            fontSize: "clamp(24px, 3vw, 38px)",
-            fontWeight: 500, lineHeight: 1.1,
-            letterSpacing: "-0.015em", color: "var(--fg-1)",
-            marginBottom: "16px",
-          }}>Your team wakes up to answers, not questions.</h2>
+            fontSize: "clamp(22px, 3vw, 36px)",
+            fontWeight: 500, lineHeight: 1.1, letterSpacing: "-0.015em",
+            color: "var(--fg-1)", marginBottom: "48px",
+          }}>From patrol to briefing in four stages.</h2>
 
+          <StageRow />
+        </div>
+      </section>
+
+      {/* ══ SECTION 3 — ROLES ════════════════════════════ */}
+      <section style={{
+        background: "var(--bg-base)",
+        padding: "clamp(48px,8vw,80px) clamp(24px,6vw,80px)",
+      }}>
+        <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+          <div style={{
+            fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 600,
+            letterSpacing: "0.14em", textTransform: "uppercase",
+            color: "var(--fg-3)", marginBottom: "14px",
+          }}>Access levels</div>
+          <h2 style={{
+            fontFamily: "var(--font-sans)",
+            fontSize: "clamp(22px, 3vw, 36px)",
+            fontWeight: 500, lineHeight: 1.1, letterSpacing: "-0.015em",
+            color: "var(--fg-1)", marginBottom: "8px",
+          }}>Three roles. One platform.</h2>
           <p style={{
             fontFamily: "var(--font-sans)", fontSize: "14px",
-            color: "var(--fg-3)", lineHeight: "var(--lh-loose)",
-            marginBottom: "40px",
-          }}>
-            Request access to the Ridgeway Site overnight intelligence platform.
-          </p>
+            color: "var(--fg-3)", marginBottom: "40px",
+          }}>Sentinel&apos;s permission model maps to real-world site operations.</p>
 
-          <div style={{ display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap" }}>
-            <Link href="/register" style={{
-              fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600,
-              letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none",
-              color: "var(--bg-base)", background: "var(--accent)",
-              padding: "14px 32px",
-              display: "inline-flex", alignItems: "center", gap: "8px",
-            }}>
-              Get started →
-            </Link>
-            <Link href="/login" style={{
-              fontFamily: "var(--font-mono)", fontSize: "11px",
-              letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none",
-              color: "var(--fg-3)", padding: "14px 24px",
-              border: "1px solid var(--accent-dim)",
-            }}>
-              Sign in
-            </Link>
-            <Link href="/docs" style={{
-              fontFamily: "var(--font-mono)", fontSize: "11px",
-              letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none",
-              color: "var(--fg-4)", padding: "14px 24px",
-            }}>
-              Read the docs
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gap: "16px",
+          }}>
+            <RoleCard
+              Icon={Shield} iconColor="var(--accent)" labelColor="var(--accent)"
+              label="Operator" title="Site Operator"
+              desc="Reviews overnight events, approves the morning briefing, escalates serious incidents."
+              ctaLabel="Sign in →" ctaHref="/login" ctaColor="var(--accent)"
+            />
+            <RoleCard
+              Icon={Settings} iconColor="var(--accent)" labelColor="var(--accent)"
+              label="Site Manager" title="Site Manager"
+              desc="Configures site zones, invites operators, manages drone API keys and webhook integrations."
+              ctaLabel="Sign in →" ctaHref="/login" ctaColor="var(--accent)"
+            />
+            <RoleCard
+              Icon={Server} iconColor="var(--sev-serious)" labelColor="var(--sev-serious)"
+              label="Platform Admin" title="Platform Admin"
+              desc="Sentinel platform team. Manages all customer organisations, monitors system health, handles support and audits."
+              ctaLabel="Admin sign in →" ctaHref="/admin/login" ctaColor="var(--sev-serious)"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ══ SECTION 4 — GETTING STARTED ══════════════════ */}
+      <section style={{
+        background: "var(--bg-surface-1)",
+        borderTop: "1px solid var(--border-default)",
+        padding: "clamp(48px,8vw,80px) clamp(24px,6vw,80px)",
+      }}>
+        <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+          <div style={{
+            fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 600,
+            letterSpacing: "0.14em", textTransform: "uppercase",
+            color: "var(--fg-3)", marginBottom: "14px",
+          }}>First time?</div>
+          <h2 style={{
+            fontFamily: "var(--font-sans)",
+            fontSize: "clamp(22px, 3vw, 36px)",
+            fontWeight: 500, lineHeight: 1.1, letterSpacing: "-0.015em",
+            color: "var(--fg-1)", marginBottom: "40px",
+          }}>From zero to your first briefing in 5 minutes.</h2>
+
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gap: "16px",
+          }}>
+            <StepCard n="01" title="Create your site"
+              desc="Sign up with your work email. You become the site administrator automatically."
+              ctaLabel="Create account →" ctaHref="/register" />
+            <StepCard n="02" title="Run the setup wizard"
+              desc="Four guided steps: confirm your details, configure your site, set up drone integration, invite your team."
+              ctaLabel="See what's in the wizard →" ctaHref="/docs#getting-started" />
+            <StepCard n="03" title="Connect your drones"
+              desc="POST your first sensor events to the Sentinel API. Argus will investigate them tonight. You'll see your first briefing tomorrow morning."
+              ctaLabel="API reference →" ctaHref="/docs#api" />
+          </div>
+
+          <div style={{
+            textAlign: "center", marginTop: "40px",
+            fontFamily: "var(--font-sans)", fontSize: "15px",
+            color: "var(--fg-3)",
+          }}>
+            Just exploring?{" "}
+            <Link href="/docs" style={{ color: "var(--accent)", textDecoration: "none" }}>
+              Read the full documentation →
             </Link>
           </div>
         </div>
       </section>
 
-      {/* ══ FOOTER ═══════════════════════════════════════ */}
-      <footer style={{
-        background: "var(--bg-base)",
-        borderTop: "1px solid var(--border-hairline)",
-        padding: "20px clamp(24px,6vw,80px)",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        flexWrap: "wrap", gap: "12px",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <span style={{
-            width: "6px", height: "6px", borderRadius: "50%",
-            background: "var(--sev-serious)",
-          }} />
-          <span style={{
-            fontFamily: "var(--font-mono)", fontSize: "10px",
-            color: "var(--fg-4)", letterSpacing: "0.1em", textTransform: "uppercase",
-          }}>6:10 Assistant · Ridgeway Site</span>
-        </div>
+      {/* ══ SECTION 5 — FOOTER ═══════════════════════════ */}
+      <LandingFooter />
 
-        <span style={{
-          fontFamily: "var(--font-mono)", fontSize: "10px",
-          color: "var(--fg-4)", letterSpacing: "0.06em",
-        }}>© {new Date().getFullYear()}</span>
-
-        <div style={{ display: "flex", gap: "20px" }}>
-          {[["Docs", "/docs"], ["Login", "/login"], ["Register", "/register"]].map(([label, href]) => (
-            <Link key={label} href={href} style={{
-              fontFamily: "var(--font-mono)", fontSize: "10px",
-              color: "var(--fg-4)", textDecoration: "none",
-              letterSpacing: "0.1em", textTransform: "uppercase",
-            }}>{label}</Link>
-          ))}
-        </div>
-      </footer>
 
       {/* ══ GLOBAL STYLES for this page ══════════════════ */}
       <style>{`
@@ -662,7 +807,16 @@ export default function LandingPage() {
           .landing-nav {
             display: none !important;
           }
+          .stage-row {
+            grid-template-columns: 1fr !important;
+          }
+          .stage-arrow {
+            transform: rotate(90deg);
+            padding: 8px 0;
+          }
         }
+        html { scroll-behavior: smooth; }
+        button, a { cursor: pointer; }
       `}</style>
     </div>
   );

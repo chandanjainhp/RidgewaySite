@@ -1,0 +1,11 @@
+{
+  "title": "Simplified and Secure MCP Gateways for Enterprise AI Integration",
+  "slug": "simplified_and_secure_mcp_gateways_for_enterprise_ai_integration",
+  "arxiv_id": "2504.19997",
+  "authors": [
+    "Ivo Brett"
+  ],
+  "year": 2025,
+  "abstract": "The increased adoption of the Model Context Protocol (MCP) for AI Agents necessitates robust security for Enterprise integrations. This paper introduces the MCP Gateway to simplify self-hosted MCP server integration. The proposed architecture integrates security principles, authentication, intrusion detection, and secure tunneling, enabling secure self-hosting without exposing infrastructure. Key contributions include a reference architecture, threat model mapping, simplified integration strategies, and open-source implementation recommendations. This work focuses on the unique challenges of enterprise-centric, self-hosted AI integrations, unlike existing public MCP server solutions.",
+  "pdf_downloaded": true
+}

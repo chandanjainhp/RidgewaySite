@@ -29,6 +29,13 @@ const organisationSchema = new mongoose.Schema(
     },
     // Per-org config overrides — all optional
     config: {
+      siteName: { type: String, default: null },
+      industry: { type: String, default: null },
+      timezone: { type: String, default: null },
+      coordinates: {
+        lat: { type: Number, default: null },
+        lng: { type: Number, default: null },
+      },
       smtpOverride: {
         type: mongoose.Schema.Types.Mixed,
         default: null,

@@ -126,7 +126,7 @@ function InviteContent() {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold tracking-tight text-gray-900">Welcome to Ridgeway</h2>
+        <h2 className="text-2xl font-bold tracking-tight text-gray-900">Welcome to Sentinel</h2>
         <p className="mt-2 text-sm text-gray-500">
           You've been invited to join <span className="font-semibold text-gray-900">{inviteDetails?.orgName}</span> as <span className="font-medium text-gray-900">{inviteDetails?.email}</span>.
         </p>
@@ -200,7 +200,7 @@ export default function InviteAcceptPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
         <ShieldCheck className="mx-auto h-12 w-12 text-indigo-600" />
-        <h1 className="mt-2 text-3xl font-extrabold text-gray-900 tracking-tight">Ridgeway</h1>
+        <h1 className="mt-2 text-3xl font-extrabold text-gray-900 tracking-tight">Sentinel</h1>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">

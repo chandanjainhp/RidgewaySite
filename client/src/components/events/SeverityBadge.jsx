@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { AlertTriangle, Circle, CheckCircle, HelpCircle } from "lucide-react";
 import { SEVERITY_CONFIG } from "@/config/constants";
 
 const SEVERITY_RGB = {
@@ -9,15 +10,30 @@ const SEVERITY_RGB = {
   unknown: "74, 85, 104",
 };
 
+// Map both new (serious/minor) and legacy (escalate/monitor) names to icon + config key.
+const SEVERITY_ALIAS = {
+  serious: "escalate",
+  minor: "monitor",
+};
+
+const SEVERITY_ICON = {
+  escalate: AlertTriangle,
+  monitor: Circle,
+  harmless: CheckCircle,
+  uncertain: HelpCircle,
+  unknown: HelpCircle,
+};
+
 function SeverityBadge({ severity }) {
-  const normalizedSeverity =
+  const raw =
     typeof severity === "string" && severity.trim().length > 0
       ? severity.toLowerCase()
       : "unknown";
-
-  const key = SEVERITY_CONFIG[normalizedSeverity] ? normalizedSeverity : "unknown";
+  const normalized = SEVERITY_ALIAS[raw] || raw;
+  const key = SEVERITY_CONFIG[normalized] ? normalized : "unknown";
   const config = SEVERITY_CONFIG[key];
   const rgb = SEVERITY_RGB[key] || SEVERITY_RGB.unknown;
+  const Icon = SEVERITY_ICON[key] || HelpCircle;
 
   const badgeStyle = {
     background: "rgba(" + rgb + ", 0.15)",
@@ -29,10 +45,17 @@ function SeverityBadge({ severity }) {
     letterSpacing: "0.08em",
     padding: "3px 8px",
     borderRadius: "4px",
-    display: "inline-block",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "4px",
   };
 
-  return <span style={badgeStyle}>{config.label.toUpperCase()}</span>;
+  return (
+    <span style={badgeStyle}>
+      <Icon size={12} aria-hidden="true" style={{ color: config.color }} />
+      {config.label.toUpperCase()}
+    </span>
+  );
 }
 
 export default memo(SeverityBadge);

@@ -1,4 +1,5 @@
 import Briefing from "../models/briefing.model.js";
+import Investigation from "../models/investigation.model.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
 import {
@@ -7,6 +8,27 @@ import {
 } from "../services/briefing.service.js";
 import { logAudit } from "../utils/audit.js";
 import { triggerWebhook } from "../services/webhook.service.js";
+
+const collectRagSources = async (nightDate, orgFilter) => {
+  if (!nightDate) return [];
+  const start = new Date(nightDate);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  const investigations = await Investigation.find({
+    ...(orgFilter || {}),
+    nightDate: { $gte: start, $lt: end },
+  })
+    .select("ragDocumentsQueried")
+    .lean();
+  const seen = new Set();
+  for (const inv of investigations) {
+    for (const name of inv.ragDocumentsQueried || []) {
+      if (name) seen.add(name);
+    }
+  }
+  return [...seen];
+};
 
 const sectionKeyMap = {
   whatHappened: "executive_summary",
@@ -120,12 +142,12 @@ export const getLatestBriefing = async (req, res) => {
       .json(new ApiResponse(200, null, "No briefing available yet"));
   }
 
+  const ragSources = await collectRagSources(nightDate, req.orgFilter);
+  const payload = sectionToClientFormat(briefing);
+  payload.ragSources = ragSources;
+
   res.status(200).json(
-    new ApiResponse(
-      200,
-      sectionToClientFormat(briefing),
-      "Briefing fetched successfully"
-    )
+    new ApiResponse(200, payload, "Briefing fetched successfully")
   );
 };
 

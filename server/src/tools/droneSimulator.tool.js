@@ -92,8 +92,14 @@ const formatHHMM = (dateValue, offsetMinutes = 0) => {
   return d.toISOString().substring(11, 16);
 };
 
-const getPatrolWaypoints = async (patrolId, nightDate = new Date()) => {
+const getPatrolWaypoints = async (patrolId, nightDate = new Date(), orgFilter = null) => {
+  if (orgFilter === null || orgFilter === undefined) {
+    console.warn('[DroneSim] getPatrolWaypoints called without orgFilter — refusing');
+    return { patrolId, waypoints: [] };
+  }
+
   const patrolEvent = await Event.findOne({
+    ...orgFilter,
     type: 'drone_observation',
     $or: [
       { 'rawData.patrolId': patrolId },
@@ -104,30 +110,20 @@ const getPatrolWaypoints = async (patrolId, nightDate = new Date()) => {
 
   if (patrolEvent && Array.isArray(patrolEvent.rawData?.observations)) {
     const waypoints = patrolEvent.rawData.observations
-      .map((obs, idx) => {
-        const locationName = obs.location || patrolEvent.location?.name;
-        const siteLocation = SITE_LOCATIONS.find(
-          (loc) => loc.name.toLowerCase() === String(locationName || '').toLowerCase()
-        );
-
-        return {
-          location: locationName || 'Unknown',
-          lat: siteLocation?.coordinates?.lat ?? patrolEvent.location?.coordinates?.lat ?? null,
-          lng: siteLocation?.coordinates?.lng ?? patrolEvent.location?.coordinates?.lng ?? null,
-          time:
-            typeof obs.time === 'string' && obs.time.includes(':')
-              ? obs.time
-              : formatHHMM(patrolEvent.timestamp, idx * 16),
-          observation: obs.finding || obs.observation || 'Drone observation',
-        };
-      })
+      .map((obs, idx) => ({
+        location: obs.location || patrolEvent.location?.name || 'Unknown',
+        lat: patrolEvent.location?.coordinates?.lat ?? null,
+        lng: patrolEvent.location?.coordinates?.lng ?? null,
+        time:
+          typeof obs.time === 'string' && obs.time.includes(':')
+            ? obs.time
+            : formatHHMM(patrolEvent.timestamp, idx * 16),
+        observation: obs.finding || obs.observation || 'Drone observation',
+      }))
       .filter((wp) => wp.lat !== null && wp.lng !== null);
 
     if (waypoints.length > 0) {
-      return {
-        patrolId,
-        waypoints,
-      };
+      return { patrolId, waypoints };
     }
   }
 
@@ -137,6 +133,7 @@ const getPatrolWaypoints = async (patrolId, nightDate = new Date()) => {
   endOfDay.setHours(23, 59, 59, 999);
 
   const droneEvents = await Event.find({
+    ...orgFilter,
     type: 'drone_observation',
     timestamp: { $gte: startOfDay, $lte: endOfDay },
   }).sort({ timestamp: 1 });
@@ -154,7 +151,7 @@ const getPatrolWaypoints = async (patrolId, nightDate = new Date()) => {
     };
   }
 
-  return SEEDED_PATROL;
+  return { patrolId, waypoints: [] };
 };
 
 /**
@@ -164,7 +161,7 @@ const getPatrolWaypoints = async (patrolId, nightDate = new Date()) => {
  * @param {Date|string} nightDate - the night of the patrol
  * @returns {Promise<object>} drone state at target time
  */
-export const getDroneStateAtTime = async (patrolId, targetTime, nightDate = new Date()) => {
+export const getDroneStateAtTime = async (patrolId, targetTime, orgFilter = null, nightDate = new Date()) => {
   try {
     const normalizedTime =
       typeof targetTime === 'string' && targetTime.includes(':')
@@ -185,7 +182,7 @@ export const getDroneStateAtTime = async (patrolId, targetTime, nightDate = new 
       };
     }
 
-    const patrol = await getPatrolWaypoints(patrolId, nightDate);
+    const patrol = await getPatrolWaypoints(patrolId, nightDate, orgFilter);
     const waypoints = (patrol?.waypoints || [])
       .map((wp) => ({ ...wp, minutes: timeToMinutes(wp.time) }))
       .filter((wp) => !Number.isNaN(wp.minutes))
@@ -288,7 +285,7 @@ export const getDroneStateAtTime = async (patrolId, targetTime, nightDate = new 
  * @param {array} flaggedLocations - [{name, coordinates, priority}]
  * @returns {Promise<object>} simulated mission plan
  */
-export const simulateFollowUpMission = async (flaggedLocations) => {
+export const simulateFollowUpMission = async (flaggedLocations, orgFilter = null) => {
   try {
     if (!flaggedLocations || flaggedLocations.length === 0) {
       return {

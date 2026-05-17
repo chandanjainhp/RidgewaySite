@@ -87,6 +87,7 @@ export default function InvestigationView() {
 
   const { user } = useAuth();
   const [showWelcome, setShowWelcome] = useState(false);
+  const [activityExpanded, setActivityExpanded] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && user) {
@@ -158,6 +159,7 @@ export default function InvestigationView() {
   const totalEvents   = incidentsData?.incidents?.length ?? 0;
   const reviewPending = stats.escalationCount ?? 0;
   const isLive        = jobStatus === "running";
+  const activityCollapsed = jobStatus === "idle" && !jobId && !activityExpanded;
 
   return (
     <div style={{
@@ -168,24 +170,40 @@ export default function InvestigationView() {
 
       {/* ── WELCOME BANNER ──────────────────────────────── */}
       {showWelcome && (
-        <div className="bg-indigo-600 px-4 py-3 text-white flex items-center justify-between shadow-md z-10 relative">
-          <div className="flex items-center space-x-3">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20">👋</span>
-            <p className="text-sm font-medium">
-              Welcome to Ridgeway! Your platform is configured and ready. Events recorded tonight will appear here tomorrow morning.
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "10px 16px",
+          background: "var(--bg-surface-2)",
+          borderBottom: "1px solid var(--accent-dim)",
+          position: "relative", zIndex: 10,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <span style={{
+              display: "flex", width: "22px", height: "22px",
+              alignItems: "center", justifyContent: "center",
+              borderRadius: "50%",
+              background: "rgba(184,212,232,0.12)",
+              fontSize: "13px", flexShrink: 0,
+            }}>👋</span>
+            <p style={{
+              fontFamily: "var(--font-sans)", fontSize: "var(--text-sm)",
+              color: "var(--fg-2)", margin: 0,
+            }}>
+              Welcome to Sentinel. Platform configured — tonight&apos;s events will appear here tomorrow morning.
             </p>
           </div>
-          <button 
-            onClick={dismissWelcome}
-            className="rounded-md p-1 hover:bg-white/20 transition-colors focus:outline-none"
-          >
-            <X className="w-5 h-5" />
-          </button>
-          <a 
-            href="#"
-            onClick={(e)=>{e.preventDefault(); sessionStorage.removeItem('ridgeway_welcome_dismissed'); setShowWelcome(false);}}
-            className="ml-4 text-xs text-white underline hover:text-gray-200"
-          >Dismiss — show again next session</a>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexShrink: 0, marginLeft: "16px" }}>
+            <button
+              onClick={dismissWelcome}
+              style={{
+                background: "transparent", border: "none",
+                color: "var(--fg-4)", cursor: "pointer", padding: "4px",
+                display: "flex", alignItems: "center",
+              }}
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
       )}
 
@@ -202,42 +220,131 @@ export default function InvestigationView() {
       />
 
       {/* ── THREE-COLUMN GRID ────────────────────────────── */}
-      {/* Columns separated by 1px border via gap + background trick */}
+      {/* Activity column collapses to 56px rail when idle and no jobId. */}
       <div style={{
         display: "grid",
-        gridTemplateColumns: "360px 1fr 360px",
+        gridTemplateColumns: activityCollapsed ? "56px 1fr 360px" : "360px 1fr 360px",
         gap: "1px",
         background: "var(--border-default)",
         overflow: "hidden", minHeight: 0,
+        transition: "grid-template-columns var(--dur-med, 220ms) var(--ease-out, ease-out)",
       }}>
 
-        {/* ══ LEFT · Agent Activity ════════════════════════ */}
+        {/* ══ LEFT · Argus Activity ════════════════════════ */}
+        <div style={{
+          background: "var(--bg-base)",
+          display: "flex", flexDirection: "column",
+          overflow: "hidden", minHeight: 0,
+          position: "relative",
+        }}>
+          {activityCollapsed ? (
+            <button
+              onClick={() => setActivityExpanded(true)}
+              aria-label="Expand Argus activity column"
+              style={{
+                height: "100%", width: "100%",
+                background: "var(--bg-surface-1)",
+                border: "none",
+                borderRight: "1px solid var(--border-default)",
+                display: "flex", flexDirection: "column",
+                alignItems: "center", justifyContent: "space-between",
+                padding: "16px 0",
+                cursor: "pointer",
+                color: "var(--fg-3)",
+              }}
+            >
+              <span style={{
+                fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 700,
+                letterSpacing: "0.18em", textTransform: "uppercase",
+                color: "var(--fg-2)",
+                writingMode: "vertical-rl",
+                transform: "rotate(180deg)",
+              }}>
+                Argus
+              </span>
+              <span style={{
+                fontFamily: "var(--font-mono)", fontSize: "10px",
+                color: "var(--fg-4)",
+                writingMode: "vertical-rl",
+                transform: "rotate(180deg)",
+              }}>
+                {toolCallCount} calls
+              </span>
+            </button>
+          ) : (
+            <>
+              {/* Column header */}
+              <div style={{
+                ...COL_HEAD.wrapper,
+                borderLeft: isLive ? "2px solid var(--accent)" : "2px solid transparent",
+                paddingLeft: isLive ? "14px" : "16px",
+              }}>
+                {isLive && <span style={COL_HEAD.liveDot} />}
+                <span style={COL_HEAD.title}>Argus Activity</span>
+                <span style={COL_HEAD.sub}>
+                  {stats.totalIncidents > 0
+                    ? `${stats.resolvedIncidents}/${stats.totalIncidents} · `
+                    : ""}
+                  {toolCallCount} calls
+                </span>
+              </div>
+              <div style={{ flex: 1, overflow: "hidden", minHeight: 0 }}>
+                {jobStatus === "idle" && !jobId ? (
+                  <div style={{
+                    height: "100%", display: "flex", flexDirection: "column",
+                    alignItems: "center", justifyContent: "center", gap: "16px",
+                    padding: "24px",
+                  }}>
+                    <p style={{
+                      fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)",
+                      color: "var(--fg-3)", textAlign: "center", margin: 0,
+                    }}>
+                      No Argus activity yet.
+                    </p>
+                  </div>
+                ) : (
+                  <AgentFeed />
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* ══ CENTER · Site Map ═════════════════════════════ */}
         <div style={{
           background: "var(--bg-base)",
           display: "flex", flexDirection: "column",
           overflow: "hidden", minHeight: 0,
         }}>
           {/* Column header */}
-          <div style={{
-            ...COL_HEAD.wrapper,
-            borderLeft: isLive ? "2px solid var(--accent)" : "2px solid transparent",
-            paddingLeft: isLive ? "14px" : "16px",
-          }}>
-            {isLive && <span style={COL_HEAD.liveDot} />}
-            <span style={COL_HEAD.title}>Agent Activity</span>
-            <span style={COL_HEAD.sub}>
-              {stats.totalIncidents > 0
-                ? `${stats.resolvedIncidents}/${stats.totalIncidents} · `
-                : ""}
-              {toolCallCount} calls
-            </span>
+          <div style={COL_HEAD.wrapper}>
+            <span style={COL_HEAD.title}>Site Map</span>
+            <span style={COL_HEAD.sub}>SENTINEL · 6 ZONES · DRONE RWY-03</span>
           </div>
-          <div style={{ flex: 1, overflow: "hidden", minHeight: 0 }}>
-            {jobStatus === "idle" && !jobId ? (
+
+          {/* Map — takes all remaining vertical space */}
+          <div style={{ flex: 1, position: "relative", overflow: "hidden", minHeight: 0 }}>
+            <SiteMap
+              siteMapData={siteMapData}
+              eventPins={eventPins}
+              isLoading={isMapLoading}
+              isError={isMapError}
+              errorMessage={mapError?.message}
+              nightDate={nightDate}
+            />
+
+            {/* Start-investigation overlay — only when activity column is collapsed */}
+            {activityCollapsed && (
               <div style={{
-                height: "100%", display: "flex", flexDirection: "column",
-                alignItems: "center", justifyContent: "center", gap: "16px",
-                padding: "24px",
+                position: "absolute", top: "50%", left: "50%",
+                transform: "translate(-50%, -50%)",
+                background: "var(--bg-surface-1)",
+                border: "1px solid var(--border-default)",
+                borderRadius: "var(--radius-sm, 4px)",
+                padding: "20px 24px",
+                display: "flex", flexDirection: "column", alignItems: "center", gap: "12px",
+                boxShadow: "var(--shadow-modal, 0 4px 16px rgba(0,0,0,0.4))",
+                zIndex: 500,
               }}>
                 <p style={{
                   fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)",
@@ -261,33 +368,7 @@ export default function InvestigationView() {
                   {isStarting ? "Starting…" : "Start investigation"}
                 </button>
               </div>
-            ) : (
-              <AgentFeed />
             )}
-          </div>
-        </div>
-
-        {/* ══ CENTER · Site Map ═════════════════════════════ */}
-        <div style={{
-          background: "var(--bg-base)",
-          display: "flex", flexDirection: "column",
-          overflow: "hidden", minHeight: 0,
-        }}>
-          {/* Column header */}
-          <div style={COL_HEAD.wrapper}>
-            <span style={COL_HEAD.title}>Site Map</span>
-            <span style={COL_HEAD.sub}>RIDGEWAY · 6 ZONES · DRONE RWY-03</span>
-          </div>
-
-          {/* Map — takes all remaining vertical space */}
-          <div style={{ flex: 1, position: "relative", overflow: "hidden", minHeight: 0 }}>
-            <SiteMap
-              siteMapData={siteMapData}
-              eventPins={eventPins}
-              isLoading={isMapLoading}
-              isError={isMapError}
-              errorMessage={mapError?.message}
-            />
           </div>
 
           {/* Drone timeline scrubber — pinned at map bottom */}

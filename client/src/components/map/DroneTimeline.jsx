@@ -222,7 +222,7 @@ export default function DroneTimeline() {
             type="button"
             className="tl-btn"
             onClick={() => setIsPlaying((v) => !v)}
-            aria-label={isPlaying ? "Pause" : "Play"}
+            aria-label={isPlaying ? "Pause drone replay" : "Play drone replay"}
             style={{ color: isPlaying ? "var(--accent)" : undefined }}
           >
             {isPlaying ? (

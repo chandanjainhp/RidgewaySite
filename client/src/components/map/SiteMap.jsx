@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 import { MapContainer, TileLayer, Polygon, ZoomControl } from "react-leaflet";
 
 import DroneRoute from "./DroneRoute";
@@ -14,46 +15,57 @@ export default function SiteMap({
   isLoading,
   isError,
   errorMessage,
+  nightDate,
 }) {
   const mapRef = useRef(null);
   const isMountedRef = useRef(false);
   const selectedPinId = useMapStore((state) => state.selectedPinId);
   const getVisiblePins = useMapStore((state) => state.getVisiblePins);
 
-  // Derive isolated pins instance reliably directly from MapStore filters array dynamically
   const activePins = getVisiblePins();
 
-  // Track mount state to prevent Strict Mode double-mount issues
   useEffect(() => {
     isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
+    return () => { isMountedRef.current = false; };
   }, []);
 
-  // Attempt dynamic bounding when selected pin flips
   useEffect(() => {
     if (selectedPinId && mapRef.current) {
-      const targetPin = (eventPins || []).find(p => p.id === selectedPinId);
+      const targetPin = (eventPins || []).find((p) => p.id === selectedPinId);
       if (targetPin) {
         mapRef.current.flyTo(targetPin.coordinates, 18, { duration: 0.8 });
       }
     }
   }, [selectedPinId, eventPins]);
 
-
-  // Show loading overlay only while actively loading.
+  const coords = siteMapData?.coordinates;
+  const hasCoords =
+    coords && typeof coords.lat === "number" && typeof coords.lng === "number";
+  const hasZones = (siteMapData?.locations?.length ?? 0) > 0;
+  const hasEvents = (activePins?.length ?? 0) > 0;
   const showLoading = Boolean(isLoading && !siteMapData && !isError);
 
-  // Polygon Mapping rules derived from specification
+  // STATE A — no coordinates configured. Blank surface, overlay card.
+  if (!showLoading && !isError && !hasCoords) {
+    return (
+      <div className="relative isolate h-full w-full" style={{ background: "var(--bg-surface-1)" }}>
+        <EmptyOverlay
+          title="Site coordinates not configured."
+          ctaLabel="Configure site →"
+          ctaHref="/settings/general"
+        />
+      </div>
+    );
+  }
+
   const polygons = (siteMapData?.boundaries || [])
-    .filter(bnd => bnd && Array.isArray(bnd.coordinates) && bnd.coordinates.length > 0)
+    .filter((bnd) => bnd && Array.isArray(bnd.coordinates) && bnd.coordinates.length > 0)
     .map((bnd, i) => (
       <Polygon
         key={i}
         positions={bnd.coordinates}
         pathOptions={{
-          color: bnd.type === "perimeter" ? "#ffffff" : bnd.color || "#8892a4",
+          color: bnd.type === "perimeter" ? "var(--border-default)" : bnd.color || "#8892a4",
           weight: bnd.type === "perimeter" ? 2 : 1,
           dashArray: bnd.type === "perimeter" ? "5 5" : undefined,
           fillColor: bnd.color || "#8892a4",
@@ -80,27 +92,128 @@ export default function SiteMap({
           </span>
         </div>
       )}
-      <MapContainer
-        key="ridgeway-site-map"
-        center={[51.505, -0.09]}
-        zoom={16}
-        className="h-full w-full"
-        zoomControl={false}
-        ref={mapRef}
-      >
-        <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
-          subdomains="abcd"
-          maxZoom={20}
+
+      {hasCoords && (
+        <MapContainer
+          key={`map-${coords.lat}-${coords.lng}`}
+          center={[coords.lat, coords.lng]}
+          zoom={15}
+          className="h-full w-full"
+          zoomControl={false}
+          ref={mapRef}
+        >
+          <TileLayer
+            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
+            subdomains="abcd"
+            maxZoom={20}
+          />
+          <ZoomControl position="topright" />
+          {polygons}
+          {hasZones && <DroneRoute siteMapData={siteMapData} />}
+          {hasZones && activePins && activePins.map((pin) => (
+            <EventPin key={pin.id} pin={pin} />
+          ))}
+        </MapContainer>
+      )}
+
+      {/* STATE B — coords but no zones */}
+      {hasCoords && !hasZones && !isError && (
+        <EmptyOverlay
+          title="No zones defined yet."
+          subtitle="Argus will use a single default zone until you add site geometry."
+          ctaLabel="Configure site →"
+          ctaHref="/settings/general"
         />
-        <ZoomControl position="topright" />
-        {polygons}
-        <DroneRoute siteMapData={siteMapData} />
-        {activePins && activePins.map((pin) => (
-          <EventPin key={pin.id} pin={pin} />
-        ))}
-      </MapContainer>
+      )}
+
+      {/* STATE C — zones, no events */}
+      {hasCoords && hasZones && !hasEvents && !isError && (
+        <div
+          style={{
+            position: "absolute",
+            top: "50%", left: "50%",
+            transform: "translate(-50%, -50%)",
+            pointerEvents: "none",
+            background: "rgba(7,9,12,0.7)",
+            border: "1px solid var(--border-default)",
+            borderRadius: "var(--radius-sm, 4px)",
+            padding: "12px 20px",
+            zIndex: 500,
+            textAlign: "center",
+            maxWidth: "360px",
+          }}
+        >
+          <p style={{
+            fontFamily: "var(--font-mono)", fontSize: "12px",
+            color: "var(--fg-2)", margin: 0,
+          }}>
+            No events recorded{nightDate ? ` for ${nightDate}` : ""}.
+          </p>
+          <p style={{
+            fontFamily: "var(--font-sans)", fontSize: "11px",
+            color: "var(--fg-4)", margin: "6px 0 0 0",
+          }}>
+            Patrol either did not run or did not detect anything reportable.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmptyOverlay({ title, subtitle, ctaLabel, ctaHref }) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: "50%", left: "50%",
+        transform: "translate(-50%, -50%)",
+        background: "var(--bg-surface-1)",
+        border: "1px solid var(--border-default)",
+        borderRadius: "var(--radius-sm, 4px)",
+        padding: "24px 28px",
+        zIndex: 600,
+        textAlign: "center",
+        maxWidth: "380px",
+        boxShadow: "var(--shadow-modal, 0 4px 16px rgba(0,0,0,0.4))",
+      }}
+    >
+      <p style={{
+        fontFamily: "var(--font-sans)", fontSize: "var(--text-sm, 13px)",
+        color: "var(--fg-1)", margin: 0, fontWeight: 500,
+      }}>
+        {title}
+      </p>
+      {subtitle && (
+        <p style={{
+          fontFamily: "var(--font-sans)", fontSize: "12px",
+          color: "var(--fg-3)", margin: "6px 0 0 0",
+        }}>
+          {subtitle}
+        </p>
+      )}
+      {ctaLabel && ctaHref && (
+        <Link
+          href={ctaHref}
+          style={{
+            display: "inline-block",
+            marginTop: "14px",
+            padding: "8px 14px",
+            background: "var(--accent)",
+            color: "var(--bg-base)",
+            fontFamily: "var(--font-mono)",
+            fontSize: "11px",
+            fontWeight: 600,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            textDecoration: "none",
+            borderRadius: "var(--radius-xs, 2px)",
+          }}
+        >
+          {ctaLabel}
+        </Link>
+      )}
     </div>
   );
 }

@@ -46,7 +46,7 @@ export const inviteOperator = async (req, res) => {
   try {
     await sendEmail({
       email,
-      subject: `You've been invited to Ridgeway — ${org.name}`,
+      subject: `You've been invited to Sentinel — ${org.name}`,
       mailgenContent: inviteMailgenContent(email, org.name, inviteUrl),
     });
   } catch (error) {
@@ -148,6 +148,22 @@ export const getOrgMe = async (req, res) => {
   const org = await Organisation.findById(req.user.orgId).lean();
   if (!org) throw new ApiError(404, 'Organisation not found');
 
+  if (req.user.role === 'operator') {
+    const operatorView = {
+      _id: org._id,
+      name: org.name,
+      status: org.status,
+      setupComplete: org.setupComplete,
+      config: {
+        siteName: org.config?.siteName,
+        industry: org.config?.industry,
+        timezone: org.config?.timezone,
+        coordinates: org.config?.coordinates,
+      },
+    };
+    return res.status(200).json(new ApiResponse(200, operatorView, 'OK'));
+  }
+
   const { webhookSecret, smtpOverride, ...safeConfig } = org.config || {};
 
   res.status(200).json(new ApiResponse(200, {
@@ -248,7 +264,7 @@ export const testWebhook = async (req, res) => {
     event: 'webhook.test',
     timestamp: new Date(),
     orgId: req.user.orgId,
-    message: 'This is a test webhook delivery from Ridgeway',
+    message: 'This is a test webhook delivery from Sentinel',
   };
 
   const payloadString = JSON.stringify(payload);
@@ -265,8 +281,8 @@ export const testWebhook = async (req, res) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Ridgeway-Signature': signature,
-        'X-Ridgeway-Event': 'webhook.test',
+        'X-Sentinel-Signature': signature,
+        'X-Sentinel-Event': 'webhook.test',
       },
       body: payloadString,
       signal: AbortSignal.timeout(10000),

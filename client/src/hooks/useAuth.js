@@ -21,9 +21,33 @@ export function useAuth() {
   const { setUser, clearUser } = useAuthStore();
 
   // Login mutation
+  // Accepts { email, password, adminMode } — adminMode = true when called
+  // from /admin/login. In adminMode, non-super_admin sessions are immediately
+  // revoked and the user is redirected to /login with an error toast.
   const loginMutation = useMutation({
     mutationFn: ({ email, password }) => loginUser(email, password),
-    onSuccess: async (data) => {
+    onSuccess: async (data, variables) => {
+      const role = data?.user?.role;
+      const adminMode = variables?.adminMode === true;
+
+      // adminMode + non-super_admin: refuse to keep the session.
+      if (adminMode && role !== "super_admin") {
+        try {
+          await logoutUser();
+        } catch (_) {}
+        clearStoredToken();
+        localStorage.removeItem("ridgeway_user");
+        clearUser();
+        if (typeof window !== "undefined") {
+          document.cookie = `ridgeway_auth=; path=/; max-age=0; SameSite=Lax`;
+          document.cookie = `ridgeway_role=; path=/; max-age=0; SameSite=Lax`;
+          document.cookie = `ridgeway_setup=; path=/; max-age=0; SameSite=Lax`;
+        }
+        toast.error("This sign-in is for platform admins only. Please use the customer sign-in.");
+        router.replace("/");
+        return;
+      }
+
       // Store the access token
       setStoredToken(data.accessToken);
 
@@ -40,14 +64,12 @@ export function useAuth() {
       // Set auth cookie for middleware
       if (typeof window !== "undefined") {
         document.cookie = `ridgeway_auth=1; path=/; max-age=86400; SameSite=Lax`;
-        if (data?.user?.role) {
-          document.cookie = `ridgeway_role=${data.user.role}; path=/; max-age=86400; SameSite=Lax`;
+        if (role) {
+          document.cookie = `ridgeway_role=${role}; path=/; max-age=86400; SameSite=Lax`;
         }
       }
 
       toast.success("Welcome back");
-
-      const role = data?.user?.role;
 
       // super_admin has no orgId — skip setup gate, go straight to admin panel
       if (role === "super_admin") {
@@ -64,7 +86,7 @@ export function useAuth() {
         if (typeof window !== "undefined") {
           document.cookie = `ridgeway_setup=1; path=/; max-age=86400; SameSite=Lax`;
         }
-        router.replace("/dashboard");
+        router.replace("/overview");
         return;
       }
 
@@ -75,9 +97,9 @@ export function useAuth() {
         if (typeof window !== "undefined") {
           document.cookie = `ridgeway_setup=${setupDone ? "1" : "0"}; path=/; max-age=86400; SameSite=Lax`;
         }
-        router.replace(setupDone ? "/dashboard" : "/setup");
+        router.replace(setupDone ? "/overview" : "/setup");
       } catch {
-        router.replace("/dashboard");
+        router.replace("/overview");
       }
     },
     onError: (error) => {
@@ -101,7 +123,7 @@ export function useAuth() {
         document.cookie = `ridgeway_role=; path=/; max-age=0; SameSite=Lax`;
         document.cookie = `ridgeway_setup=; path=/; max-age=0; SameSite=Lax`;
       }
-      router.replace("/login");
+      router.replace("/");
       toast.info("Logged out");
     },
     onError: () => {
@@ -114,7 +136,7 @@ export function useAuth() {
         document.cookie = `ridgeway_role=; path=/; max-age=0; SameSite=Lax`;
         document.cookie = `ridgeway_setup=; path=/; max-age=0; SameSite=Lax`;
       }
-      router.replace("/login");
+      router.replace("/");
     },
   });
 
@@ -166,7 +188,7 @@ export function useAuth() {
     },
     onError: () => {
       clearStoredToken();
-      router.push("/login");
+      router.replace("/");
     },
   });
 

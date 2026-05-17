@@ -163,7 +163,7 @@ export default function ApiKeysPage() {
     queryFn: () => listAdminOrgs({ limit: 100 }),
     staleTime: 5 * 60 * 1000,
   });
-  const orgs = orgsData?.orgs ?? orgsData?.data ?? [];
+  const orgs = Array.isArray(orgsData?.data) ? orgsData.data : Array.isArray(orgsData) ? orgsData : [];
 
   // paginated api keys
   const {
@@ -174,10 +174,12 @@ export default function ApiKeysPage() {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ['admin-apikeys', orgFilter, statusFilter],
+    queryKey: ['admin-apikeys', orgFilter, statusFilter, scopeFilter],
     queryFn: ({ pageParam = 1 }) =>
       listAdminApiKeys({
         orgId: orgFilter || undefined,
+        status: statusFilter || undefined,
+        scope: scopeFilter || undefined,
         page: pageParam,
         limit: PAGE_SIZE,
       }),
@@ -190,18 +192,14 @@ export default function ApiKeysPage() {
   });
 
   const allKeys = data?.pages.flatMap((page) => page?.data ?? []) ?? [];
-
-  // scope filter is applied locally
-  const keys = scopeFilter
-    ? allKeys.filter((k) => Array.isArray(k.scopes) && k.scopes.includes(scopeFilter))
-    : allKeys;
+  const keys = allKeys;
 
   const totalLoaded = allKeys.length;
   const totalAvailable = data?.pages?.[0]?.total ?? 0;
   const hasActiveFilters = !!(orgFilter || statusFilter || scopeFilter);
 
   async function handleRevoke(keyId) {
-    queryClient.setQueryData(['admin-apikeys', orgFilter, statusFilter], (old) => {
+    queryClient.setQueryData(['admin-apikeys', orgFilter, statusFilter, scopeFilter], (old) => {
       if (!old) return old;
       return {
         ...old,

@@ -178,7 +178,7 @@ export const inviteOrgAdmin = async (req, res) => {
   try {
     await sendEmail({
       email,
-      subject: `You've been invited to Ridgeway — ${orgName}`,
+      subject: `You've been invited to Sentinel — ${orgName}`,
       mailgenContent: inviteMailgenContent(email, orgName, inviteUrl),
     });
   } catch (error) {
@@ -209,7 +209,7 @@ export const resendInvite = async (req, res) => {
   try {
     await sendEmail({
       email: user.email,
-      subject: `You've been invited to Ridgeway — ${org.name}`,
+      subject: `You've been invited to Sentinel — ${org.name}`,
       mailgenContent: inviteMailgenContent(user.email, org.name, inviteUrl),
     });
   } catch (error) {
@@ -261,8 +261,20 @@ export const setUserRole = async (req, res) => {
     throw new ApiError(400, "Invalid role");
   }
 
+  if (req.user._id.toString() === userId) {
+    throw new ApiError(403, "Cannot change your own role");
+  }
+
   const user = await User.findById(userId);
   if (!user) throw new ApiError(404, "User not found");
+
+  // Block demoting the last super_admin
+  if (user.role === 'super_admin' && role !== 'super_admin') {
+    const adminCount = await User.countDocuments({ role: 'super_admin' });
+    if (adminCount <= 1) {
+      throw new ApiError(403, "Cannot demote the last super admin");
+    }
+  }
 
   const oldRole = user.role;
   user.role = role;
@@ -313,11 +325,12 @@ export const updateUserStatus = async (req, res) => {
 // --- API Key Routes ---
 
 export const listApiKeys = async (req, res) => {
-  const { page = 1, limit = 20, orgId, status } = req.query;
+  const { page = 1, limit = 20, orgId, status, scope } = req.query;
   const query = {};
   if (orgId) query.orgId = orgId;
   if (status === 'active') query.isActive = true;
   else if (status === 'revoked') query.isActive = false;
+  if (scope) query.scopes = scope;
 
   const keys = await ApiKey.find(query)
     .populate('orgId', 'name')
@@ -353,34 +366,13 @@ export const revokeApiKey = async (req, res) => {
 // --- Job Monitor ---
 
 export const getQueueStats = async (req, res) => {
-  const invQueue = getInvestigationQueue();
-  const [waiting, active, completed, failed, delayed] = await Promise.all([
-    invQueue.getWaitingCount(),
-    invQueue.getActiveCount(),
-    invQueue.getCompletedCount(),
-    invQueue.getFailedCount(),
-    invQueue.getDelayedCount()
-  ]);
-
-  const stats = [
-    {
-      queueName: 'investigations',
-      waiting,
-      active,
-      completed,
-      failed,
-      delayed
-    }
-    // Future: webhooks, RAG
-  ];
-
+  const counts = await getBullMQStats();
+  const stats = [{ queueName: 'investigations', ...counts }];
   res.status(200).json(new ApiResponse(200, stats, "Queue stats fetched"));
 };
 
 export const getFailedJobs = async (req, res) => {
-  const invQueue = getInvestigationQueue();
-  const jobs = await invQueue.getFailed();
-
+  const jobs = await getBullMQFailed();
   const formattedJobs = jobs.map(job => ({
     id: job.id,
     name: job.name,
@@ -391,45 +383,30 @@ export const getFailedJobs = async (req, res) => {
     attemptsMade: job.attemptsMade,
     failedAt: job.finishedOn || Date.now()
   })).sort((a, b) => b.failedAt - a.failedAt);
-
   res.status(200).json(new ApiResponse(200, formattedJobs, "Failed jobs fetched"));
 };
 
 export const retryJob = async (req, res) => {
   const { queueName, jobId } = req.params;
-  
-  if (queueName !== 'investigations') {
-    throw new ApiError(400, "Unknown queue");
+  if (queueName !== 'investigations') throw new ApiError(400, "Unknown queue");
+  try {
+    await retryBullMQJob(jobId);
+  } catch {
+    throw new ApiError(404, "Job not found");
   }
-
-  const invQueue = getInvestigationQueue();
-  const job = await invQueue.getJob(jobId);
-  
-  if (!job) throw new ApiError(404, "Job not found");
-
-  await job.retry();
-  
   logAudit(req, 'job.retried', { type: 'Job', id: jobId }, { queueName });
-
   res.status(200).json(new ApiResponse(200, null, "Job queued for retry"));
 };
 
 export const deleteJob = async (req, res) => {
   const { queueName, jobId } = req.params;
-  
-  if (queueName !== 'investigations') {
-    throw new ApiError(400, "Unknown queue");
+  if (queueName !== 'investigations') throw new ApiError(400, "Unknown queue");
+  try {
+    await deleteBullMQJob(jobId);
+  } catch {
+    throw new ApiError(404, "Job not found");
   }
-
-  const invQueue = getInvestigationQueue();
-  const job = await invQueue.getJob(jobId);
-  
-  if (!job) throw new ApiError(404, "Job not found");
-
-  await job.remove();
-  
   logAudit(req, 'job.deleted', { type: 'Job', id: jobId }, { queueName });
-
   res.status(200).json(new ApiResponse(200, null, "Job permanently deleted"));
 };
 

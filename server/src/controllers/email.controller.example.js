@@ -60,7 +60,7 @@ export const registerUserWithEmail = async (req, res) => {
     try {
       await sendEmail({
         email: email,
-        subject: '📧 Verify Your Email Address - Ridgeway OIP',
+        subject: '📧 Verify Your Email Address - Sentinel',
         mailgenContent: mailContent,
       });
 
@@ -134,7 +134,7 @@ export const requestPasswordReset = async (req, res) => {
     try {
       await sendEmail({
         email: email,
-        subject: '🔒 Reset Your Password - Ridgeway OIP',
+        subject: '🔒 Reset Your Password - Sentinel',
         mailgenContent: mailContent,
       });
 
@@ -191,7 +191,7 @@ export const confirmEmailVerification = async (req, res) => {
 
       await sendEmail({
         email: decoded.email,
-        subject: '✅ Email Verified - Ridgeway OIP',
+        subject: '✅ Email Verified - Sentinel',
         mailgenContent: mailContent,
       });
 
@@ -254,7 +254,7 @@ export const sendCustomNotification = async (req, res) => {
           }
           : undefined,
         outro: actionUrl && actionText
-          ? 'Thank you for using Ridgeway OIP!'
+          ? 'Thank you for using Sentinel!'
           : message,
       },
     };
@@ -323,7 +323,7 @@ export const resendVerificationEmail = async (req, res) => {
     // Send verification email
     await sendEmail({
       email: email,
-      subject: '📧 Verify Your Email Address - Ridgeway OIP',
+      subject: '📧 Verify Your Email Address - Sentinel',
       mailgenContent: emailVerificationMailgenContent('user.name', verificationUrl),
     });
 

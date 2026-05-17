@@ -1,5 +1,14 @@
 import 'dotenv/config';
 import mongoose from 'mongoose';
+
+if (process.env.NODE_ENV === 'production') {
+  console.error('FATAL: seedTestData.js cannot run in production');
+  process.exit(1);
+}
+if (!process.env.ALLOW_SEED_DATA) {
+  console.error('Set ALLOW_SEED_DATA=true to run this script');
+  process.exit(1);
+}
 import bcrypt from 'bcrypt';
 import Organisation from '../models/organisation.model.js';
 import { User } from '../models/user.models.js';

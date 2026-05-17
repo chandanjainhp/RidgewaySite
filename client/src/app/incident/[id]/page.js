@@ -4,6 +4,7 @@ import { use } from "react";
 import Link from "next/link";
 import { ArrowLeft, AlertTriangle } from "lucide-react";
 import { useIncidentById, useIncidentEvidenceGraph } from "@/hooks/useIncidents";
+import { useAuthStore } from "@/store/authStore";
 import EvidenceChain from "@/components/incident/EvidenceChain";
 import AgentReasoning from "@/components/incident/AgentReasoning";
 import ReviewControls from "@/components/incident/ReviewControls";
@@ -71,6 +72,7 @@ function LoadingSkeleton() {
 
 export default function IncidentDetailView({ params }) {
   const { id } = use(params);
+  const orgName = useAuthStore((s) => s.orgName);
 
   const { data: incidentResponse, isLoading: isLoadingIncident } = useIncidentById(id);
   const { data: evidenceGraphResponse, isLoading: isLoadingGraph } = useIncidentEvidenceGraph(id);
@@ -131,6 +133,24 @@ export default function IncidentDetailView({ params }) {
         flex: 1, overflowY: "auto",
         padding: "32px", display: "flex", flexDirection: "column",
       }}>
+
+        {/* Breadcrumb header */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: "10px",
+          marginBottom: "12px",
+          fontFamily: "var(--font-mono)", fontSize: "10px",
+          letterSpacing: "0.12em", textTransform: "uppercase",
+        }}>
+          <span style={{ color: "var(--fg-3)" }}>Investigate</span>
+          <span style={{ color: "var(--fg-4)" }}>/</span>
+          <span style={{ color: "var(--fg-1)" }}>Incident</span>
+          {orgName && (
+            <>
+              <span style={{ flex: 1 }} />
+              <span style={{ color: "var(--fg-4)" }}>{orgName}</span>
+            </>
+          )}
+        </div>
 
         <Link
           href="/investigate"

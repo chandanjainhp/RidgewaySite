@@ -12,6 +12,11 @@ export default function AdminLayout({ children }) {
   const { user } = useAuthStore();
   const router = useRouter();
 
+  // Login page is standalone — no shell
+  if (pathname === '/admin/login') {
+    return <>{children}</>;
+  }
+
   const handleLogout = async () => {
     try {
       await api.post('/auth/logout');
@@ -23,7 +28,7 @@ export default function AdminLayout({ children }) {
     document.cookie = 'ridgeway_auth=; path=/; max-age=0; SameSite=Lax';
     document.cookie = 'ridgeway_role=; path=/; max-age=0; SameSite=Lax';
     document.cookie = 'ridgeway_setup=; path=/; max-age=0; SameSite=Lax';
-    router.replace('/login');
+    router.replace('/');
   };
 
   const navItems = [
@@ -39,7 +44,7 @@ export default function AdminLayout({ children }) {
       {/* Sidebar */}
       <div className="w-64 bg-slate-900 text-slate-100 flex flex-col shadow-xl">
         <div className="p-6 border-b border-slate-800">
-          <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Ridgeway</div>
+          <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Sentinel</div>
           <div className="text-xl font-bold tracking-tight text-white flex items-center">
             <ShieldCheck className="w-5 h-5 mr-2 text-indigo-400" />
             Admin Panel

@@ -11,14 +11,14 @@ import { NextResponse } from 'next/server';
  */
 
 // Routes that require authentication
-const PROTECTED_PREFIXES = ['/investigate', '/briefing', '/incident', '/settings', '/admin', '/dashboard', '/doc'];
+const PROTECTED_PREFIXES = ['/investigate', '/briefing', '/incident', '/settings', '/admin', '/dashboard', '/overview', '/profile'];
 
 // Role requirements
 const ADMIN_PATHS = ['/admin'];
-const SETTINGS_PATHS = ['/settings'];
+const OPERATOR_SETTINGS_PATHS = ['/settings/documents', '/settings/profile'];
 
 // Routes that bypass authentication checks
-const PUBLIC_PATHS = ['/', '/login', '/register', '/docs'];
+const PUBLIC_PATHS = ['/', '/login', '/register', '/docs', '/forgot-password', '/reset-password', '/opt', '/invite/accept', '/forbidden', '/suspended', '/admin/login'];
 
 // Routes that should redirect to /investigate if already authenticated
 const AUTH_ROUTES = ['/login', '/register'];
@@ -67,14 +67,18 @@ export function middleware(request) {
     const roleCookie = request.cookies.get('ridgeway_role');
     const userRole = roleCookie?.value;
 
-    const isAdminPath = ADMIN_PATHS.some((path) => pathname.startsWith(path));
+    const isAdminPath = ADMIN_PATHS.some((path) => pathname.startsWith(path)) && pathname !== '/admin/login';
     if (isAdminPath && userRole !== 'super_admin') {
       return NextResponse.redirect(new URL('/forbidden', request.url));
     }
 
-    const isSettingsPath = SETTINGS_PATHS.some((path) => pathname.startsWith(path));
-    if (isSettingsPath && !['super_admin', 'org_admin'].includes(userRole)) {
-      return NextResponse.redirect(new URL('/forbidden', request.url));
+    const isSettingsPath = pathname.startsWith('/settings');
+    if (isSettingsPath) {
+      const isOperatorAllowed = OPERATOR_SETTINGS_PATHS.some((path) => pathname.startsWith(path));
+      const isAdminRole = ['super_admin', 'org_admin'].includes(userRole);
+      if (!isAdminRole && !isOperatorAllowed) {
+        return NextResponse.redirect(new URL('/forbidden', request.url));
+      }
     }
   }
 
@@ -82,8 +86,13 @@ export function middleware(request) {
   const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route)) || pathname === '/';
 
   if (isAuthRoute && isAuthenticated) {
+    const roleCookie = request.cookies.get('ridgeway_role');
+    const role = roleCookie?.value;
+    if (role === 'super_admin') {
+      return NextResponse.redirect(new URL('/admin/orgs', request.url));
+    }
     const from = request.nextUrl.searchParams.get('from');
-    const redirectTo = from ? decodeURIComponent(from) : '/dashboard';
+    const redirectTo = from ? decodeURIComponent(from) : '/overview';
     return NextResponse.redirect(new URL(redirectTo, request.url));
   }
 

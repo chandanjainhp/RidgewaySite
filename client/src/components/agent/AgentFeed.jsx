@@ -63,7 +63,7 @@ export default function AgentFeed() {
             fontFamily: "var(--font-mono)", fontSize: "10px",
             color: "var(--term-dim)", letterSpacing: "0.12em", textTransform: "uppercase",
           }}>
-            Agent is gathering context
+            Argus is gathering context
           </div>
         )}
 

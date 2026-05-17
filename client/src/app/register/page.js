@@ -146,7 +146,7 @@ export default function RegisterPage() {
               <span style={{
                 fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 600,
                 letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--fg-1)',
-              }}>Ridgeway Site</span>
+              }}>Sentinel</span>
             </div>
             <div style={{
               fontFamily: 'var(--font-mono)', fontSize: '10px',
@@ -166,7 +166,7 @@ export default function RegisterPage() {
               fontFamily: 'var(--font-sans)', fontSize: '13px',
               color: 'var(--fg-2)', lineHeight: 1.6, margin: 0,
             }}>
-              This is a restricted access system. Your account will be linked to the Ridgeway Site operations team.
+              This is a restricted access system. Your account will be linked to the Sentinel operations team.
             </p>
           </div>
 
@@ -234,7 +234,7 @@ export default function RegisterPage() {
             <p style={{
               fontFamily: 'var(--font-sans)', fontSize: '13px',
               color: 'var(--fg-3)', lineHeight: 1.5, margin: 0,
-            }}>Request access to the Ridgeway Site platform.</p>
+            }}>Request access to the Sentinel platform.</p>
           </div>
 
           {/* Server error */}

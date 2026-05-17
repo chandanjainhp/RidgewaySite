@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
@@ -15,7 +15,7 @@ const SYSTEM_FEATURES = [
   { color: 'var(--sev-harmless)', label: 'Morning Briefing', desc: 'Operators review structured findings, approve the briefing, and distribute to stakeholders.' },
 ];
 
-export default function LoginPage() {
+function LoginPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const reason = searchParams.get('reason');
@@ -64,11 +64,11 @@ export default function LoginPage() {
           const orgData = await getOrgMe();
           const setupDone = orgData?.setupComplete;
           document.cookie = `ridgeway_setup=${setupDone ? '1' : '0'}; path=/; max-age=86400; SameSite=Lax`;
-          router.replace(setupDone ? '/investigate' : '/setup');
+          router.replace(setupDone ? '/overview' : '/setup');
         } catch {
           // Non-critical — don't block login
           document.cookie = 'ridgeway_setup=1; path=/; max-age=86400; SameSite=Lax';
-          router.replace('/investigate');
+          router.replace('/overview');
         }
       }
     },
@@ -144,7 +144,7 @@ export default function LoginPage() {
               <span style={{
                 fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 600,
                 letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--fg-1)',
-              }}>Ridgeway Site</span>
+              }}>Sentinel</span>
             </div>
           </div>
 
@@ -449,5 +449,31 @@ export default function LoginPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+function LoginFallback() {
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: "var(--bg-base)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+    }}>
+      <span style={{
+        fontFamily: "var(--font-mono)", fontSize: "10px",
+        letterSpacing: "0.14em", textTransform: "uppercase",
+        color: "var(--fg-4)",
+      }}>
+        Loading…
+      </span>
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginFallback />}>
+      <LoginPageInner />
+    </Suspense>
   );
 }

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Copy, Check } from "lucide-react";
 
 const SECTIONS = [
-  { id: "what-is",       label: "What is Ridgeway?" },
+  { id: "what-is",       label: "What is Sentinel?" },
   { id: "how-it-works",  label: "How it works" },
   { id: "getting-started", label: "Getting started" },
   { id: "drones",        label: "Connecting your drones" },
@@ -13,6 +13,7 @@ const SECTIONS = [
   { id: "briefing",      label: "Morning briefing" },
   { id: "security",      label: "Security & encryption" },
   { id: "mcp",           label: "MCP integration" },
+  { id: "webhooks",      label: "Webhooks" },
 ];
 
 function CopyButton({ text }) {
@@ -159,18 +160,45 @@ const EXAMPLE_PAYLOAD = `{
 }`;
 
 const MCP_SNIPPET = `// Claude.ai → Settings → Connectors → Add MCP server
-// Server URL:  https://your-ridgeway-host/api/v1/mcp
+// Server URL:  https://your-sentinel-host/api/v1/mcp
 // Auth header: Authorization: Bearer <api-key-with-mcp-scope>
 
 // Cursor / VS Code: ~/.cursor/mcp.json
 {
   "mcpServers": {
-    "ridgeway": {
-      "url": "https://your-ridgeway-host/api/v1/mcp",
+    "sentinel": {
+      "url": "https://your-sentinel-host/api/v1/mcp",
       "headers": { "Authorization": "Bearer YOUR_API_KEY" }
     }
   }
 }`;
+
+const WEBHOOK_EVENTS = [
+  ["incident.created",        "Correlation produces a new incident."],
+  ["incident.classified",     "Argus assigns final severity classification."],
+  ["investigation.completed", "Investigation finishes (any outcome)."],
+  ["briefing.approved",       "Operator approves the morning briefing."],
+];
+
+const WEBHOOK_VERIFY_NODE = `import crypto from "crypto";
+
+export function verifySentinelSignature(rawBody, header, secret) {
+  const expected = "sha256=" + crypto
+    .createHmac("sha256", secret)
+    .update(rawBody)              // raw JSON bytes, NOT parsed object
+    .digest("hex");
+  const a = Buffer.from(expected);
+  const b = Buffer.from(header || "");
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}`;
+
+const WEBHOOK_VERIFY_PY = `import hmac, hashlib
+
+def verify_sentinel_signature(raw_body: bytes, header: str, secret: str) -> bool:
+    expected = "sha256=" + hmac.new(
+        secret.encode(), raw_body, hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(expected, header or "")`;
 
 const MCP_TOOLS = [
   ["get_site_status",      "Current site overview — sensor health, active alerts"],
@@ -247,7 +275,7 @@ export default function DocsPage() {
               letterSpacing: "0.12em",
               textTransform: "uppercase",
             }}>
-              Ridgeway
+              Sentinel
             </span>
           </div>
           <div style={{
@@ -351,10 +379,10 @@ export default function DocsPage() {
       >
         {/* Section 1 */}
         <SectionWrapper id="what-is">
-          <SectionHead>What is Ridgeway?</SectionHead>
+          <SectionHead>What is Sentinel?</SectionHead>
           <SectionBody>
             <Body>
-              Ridgeway is an AI-first overnight industrial site intelligence platform. Drone patrols run automatically at night — capturing motion events, badge-swipe failures, vehicle movements, and environmental readings. By morning, Claude has investigated every incident, classified each by severity, and generated a structured briefing ready for your team.
+              Sentinel is an AI-first overnight industrial site intelligence platform. Drone patrols run automatically at night — capturing motion events, badge-swipe failures, vehicle movements, and environmental readings. By morning, Argus has investigated every incident, classified each by severity, and generated a structured briefing ready for your team.
             </Body>
             <Body>
               Operators log in each morning to one place: a prioritised list of everything that happened overnight, with AI reasoning attached to every incident. Review, escalate, or close in minutes — then approve the briefing to notify day shift.
@@ -407,7 +435,7 @@ export default function DocsPage() {
         <SectionWrapper id="how-it-works">
           <SectionHead>How it works</SectionHead>
           <SectionBody>
-            <Body>Every night Ridgeway runs a four-stage automated cycle:</Body>
+            <Body>Every night Sentinel runs a four-stage automated cycle:</Body>
             {/* Flow diagram */}
             <div style={{
               display: "flex",
@@ -488,7 +516,7 @@ export default function DocsPage() {
             {[
               ["Register", "Create an account at /register. The first user in an org becomes org_admin."],
               ["Setup wizard", "Complete the setup wizard: enter your site details and timezone, then generate an API key for your drone."],
-              ["Connect your drone", "Configure your drone patrol system to POST events to the Ridgeway events endpoint using the generated API key."],
+              ["Connect your drone", "Configure your drone patrol system to POST events to the Sentinel events endpoint using the generated API key."],
               ["Wait for patrol", "Events recorded overnight will be processed automatically. Your first investigation and briefing will be ready the following morning."],
             ].map(([title, desc], i) => (
               <div key={i} style={{
@@ -585,7 +613,7 @@ export default function DocsPage() {
           <SectionHead>Understanding incidents</SectionHead>
           <SectionBody>
             <Body>
-              Ridgeway groups correlated events into incidents automatically. Claude then classifies each incident by severity:
+              Sentinel groups correlated events into incidents automatically. Argus then classifies each incident by severity:
             </Body>
 
             <div style={{ marginBottom: "20px" }}>
@@ -645,7 +673,7 @@ export default function DocsPage() {
           <SectionHead>Morning briefing</SectionHead>
           <SectionBody>
             <Body>
-              After all overnight investigations complete, Ridgeway generates a structured morning briefing. The briefing contains: an executive summary, a prioritised incident list, recommended actions, and a site health assessment.
+              After all overnight investigations complete, Sentinel generates a structured morning briefing. The briefing contains: an executive summary, a prioritised incident list, recommended actions, and a site health assessment.
             </Body>
             <Body>
               The briefing lives at <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--fg-1)" }}>/briefing</span> and is presented as a formatted document ready for day-shift handover. Operators can edit individual sections before approving.
@@ -665,7 +693,7 @@ export default function DocsPage() {
               ["API keys", "SHA-256 hashed. The raw key is shown once at creation — never stored. Treat it like a password."],
               ["OTPs", "SHA-256 hashed, 20-minute TTL. Raw OTP is only sent by email."],
               ["JWTs", "Short-lived (15 minutes), stored as httpOnly cookies. Instant invalidation via token version tracking."],
-              ["Webhook signatures", "All outgoing webhooks carry an X-Ridgeway-Signature: sha256=<hmac> header computed with your webhook secret."],
+              ["Webhook signatures", "All outgoing webhooks carry an X-Sentinel-Signature: sha256=<hmac> header computed with your webhook secret."],
               ["In transit", "All external traffic should use HTTPS/TLS in production (terminate at your reverse proxy)."],
             ].map(([title, desc]) => (
               <div key={title} style={{
@@ -703,7 +731,7 @@ export default function DocsPage() {
           <SectionHead>MCP integration</SectionHead>
           <SectionBody>
             <Body>
-              Ridgeway exposes a Model Context Protocol (MCP) server, letting any MCP-compatible AI agent — Claude.ai, Cursor, VS Code — query your site data directly in conversation.
+              Sentinel exposes a Model Context Protocol (MCP) server, letting any MCP-compatible AI agent — Claude.ai, Cursor, VS Code — query your site data directly in conversation.
             </Body>
             <Label>Available tools</Label>
             <div style={{ marginBottom: "16px" }}>
@@ -735,6 +763,58 @@ export default function DocsPage() {
             <CodeBlock copyable>{MCP_SNIPPET}</CodeBlock>
             <Body style={{ fontSize: "13px", color: "var(--fg-3)", marginTop: "12px" }}>
               Generate an API key with the <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--accent)" }}>mcp</span> scope from Settings → API Keys. Rate limit: 60 tool calls per minute per key.
+            </Body>
+          </SectionBody>
+        </SectionWrapper>
+
+        {/* Section 9 */}
+        <SectionWrapper id="webhooks">
+          <SectionHead>Webhooks</SectionHead>
+          <SectionBody>
+            <Body>
+              Configure receivers in Settings → Webhooks. Every delivery carries an
+              {" "}<code style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--accent)" }}>X-Sentinel-Signature</code>{" "}
+              HMAC-SHA256 header computed over the raw JSON body. Use case: shift handoff
+              alerts, Slack posts, downstream automation.
+            </Body>
+
+            <Label>Event types fired</Label>
+            <div style={{ marginBottom: "16px" }}>
+              {WEBHOOK_EVENTS.map(([evt, desc]) => (
+                <div key={evt} style={{
+                  display: "flex",
+                  gap: "12px",
+                  padding: "8px 0",
+                  borderBottom: "1px solid var(--border-hairline)",
+                  alignItems: "flex-start",
+                }}>
+                  <code style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "11px",
+                    color: "var(--accent)",
+                    flexShrink: 0,
+                    width: "180px",
+                    paddingTop: "1px",
+                  }}>
+                    {evt}
+                  </code>
+                  <span style={{ fontFamily: "var(--font-sans)", fontSize: "13px", color: "var(--fg-3)", lineHeight: 1.5 }}>
+                    {desc}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <Label>Verification — Node.js</Label>
+            <CodeBlock copyable>{WEBHOOK_VERIFY_NODE}</CodeBlock>
+
+            <Label>Verification — Python</Label>
+            <CodeBlock copyable>{WEBHOOK_VERIFY_PY}</CodeBlock>
+
+            <Body style={{ fontSize: "13px", color: "var(--fg-3)", marginTop: "12px" }}>
+              <strong style={{ color: "var(--fg-2)" }}>Important:</strong> verify against
+              the <em>raw</em> request body, not the parsed JSON. Whitespace differences
+              invalidate the signature.
             </Body>
           </SectionBody>
         </SectionWrapper>
