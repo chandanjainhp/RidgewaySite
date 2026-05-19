@@ -9,6 +9,7 @@ import EvidenceChain from "@/components/incident/EvidenceChain";
 import AgentReasoning from "@/components/incident/AgentReasoning";
 import ReviewControls from "@/components/incident/ReviewControls";
 import dynamic from "next/dynamic";
+import { getSeverity } from "@/lib/severity";
 
 const IncidentMiniMap = dynamic(
   () => import("@/components/incident/IncidentMiniMap"),
@@ -29,13 +30,6 @@ const IncidentMiniMap = dynamic(
   }
 );
 
-const SEV_STYLE = {
-  harmless:  { border: "var(--sev-harmless)",  color: "var(--sev-harmless)",  background: "var(--sev-harmless-bg)",  label: "Harmless"  },
-  monitor:   { border: "var(--sev-minor)",     color: "var(--sev-minor)",     background: "var(--sev-minor-bg)",     label: "Monitor"   },
-  escalate:  { border: "var(--sev-serious)",   color: "var(--sev-serious)",   background: "var(--sev-serious-bg)",   label: "Escalate"  },
-  uncertain: { border: "#6366f1",              color: "#6366f1",              background: "rgba(99,102,241,0.08)",   label: "Uncertain" },
-  unknown:   { border: "var(--fg-4)",          color: "var(--fg-4)",          background: "var(--bg-surface-3)",     label: "Unknown"   },
-};
 
 function LoadingSkeleton() {
   const block = (h, w = "100%", mt = 0) => ({
@@ -85,35 +79,28 @@ export default function IncidentDetailView({ params }) {
   const evidenceGraph = evidenceGraphResponse?.data || evidenceGraphResponse || {};
 
   const title = incident.title || incident.description || "Unidentified Alert Sequence";
-  const severity = incident.finalClassification?.severity || incident.severity || "unknown";
-  const sevStyle = SEV_STYLE[severity] || SEV_STYLE.unknown;
+  const severity = incident.severity || "uncertain";
+  const sev = getSeverity(severity);
+  const sevStyle = { border: sev.dim, color: sev.token, background: sev.bg, label: sev.label };
 
   const confidence =
-    incident?.investigationId?.finalClassification?.confidence ||
-    incident?.agentClassification?.confidence ||
-    incident?.finalClassification?.confidence ||
+    incident?.investigationId?.classification?.confidence ||
     evidenceGraph?.classification?.confidence ||
     0;
 
   const reasoning =
-    incident?.investigationId?.finalClassification?.reasoning ||
-    incident?.agentClassification?.reasoning ||
-    incident?.finalClassification?.reasoning ||
+    incident?.investigationId?.classification?.reasoning ||
     evidenceGraph?.classification?.reasoning ||
     "No reasoning attached by agent.";
 
   const uncertainties =
-    incident?.investigationId?.finalClassification?.uncertainties ||
-    incident?.agentClassification?.uncertainties ||
-    incident?.finalClassification?.uncertainties ||
+    incident?.investigationId?.classification?.uncertainties ||
     evidenceGraph?.classification?.uncertainties ||
     [];
 
   const classification = {
     ...(evidenceGraph.classification || {}),
-    ...(incident.finalClassification || {}),
-    ...(incident.agentClassification || {}),
-    ...(incident.investigationId?.finalClassification || {}),
+    ...(incident.investigationId?.classification || {}),
     confidence,
     reasoning,
     uncertainties,
@@ -169,19 +156,6 @@ export default function IncidentDetailView({ params }) {
           Back to Investigation
         </Link>
 
-        {incident.raghavsNote && (
-          <div style={{
-            display: "flex", alignItems: "center", gap: "8px",
-            padding: "8px 16px", marginBottom: "24px", width: "100%",
-            border: "1px solid rgba(232,154,43,0.5)",
-            background: "rgba(232,154,43,0.08)",
-            fontFamily: "var(--font-mono)", fontSize: "11px",
-            textTransform: "uppercase", letterSpacing: "0.12em",
-            color: "var(--sev-minor)",
-          }}>
-            <AlertTriangle size={14} />
-            Raghav flagged this area
-          </div>
         )}
 
         <h1 style={{
@@ -204,7 +178,9 @@ export default function IncidentDetailView({ params }) {
             border: `1px solid ${sevStyle.border}`,
             color: sevStyle.color,
             background: sevStyle.background,
+            display: "inline-flex", alignItems: "center", gap: "6px",
           }}>
+            <sev.icon size={12} aria-hidden="true" />
             {sevStyle.label}
           </span>
 
@@ -229,7 +205,7 @@ export default function IncidentDetailView({ params }) {
               <div style={{
                 position: "absolute", top: 0, left: 0, height: "100%",
                 width: `${confidencePercent}%`,
-                background: confidencePercent > 80 ? "#22c55e" : "var(--sev-minor)",
+                background: confidencePercent > 80 ? "var(--accent)" : "var(--sev-minor)",
                 borderRadius: "2px",
                 transition: "width 400ms var(--ease-out)",
               }} />
@@ -254,7 +230,7 @@ export default function IncidentDetailView({ params }) {
           }}>
             Evidence Chain
           </div>
-          <EvidenceChain steps={evidenceGraph.steps || []} finalClassification={classification} />
+          <EvidenceChain steps={evidenceGraph.steps || []} classification={classification} />
         </section>
 
         {/* Agent Reasoning */}
@@ -302,13 +278,13 @@ export default function IncidentDetailView({ params }) {
           <ReviewControls
             incidentId={id}
             agentClassification={classification}
-            incidentLocation={incident.primaryLocation || incident.location}
+            incidentLocation={incident.location}
           />
         </section>
       </div>
 
       {/* ── Right: sidebar ──────────────────────────────── */}
-      <div style={{
+      <aside aria-label="Investigation detail" style={{
         width: "380px", flexShrink: 0,
         borderLeft: "1px solid var(--border-default)",
         background: "var(--bg-surface-2)",
@@ -317,7 +293,7 @@ export default function IncidentDetailView({ params }) {
       }}>
         <IncidentMiniMap
           incidentId={id}
-          location={incident.primaryLocation || incident.location}
+          location={incident.location}
         />
 
         {/* Involved Entities */}
@@ -394,7 +370,7 @@ export default function IncidentDetailView({ params }) {
             </span>
           )}
         </div>
-      </div>
+      </aside>
     </div>
   );
 }

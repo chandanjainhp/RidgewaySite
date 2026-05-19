@@ -62,7 +62,7 @@ export default function AgentReasoning({ reasoning, uncertainties = [], confiden
                 <li key={idx} style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
                   <span style={{
                     width: "6px", height: "6px", borderRadius: "50%",
-                    background: "#6366f1", flexShrink: 0, marginTop: "6px",
+                    background: "var(--sev-unknown)", flexShrink: 0, marginTop: "6px",
                   }} />
                   <span style={{
                     fontSize: "13px", lineHeight: "var(--lh-snug)",
@@ -80,17 +80,17 @@ export default function AgentReasoning({ reasoning, uncertainties = [], confiden
         <div style={{
           display: "inline-flex", alignItems: "center", gap: "8px",
           padding: "10px 16px",
-          border: "1px solid rgba(34,197,94,0.3)",
-          background: "rgba(34,197,94,0.07)",
+          border: "1px solid var(--sev-harmless-dim)",
+          background: "var(--sev-harmless-bg)",
         }}>
           <span style={{
             width: "8px", height: "8px", borderRadius: "50%",
-            background: "#22c55e", flexShrink: 0,
+            background: "var(--sev-harmless)", flexShrink: 0,
           }} />
           <span style={{
             fontFamily: "var(--font-mono)", fontSize: "10px",
             textTransform: "uppercase", letterSpacing: "0.12em",
-            color: "#22c55e",
+            color: "var(--sev-harmless)",
           }}>
             No uncertainties — high confidence classification
           </span>

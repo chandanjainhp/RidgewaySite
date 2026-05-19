@@ -5,15 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMapStore } from "@/store/mapStore";
 import { useReviewStore } from "@/store/reviewStore";
 import { formatNightLabel, formatTime } from "@/lib/formatters";
-
-/* severity → Night Watch design tokens */
-const SEV_TOKENS = {
-  escalate:  { text: "var(--sev-serious)",  bg: "var(--sev-serious-bg)",  border: "var(--sev-serious-dim)",  label: "ESCALATE" },
-  monitor:   { text: "var(--sev-minor)",    bg: "var(--sev-minor-bg)",    border: "var(--sev-minor-dim)",    label: "MONITOR" },
-  harmless:  { text: "var(--sev-harmless)", bg: "var(--sev-harmless-bg)", border: "var(--sev-harmless-dim)", label: "HARMLESS" },
-  uncertain: { text: "var(--sev-unknown)",  bg: "var(--sev-unknown-bg)",  border: "var(--border-default)",   label: "UNCERTAIN" },
-  unknown:   { text: "var(--fg-3)",         bg: "var(--bg-surface-1)",    border: "var(--border-default)",   label: "UNKNOWN" },
-};
+import { getSeverity } from "@/lib/severity";
 
 const TYPE_LABELS = {
   spatial:    "SPATIAL CLUSTER",
@@ -31,14 +23,15 @@ const EventCard = memo(({ incident }) => {
   const isReviewed    = useReviewStore((s) => s.isReviewed);
 
   const id       = incident?._id || incident?.id || incident?.incidentId;
-  const severity = incident.finalSeverity || incident.agentClassification?.severity || incident.severity || "unknown";
-  const tok      = SEV_TOKENS[severity] || SEV_TOKENS.unknown;
+  const severity = incident.severity || "uncertain";
+  const s        = getSeverity(severity);
+  const tok      = { text: s.token, bg: s.bg, border: s.dim, label: s.label.toUpperCase() };
 
   const isSelected = selectedPinId === id;
   const reviewed   = isReviewed ? isReviewed(id) : false;
 
-  const typeLabel = TYPE_LABELS[incident.correlationType] || "INCIDENT";
-  const location  = incident.primaryLocation?.name || incident.location?.name || incident.title || "Unknown Location";
+  const typeLabel = TYPE_LABELS[incident.correlation?.type] || "INCIDENT";
+  const location  = incident.location?.name || incident.title || "Unknown Location";
   const nightDate = incident.nightDate;
   const timeLabel = nightDate
     ? formatNightLabel(nightDate)
@@ -79,9 +72,6 @@ const EventCard = memo(({ incident }) => {
         </div>
         <div style={{ fontFamily: "var(--font-mono)", fontSize: "10.5px", color: "var(--fg-3)", lineHeight: 1.3 }}>
           {typeLabel}
-          {incident.raghavsNote && (
-            <span style={{ marginLeft: "8px", color: "var(--sev-minor)" }}>· FLAGGED</span>
-          )}
           {reviewed && (
             <span style={{ marginLeft: "8px", color: "var(--sev-harmless)" }}>· REVIEWED</span>
           )}
@@ -94,8 +84,9 @@ const EventCard = memo(({ incident }) => {
         textTransform: "uppercase", letterSpacing: "0.1em",
         padding: "2px 7px", borderRadius: "2px",
         background: tok.bg, color: tok.text, border: `1px solid ${tok.border}`,
-        flexShrink: 0,
+        flexShrink: 0, display: "inline-flex", alignItems: "center", gap: "4px",
       }}>
+        <s.icon size={10} aria-hidden="true" />
         {tok.label}
       </span>
     </div>

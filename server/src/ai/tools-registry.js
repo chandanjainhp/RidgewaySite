@@ -38,7 +38,7 @@ export const TOOLS_FOR_CLAUDE = [
   {
     name: 'get_overnight_alerts',
     description:
-      'Returns all security sensor alerts from Ridgeway Site for last night. Use this first to understand the full scope of overnight activity. Returns event type, location, timestamp, and raw sensor data for each alert.',
+      'Returns all security sensor alerts for last night. Use this first to understand the full scope of overnight activity. Returns event type, location, timestamp, and raw sensor data for each alert.',
     input_schema: {
       type: 'object',
       properties: {
@@ -348,7 +348,7 @@ const toolHandlers = {
       };
     }
 
-    incident.finalSeverity = input.severity;
+    incident.severity = input.severity;
     incident.agentSummary = input.reasoning;
     await incident.save();
 
@@ -370,12 +370,12 @@ const toolHandlers = {
     const incidents = await Incident.find({
       _id: { $in: input?.incidentIds || [] },
     })
-      .select('title finalSeverity agentSummary primaryLocation')
+      .select('title severity agentSummary location')
       .lean();
 
     const incidentLines = incidents.map((incident) => {
-      const location = incident.primaryLocation?.name || 'unknown location';
-      const severity = incident.finalSeverity || 'uncertain';
+      const location = incident.location?.name || 'unknown location';
+      const severity = incident.severity || 'uncertain';
       const summary = incident.agentSummary || 'No summary available';
       return `- ${incident.title} (${severity}) at ${location}: ${summary}`;
     });

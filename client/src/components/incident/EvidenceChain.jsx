@@ -2,7 +2,7 @@
 
 import EvidenceStep from "@/components/incident/EvidenceStep";
 
-export default function EvidenceChain({ steps, finalClassification }) {
+export default function EvidenceChain({ steps, classification }) {
   if (!steps || steps.length === 0) {
     return (
       <div style={{
@@ -30,7 +30,7 @@ export default function EvidenceChain({ steps, finalClassification }) {
     <div style={{ width: "100%", display: "flex", flexDirection: "column" }}>
       {steps.map((stepInfo, idx) => {
         const { step, finding, source, confidence } = stepInfo;
-        const isLastStep = !finalClassification && idx === steps.length - 1;
+        const isLastStep = !classification && idx === steps.length - 1;
         return (
           <EvidenceStep
             key={idx}
@@ -44,12 +44,12 @@ export default function EvidenceChain({ steps, finalClassification }) {
         );
       })}
 
-      {finalClassification && (
+      {classification && (
         <EvidenceStep
           step={steps.length + 1}
           source="classify_incident"
-          finding={`Assessed as ${finalClassification.severity || "uncertain"} with ${Math.round((finalClassification.confidence || 0) * 100)}% confidence`}
-          confidence={toConfidenceLevel(finalClassification.confidence)}
+          finding={`Assessed as ${classification.severity || "uncertain"} with ${Math.round((classification.confidence || 0) * 100)}% confidence`}
+          confidence={toConfidenceLevel(classification.confidence)}
           isFirst={steps.length === 0}
           isLast
         />

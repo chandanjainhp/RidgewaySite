@@ -40,7 +40,7 @@ export default function SuspendedPage() {
               Please contact your platform administrator or account manager to restore access.
             </p>
           </div>
-          <a href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || 'support@ridgeway.io'}`} className="block mt-3 text-sm text-blue-500 hover:underline">
+          <a href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || 'support@sentinel.io'}`} className="block mt-3 text-sm text-blue-500 hover:underline">
             Contact support
           </a>
           <p className="text-xs text-gray-500 mt-1">

@@ -882,8 +882,13 @@ See HANDOFF.md for the full wave-by-wave plan. Quick status:
 | Investigate idle-collapse Argus rail + map overlay CTA | ✅ Done |
 | Public landing page with role-based entry points | ✅ Done |
 | Map data org-scoped + empty states (no London leak) | ✅ Done |
-| Webhook worker (HMAC signing) | ⏳ Wave 1 |
-| Briefing state machine (4 states) | ⏳ Wave 1 |
+| Canonical schema migration (all 4 collections) | ✅ Done |
+| Webhook outbox pattern (atomic claim, HMAC signing) | ✅ Done |
+| Briefing state machine (4 states + SSE streaming) | ✅ Done |
+| Event idempotency (Idempotency-Key + content hash) | ✅ Done |
+| Font cleanup — BMW TypeNext Pro removed | ✅ Done |
+| Product naming pass — all Ridgeway→Sentinel user-visible | ✅ Done |
+| Dead file purge (prev/, ui-kit/, DESIGN.md) | ✅ Done |
 | Overview page real data + clickable cards | ⏳ Wave 1 |
 | Argus completion notification | ⏳ Wave 1 |
 | Settings Night Watch migration | ⏳ Wave 2 |

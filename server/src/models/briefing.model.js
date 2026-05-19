@@ -1,13 +1,10 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const briefingSectionSchema = new mongoose.Schema(
   {
-    agentDraft: mongoose.Schema.Types.Mixed,
-    mayaVersion: mongoose.Schema.Types.Mixed,
-    isEdited: {
-      type: Boolean,
-      default: false,
-    },
+    name: { type: String, required: true },
+    content: mongoose.Schema.Types.Mixed,
+    lastEditedAt: Date,
   },
   { _id: false }
 );
@@ -26,9 +23,10 @@ const briefingSchema = new mongoose.Schema(
       index: true,
     },
     nightDate: {
-      type: Date,
+      type: String,
       required: true,
       index: true,
+      match: /^\d{4}-\d{2}-\d{2}$/,
     },
     generatedAt: {
       type: Date,
@@ -37,31 +35,24 @@ const briefingSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["draft", "pending_review", "approved", "pending_revision"],
-      default: "pending_review",
+      enum: ['generating', 'draft', 'approved', 'failed'],
+      default: 'draft',
       index: true,
     },
-    sections: {
-      executive_summary: briefingSectionSchema,
-      incidents: briefingSectionSchema,
-      recommendations: briefingSectionSchema,
-      anomalies: briefingSectionSchema,
-      follow_up: briefingSectionSchema,
-    },
+    sections: [briefingSectionSchema],
     metadata: mongoose.Schema.Types.Mixed,
-    reviewedAt: Date,
-    reviewedBy: {
+    generationStartedAt: Date,
+    generationCompletedAt: Date,
+    failureReason: String,
+    approvedAt: Date,
+    approvedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-    lastReview: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Review",
+      ref: 'User',
     },
   },
   { timestamps: true }
 );
 
-briefingSchema.set("toJSON", { virtuals: true });
+briefingSchema.set('toJSON', { virtuals: true });
 
-export default mongoose.model("Briefing", briefingSchema);
+export default mongoose.model('Briefing', briefingSchema);

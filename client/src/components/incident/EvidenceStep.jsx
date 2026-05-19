@@ -3,24 +3,24 @@ import { formatToolName } from "@/lib/formatters";
 
 const CONFIDENCE_STYLES = {
   high: {
-    background: "rgba(34, 197, 94, 0.2)",
-    borderColor: "#22c55e",
-    textColor: "#22c55e",
+    background: "var(--sev-harmless-bg)",
+    borderColor: "var(--sev-harmless)",
+    textColor: "var(--sev-harmless)",
   },
   medium: {
-    background: "rgba(245, 158, 11, 0.2)",
-    borderColor: "#f59e0b",
-    textColor: "#f59e0b",
+    background: "var(--sev-minor-bg)",
+    borderColor: "var(--sev-minor)",
+    textColor: "var(--sev-minor)",
   },
   low: {
-    background: "rgba(249, 115, 22, 0.2)",
-    borderColor: "#f97316",
-    textColor: "#f97316",
+    background: "var(--sev-serious-bg)",
+    borderColor: "var(--sev-serious-dim)",
+    textColor: "var(--sev-serious)",
   },
   uncertain: {
-    background: "rgba(99, 102, 241, 0.2)",
-    borderColor: "#6366f1",
-    textColor: "#6366f1",
+    background: "var(--sev-unknown-bg)",
+    borderColor: "var(--border-default)",
+    textColor: "var(--sev-unknown)",
   },
 };
 

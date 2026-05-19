@@ -72,7 +72,7 @@ export default function ForgotPasswordPage() {
 
         {/* Server error */}
         {serverError && (
-          <div style={{
+          <div role="alert" aria-live="polite" style={{
             display: 'flex', alignItems: 'center', gap: '8px',
             padding: '10px 14px', marginBottom: '20px',
             background: 'var(--sev-serious-bg)',
@@ -117,7 +117,7 @@ export default function ForgotPasswordPage() {
                 setServerError('');
               }}
               required
-              placeholder="operator@ridgeway.site"
+              placeholder="operator@example.com"
               className={`auth-field${error ? ' auth-field-err' : ''}`}
             />
             {error && (
@@ -131,6 +131,7 @@ export default function ForgotPasswordPage() {
           <button
             type="submit"
             disabled={mutation.isPending || success}
+            aria-busy={mutation.isPending}
             className="auth-submit"
             style={{ marginTop: '4px' }}
           >
@@ -169,7 +170,7 @@ export default function ForgotPasswordPage() {
           border: 1px solid var(--border-default);
           color: var(--fg-1);
           font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.02em;
-          outline: none; border-radius: 0;
+          border-radius: 0;
           transition: border-color 120ms, box-shadow 120ms;
         }
         .auth-field::placeholder { color: var(--fg-4); font-size: 12px; }

@@ -1,9 +1,8 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { SEVERITY_CONFIG } from '@/config/constants'; // Access to baseline keys
+import { SEV } from '@/lib/severity';
 
-// Base configurations mapping global severities array explicitly
-const allSeverities = Object.keys(SEVERITY_CONFIG);
+const allSeverities = Object.keys(SEV);
 
 export const useMapStore = create(
   devtools(

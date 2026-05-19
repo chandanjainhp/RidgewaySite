@@ -416,21 +416,21 @@ export const seedTestUsers = async () => {
     // Clear existing test users (avoid duplicate unique key errors)
     // const usersCollection = getCollection('users');
     // await usersCollection.deleteMany({
-    //   email: { $in: ['maya@ridgeway.com', 'operator@ridgeway.com'] }
+    //   email: { $in: ['maya@example.com', 'operator@example.com'] }
     // });
 
     // Create test users - password will be hashed by schema pre-save hook
     const testUsers = [
       {
         username: 'maya',
-        email: 'maya@ridgeway.com',
+        email: 'maya@example.com',
         fullName: 'Maya Operations',
         password: 'password123', // Will be hashed by User.create
         isEmailVerified: true,
       },
       {
         username: 'operator',
-        email: 'operator@ridgeway.com',
+        email: 'operator@example.com',
         fullName: 'Site Operator',
         password: 'password123',
         isEmailVerified: true,
@@ -494,70 +494,65 @@ export const seedIncidents = async () => {
         title: 'Untagged vehicle near Block C',
         description: 'Drone observed untagged vehicle near Block C loading bay; requires leadership-ready explanation',
         eventIds: evt004 && evt005 && evt006 && evt007 ? [evt004._id, evt005._id, evt006._id, evt007._id] : [],
-        primaryLocation: {
+        location: {
           name: 'Block C',
           coordinates: { lat: SEED_LOCATIONS.blockC.lat, lng: SEED_LOCATIONS.blockC.lng },
           zone: 'block',
         },
-        correlationType: 'entity',
+        correlation: { type: 'entity', strategy: 'entity_tracking', metadata: {} },
         entityInvolved: {
           type: 'vehicle',
           id: 'V-09',
           displayName: 'Contractor Vehicle V-09',
         },
-        status: 'pending',
+        status: 'open',
         priority: 1,
-        severity: 'escalate',
-        finalSeverity: 'escalate',
-        raghavsNote: true,
+        severity: 'serious',
       },
       {
         nightDate: seedDate,
         title: 'Perimeter security alerts',
         description: 'Fence sensor alert at Gate 3 likely caused by loose wire; drone confirmed harmless',
         eventIds: evt002 ? [evt002._id] : [],
-        primaryLocation: {
+        location: {
           name: 'Gate 3',
           coordinates: { lat: SEED_LOCATIONS.gate3.lat, lng: SEED_LOCATIONS.gate3.lng },
           zone: 'perimeter',
         },
-        correlationType: 'spatial',
-        status: 'pending',
+        correlation: { type: 'spatial', strategy: 'spatial_clustering', metadata: {} },
+        status: 'open',
         priority: 3,
-        severity: 'monitor',
-        finalSeverity: 'monitor',
+        severity: 'minor',
       },
       {
         nightDate: seedDate,
         title: 'Access badge failure pattern',
         description: 'Three badge failures at Access Point 7 between 01:10 and 01:13 by employee at wrong gate',
         eventIds: evt001 ? [evt001._id] : [],
-        primaryLocation: {
+        location: {
           name: 'Access Point 7',
           coordinates: { lat: SEED_LOCATIONS.accessPoint7.lat, lng: SEED_LOCATIONS.accessPoint7.lng },
           zone: 'access_point',
         },
-        correlationType: 'temporal',
-        status: 'pending',
+        correlation: { type: 'temporal', strategy: 'temporal_chaining', metadata: {} },
+        status: 'open',
         priority: 4,
-        severity: 'monitor',
-        finalSeverity: 'monitor',
+        severity: 'minor',
       },
       {
         nightDate: seedDate,
         title: 'Noise and facility anomalies',
         description: 'Canteen motion sensor triggered by fox and admin lighting timer malfunction',
         eventIds: evt003 && evt008 ? [evt003._id, evt008._id] : [],
-        primaryLocation: {
+        location: {
           name: 'Admin Block',
           coordinates: { lat: SEED_LOCATIONS.adminBlock.lat, lng: SEED_LOCATIONS.adminBlock.lng },
           zone: 'access_point',
         },
-        correlationType: 'spatial',
-        status: 'pending',
+        correlation: { type: 'spatial', strategy: 'spatial_clustering', metadata: {} },
+        status: 'open',
         priority: 5,
         severity: 'harmless',
-        finalSeverity: 'harmless',
       },
     ];
 

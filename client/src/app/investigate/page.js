@@ -231,7 +231,7 @@ export default function InvestigationView() {
       }}>
 
         {/* ══ LEFT · Argus Activity ════════════════════════ */}
-        <div style={{
+        <aside aria-label="Argus activity" style={{
           background: "var(--bg-base)",
           display: "flex", flexDirection: "column",
           overflow: "hidden", minHeight: 0,
@@ -308,7 +308,7 @@ export default function InvestigationView() {
               </div>
             </>
           )}
-        </div>
+        </aside>
 
         {/* ══ CENTER · Site Map ═════════════════════════════ */}
         <div style={{
@@ -378,7 +378,7 @@ export default function InvestigationView() {
         </div>
 
         {/* ══ RIGHT · Events ════════════════════════════════ */}
-        <div style={{
+        <aside aria-label="Events list" style={{
           background: "var(--bg-base)",
           display: "flex", flexDirection: "column",
           overflow: "hidden", minHeight: 0,
@@ -411,7 +411,7 @@ export default function InvestigationView() {
           <div style={{ flex: 1, overflow: "hidden", minHeight: 0 }}>
             <EventPanel nightDate={nightDate} />
           </div>
-        </div>
+        </aside>
 
       </div>
     </div>

@@ -34,7 +34,7 @@ export const startInvestigation = async (req, res) => {
     req.body?.nightDate || new Date().toISOString().split("T")[0];
   const result = await startNightInvestigation(nightDate, req.orgFilter);
 
-  logAudit(req, "investigation.started", { type: "Investigation", id: result.investigationId || "unknown" }, { nightDate });
+  logAudit(req, "investigation.started", { type: "Investigation", ...(result.investigationId ? { id: result.investigationId } : {}) }, { nightDate });
 
   res
     .status(202)

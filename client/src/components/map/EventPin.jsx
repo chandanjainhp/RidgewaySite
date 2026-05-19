@@ -3,7 +3,8 @@
 import React, { memo } from "react";
 import L from "leaflet";
 import { Marker, Popup } from "react-leaflet";
-import { SEVERITY_CONFIG, EVENT_TYPE_CONFIG } from "@/config/constants";
+import { getSeverity } from "@/lib/severity";
+import { EVENT_TYPE_CONFIG } from "@/config/constants";
 import { useMapStore } from "@/store/mapStore";
 import { formatTime } from "@/lib/formatters";
 import { useRouter } from "next/navigation";
@@ -17,23 +18,25 @@ const EventPin = memo(({ pin }) => {
   const { id, type, coordinates, severity, incidentId, timestamp, location } = pin;
 
   const isSelected = selectedPinId === id;
-  const severityData = SEVERITY_CONFIG[severity] || SEVERITY_CONFIG['unknown'];
+  const sev = getSeverity(severity);
   const eventData = EVENT_TYPE_CONFIG[type] || { label: 'Unknown Event', icon: 'zap' };
 
-  // Building dynamic HTML string map icons for CartoDB Leaflet bindings
   const size = isSelected ? 28 : 20;
-  const sizeClass = isSelected ? 'w-7 h-7' : 'w-5 h-5';
+  const isSerious = severity === 'serious' || severity === 'escalate';
+  const isUnknown = !severity || severity === 'unknown' || severity === 'uncertain';
 
-  // Animations and pulse are expressed via utility classes inside icon HTML
-  const spinClass = severity === 'unknown' ? 'animate-spin' : '';
-  const pulseHtml = severity === 'escalate'
-    ? `<div class="absolute inset-0 border-2 border-severity-escalate rounded-full animate-ping"></div>`
+  const pulseHtml = isSerious
+    ? `<div style="position:absolute;inset:0;border:2px solid var(--sev-serious);border-radius:50%;animation:ping 1s cubic-bezier(0,0,0.2,1) infinite"></div>`
     : '';
 
-  // Minimal SVG for generic placement internally
-  const iconHtml = `<div class="relative ${sizeClass} flex items-center justify-center border-2 border-white rounded-full shadow-[0_0_10px_rgba(0,0,0,0.5)] ${spinClass} ${severityData.bgClass}">
-     ${pulseHtml}
-  </div>`;
+  const iconHtml = `<div style="
+    position:relative;width:${size}px;height:${size}px;
+    display:flex;align-items:center;justify-content:center;
+    border:2px solid rgba(255,255,255,0.3);border-radius:50%;
+    box-shadow:0 0 10px rgba(0,0,0,0.5);
+    background:${sev.bg};
+    ${isUnknown ? 'animation:spin 2s linear infinite' : ''}
+  ">${pulseHtml}</div>`;
 
   const customIcon = L.divIcon({
     html: iconHtml,
@@ -69,13 +72,20 @@ const EventPin = memo(({ pin }) => {
           <h3 className="text-white text-sm font-bold mb-3">{typeof location === 'string' ? location : location?.name || 'Unknown Location'}</h3>
 
           <div className="flex items-center gap-2 mb-4">
-             {severity === 'unknown' ? (
+             {isUnknown ? (
                 <span className="flex items-center gap-1 text-[10px] uppercase tracking-widest text-text-secondary font-mono bg-surface p-1 border border-border">
                   <Loader2 className="w-3 h-3 animate-spin"/> Investigating
                 </span>
              ) : (
-                <span className={`text-[10px] uppercase font-mono tracking-widest px-2 py-1 ${severityData.textClass} ${severityData.bgClass} border ${severityData.borderClass}`}>
-                  {severityData.label}
+                <span style={{
+                  fontSize: "10px", textTransform: "uppercase",
+                  fontFamily: "var(--font-mono)", letterSpacing: "0.08em",
+                  padding: "3px 8px",
+                  color: sev.token,
+                  background: sev.bg,
+                  border: `1px solid ${sev.dim}`,
+                }}>
+                  {sev.label}
                 </span>
              )}
           </div>

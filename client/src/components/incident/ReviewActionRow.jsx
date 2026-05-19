@@ -54,11 +54,11 @@ export default function ReviewActionRow({ isPending, onAgree, onOverride, onFlag
         onClick={onFlag}
         style={{
           ...BTN_BASE,
-          borderColor: "#6366f1",
-          color: "#6366f1",
+          borderColor: "var(--sev-unknown)",
+          color: "var(--sev-unknown)",
           opacity: isPending ? 0.5 : 1,
         }}
-        onMouseEnter={e => !isPending && (e.currentTarget.style.background = "rgba(99,102,241,0.08)")}
+        onMouseEnter={e => !isPending && (e.currentTarget.style.background = "rgba(107,118,134,0.08)")}
         onMouseLeave={e => (e.currentTarget.style.background = "var(--bg-surface-2)")}
       >
         <Flag size={14} /> Flag for Follow-up

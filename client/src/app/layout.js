@@ -3,7 +3,7 @@ import Providers from "@/components/shared/Providers";
 import RootFrame from "@/components/layout/RootFrame";
 
 export const metadata = {
-  title: "6:10 Assistant | Sentinel",
+  title: "Sentinel — Overnight Intelligence Platform",
   description: "Sentinel Overnight Intelligence Platform. Mission Control.",
   icons: {
     icon: [

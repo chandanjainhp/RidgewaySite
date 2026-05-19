@@ -7,7 +7,10 @@ import WebhookDelivery from '../models/webhookDelivery.model.js';
 import Organisation from '../models/organisation.model.js';
 import RagDocument from '../models/ragDocument.model.js';
 import { emitToStream } from '../lib/streamRegistry.js';
-import { triggerWebhook } from '../services/webhook.service.js';
+import OutboxEvent from '../models/outboxEvent.model.js';
+import { startOutboxPoller, stopOutboxPoller } from '../workers/outbox-poller.js';
+
+const OUTBOX_ENABLED = process.env.OUTBOX_ENABLED === 'true';
 import { indexDocument } from '../services/rag.service.js';
 import crypto from 'crypto';
 import fs from 'fs/promises';
@@ -20,6 +23,8 @@ import fs from 'fs/promises';
 let investigationWorker = null;
 let webhookWorker = null;
 let ragWorker = null;
+let correlationWorker = null;
+let briefingWorker = null;
 let workerRedisConnection = null;
 
 /**
@@ -149,7 +154,7 @@ export const startWorker = async () => {
 
           // ========== UPDATE INVESTIGATION WITH RESULTS ==========
           investigation.status = 'complete';
-          investigation.finalClassification = investigationResult.finalClassification;
+          investigation.classification = investigationResult.classification;
           investigation.toolCallSequence = investigationResult.toolCallSequence;
           investigation.evidenceChain = investigationResult.evidenceChain;
           investigation.tokenUsage = investigationResult.tokenUsage;
@@ -161,13 +166,19 @@ export const startWorker = async () => {
           console.log(`[Worker] Investigation record updated: ${incidentId}`);
 
           // ========== WEBHOOK TRIGGER ==========
-          triggerWebhook(orgId, "investigation.completed", {
+          const webhookPayload = {
             investigationId,
             incidentId,
-            status: "complete",
-            classification: investigationResult.finalClassification,
-            timestamp: new Date()
-          });
+            status: 'complete',
+            classification: investigationResult.classification,
+            timestamp: new Date(),
+          };
+          if (OUTBOX_ENABLED) {
+            await OutboxEvent.create({ orgId, eventType: 'investigation.completed', payload: webhookPayload, status: 'pending' });
+          } else {
+            const { triggerWebhook } = await import('../services/webhook.service.js');
+            triggerWebhook(orgId, 'investigation.completed', webhookPayload);
+          }
 
           // ========== CHECK IF NIGHT IS COMPLETE ==========
           const nightCheckResult = await checkNightComplete(nightDate, { orgId });
@@ -181,7 +192,7 @@ export const startWorker = async () => {
             data: {
               investigationId,
               summary: 'Investigation complete',
-              classification: investigationResult.finalClassification,
+              classification: investigationResult.classification,
             },
           });
 
@@ -190,7 +201,7 @@ export const startWorker = async () => {
             jobId,
             incidentId,
             status: 'completed',
-            classification: investigationResult.finalClassification,
+            classification: investigationResult.classification,
             nightComplete: nightCheckResult.isComplete,
           };
         } catch (error) {
@@ -413,6 +424,124 @@ export const startWorker = async () => {
 
     console.log('[Worker] ✓ RAG indexing worker started (concurrency: 2)');
 
+    // ==========================================
+    // START CORRELATION WORKER
+    // ==========================================
+    correlationWorker = new Worker(
+      'correlation',
+      async (job) => {
+        const { orgId, nightDate } = job.data;
+        console.log(`[CorrelationWorker] Running correlation for ${orgId} on ${nightDate}`);
+        const { correlateNightEvents } = await import('../services/correlation.service.js');
+        const incidentIds = await correlateNightEvents(orgId, nightDate);
+        return { status: 'correlated', orgId, nightDate, incidentsCreated: incidentIds.length };
+      },
+      {
+        connection: workerRedisConnection,
+        concurrency: 1,
+      }
+    );
+
+    correlationWorker.on('completed', (job, result) => {
+      console.log(`[CorrelationWorker] ✓ Job completed: ${job.id}`, result);
+    });
+
+    correlationWorker.on('failed', (job, error) => {
+      console.error(`[CorrelationWorker] ✗ Job failed: ${job.id} - ${error.message}`);
+    });
+
+    console.log('[Worker] ✓ Correlation worker started (concurrency: 1)');
+
+    // ==========================================
+    // START BRIEFING WORKER
+    // ==========================================
+    briefingWorker = new Worker(
+      'briefings',
+      async (job) => {
+        const { orgId } = job.data;
+        const nightDate = new Date();
+        nightDate.setDate(nightDate.getDate() - 1);
+        const nightDateString = nightDate.toISOString().split("T")[0];
+
+        console.log(`[BriefingWorker] Finalizing briefing for ${orgId} on ${nightDateString}`);
+
+        const { correlateNightEvents } = await import('../services/correlation.service.js');
+        const { buildBriefing } = await import('../services/briefing.service.js');
+        const Investigation = (await import('../models/investigation.model.js')).default;
+        const Briefing = (await import('../models/briefing.model.js')).default;
+
+        // 1. One final correlation
+        await correlateNightEvents(orgId, nightDateString);
+
+        // 2. Pre-create generating briefing
+        let briefing = await Briefing.create({
+          briefingId: `BR-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+          orgId,
+          nightDate: nightDateString,
+          status: 'generating',
+        });
+
+        // 3. Wait for in-flight investigations (max 10 min)
+        const maxWaitMs = 10 * 60 * 1000;
+        const startTime = Date.now();
+
+        while (Date.now() - startTime < maxWaitMs) {
+          const inFlight = await Investigation.countDocuments({
+            orgId,
+            nightDate: nightDateString,
+            status: { $in: ['queued', 'running'] },
+          });
+          if (inFlight === 0) break;
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+        }
+
+        const remaining = await Investigation.countDocuments({
+          orgId,
+          nightDate: nightDateString,
+          status: { $in: ['queued', 'running'] },
+        });
+
+        if (remaining > 0) {
+          briefing.status = 'failed';
+          await briefing.save();
+          throw new Error('Investigations did not complete within 10 minutes');
+        }
+
+        try {
+          await Briefing.deleteOne({ _id: briefing._id });
+          await buildBriefing(orgId, nightDateString);
+          return { status: 'draft', orgId, nightDateString };
+        } catch (e) {
+          briefing = await Briefing.create({
+            briefingId: `BR-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+            orgId,
+            nightDate: nightDateString,
+            status: 'failed',
+          });
+          throw e;
+        }
+      },
+      {
+        connection: workerRedisConnection,
+        concurrency: 1,
+      }
+    );
+
+    briefingWorker.on('completed', (job, result) => {
+      console.log(`[BriefingWorker] ✓ Job completed: ${job.id}`, result);
+    });
+
+    briefingWorker.on('failed', (job, error) => {
+      console.error(`[BriefingWorker] ✗ Job failed: ${job.id} - ${error.message}`);
+    });
+
+    console.log('[Worker] ✓ Briefing worker started (concurrency: 1)');
+
+    // ==========================================
+    // START OUTBOX POLLER
+    // ==========================================
+    startOutboxPoller();
+
   } catch (error) {
     console.error('[Worker] Failed to start worker:', error);
     throw error;
@@ -443,6 +572,20 @@ export const stopWorker = async () => {
       ragWorker = null;
       console.log('[Worker] ✓ RAG indexing worker stopped');
     }
+
+    if (correlationWorker) {
+      await correlationWorker.close();
+      correlationWorker = null;
+      console.log('[Worker] ✓ Correlation worker stopped');
+    }
+
+    if (briefingWorker) {
+      await briefingWorker.close();
+      briefingWorker = null;
+      console.log('[Worker] ✓ Briefing worker stopped');
+    }
+
+    stopOutboxPoller();
 
     if (workerRedisConnection) {
       await workerRedisConnection.quit();

@@ -27,7 +27,7 @@ const INFRASTRUCTURE_LOG = {
     offlineFrom: '22:30',
     expectedOnlineAt: '06:00',
     reason: 'scheduled maintenance',
-    maintenanceTeam: 'Ridgeway Facilities',
+    maintenanceTeam: 'Sentinel Facilities',
     workOrder: 'WO-2026-0341',
   },
   ap7: {

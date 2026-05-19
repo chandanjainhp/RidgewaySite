@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import AppShell from "@/components/layout/AppShell";
 import BriefingDocument from "@/components/briefing/BriefingDocument";
 import ApproveButton from "@/components/briefing/ApproveButton";
-import { useBriefing } from "@/hooks/useBriefing";
-import { useProgressPercent, useInvestigationStore } from "@/store/investigationStore";
+import { useBriefing, useBriefingStream } from "@/hooks/useBriefing";
 import { formatNightLabel } from "@/lib/formatters";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 function useCountdown() {
   const [timeLeft, setTimeLeft] = useState("");
-  const [urgency, setUrgency] = useState("normal"); // 'normal' | 'warn' | 'urgent'
+  const [urgency, setUrgency] = useState("normal");
 
   useEffect(() => {
     const tick = () => {
@@ -19,13 +20,11 @@ function useCountdown() {
       const target = new Date();
       target.setHours(8, 0, 0, 0);
       if (target <= now) target.setDate(target.getDate() + 1);
-
       const diff = Math.max(0, target - now);
       const totalMins = Math.floor(diff / 60000);
       const h = Math.floor(totalMins / 60);
       const m = totalMins % 60;
       const s = Math.floor((diff % 60000) / 1000);
-
       setTimeLeft(h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`);
       setUrgency(totalMins < 30 ? "urgent" : totalMins < 60 ? "warn" : "normal");
     };
@@ -37,133 +36,114 @@ function useCountdown() {
   return { timeLeft, urgency };
 }
 
+const SECTION_ORDER = [
+  "executive_summary",
+  "incidents",
+  "recommendations",
+  "anomalies",
+  "follow_up",
+];
+
 export default function BriefingPage() {
   const nightDate = (() => {
-    if (process.env.NEXT_PUBLIC_SEED_NIGHT_DATE) {
-      return process.env.NEXT_PUBLIC_SEED_NIGHT_DATE;
-    }
+    if (process.env.NEXT_PUBLIC_SEED_NIGHT_DATE) return process.env.NEXT_PUBLIC_SEED_NIGHT_DATE;
     const d = new Date();
     d.setDate(d.getDate() - 1);
     return d.toISOString().split("T")[0];
   })();
-  const { data, isLoading } = useBriefing(nightDate);
-  const progressPercent = useProgressPercent();
-  const progressWidthClass =
-    progressPercent <= 0 ? 'w-0' :
-    progressPercent <= 10 ? 'w-[10%]' :
-    progressPercent <= 20 ? 'w-[20%]' :
-    progressPercent <= 30 ? 'w-[30%]' :
-    progressPercent <= 40 ? 'w-[40%]' :
-    progressPercent <= 50 ? 'w-1/2' :
-    progressPercent <= 60 ? 'w-[60%]' :
-    progressPercent <= 70 ? 'w-[70%]' :
-    progressPercent <= 80 ? 'w-[80%]' :
-    progressPercent <= 90 ? 'w-[90%]' :
-    'w-full';
-  const { timeLeft, urgency } = useCountdown();
 
-  const jobStatus = useInvestigationStore((s) => s.jobStatus);
-  const isJobActive = jobStatus === "running" || jobStatus === "connecting";
+  const { data, isLoading, refetch } = useBriefing(nightDate);
+  const { timeLeft, urgency } = useCountdown();
 
   const briefing = data?.briefing || null;
   const isApproved = data?.isApproved || false;
   const canApprove = data?.canApprove || false;
 
-  const urgencyClass = {
-    normal: "text-text-secondary",
-    warn: "text-severity-monitor",
-    urgent: "text-severity-escalate animate-pulse",
+  // Generation progress state (driven by SSE)
+  const [genProgress, setGenProgress] = useState(0);
+  const [genCompletedSections, setGenCompletedSections] = useState([]);
+
+  const isGenerating = briefing?.status === "generating";
+
+  useBriefingStream(
+    isGenerating ? briefing?.id : null,
+    {
+      onSection: (name, progress) => {
+        setGenProgress(progress);
+        setGenCompletedSections((prev) => [...new Set([...prev, name])]);
+      },
+      onComplete: () => {
+        setGenProgress(100);
+        refetch();
+      },
+      onFailed: (reason) => {
+        toast.error(`Briefing generation failed: ${reason || "unknown error"}`);
+        refetch();
+      },
+    }
+  );
+
+  // Reset progress counters when briefing changes
+  useEffect(() => {
+    if (!isGenerating) {
+      setGenProgress(0);
+      setGenCompletedSections([]);
+    }
+  }, [isGenerating]);
+
+  const urgencyColor = {
+    normal: "var(--fg-3)",
+    warn: "var(--sev-minor)",
+    urgent: "var(--sev-serious)",
   }[urgency];
 
-  const renderStatusBanner = () => {
-    if (!briefing) return null;
-    const status = briefing.status;
-
-    if (status === "approved") {
-      return (
-        <div className="w-full px-6 py-3 bg-severity-harmless/10 border-b border-severity-harmless/40 font-mono text-xs text-green-400 uppercase tracking-widest flex items-center gap-2 print:hidden">
-          <span className="w-2 h-2 rounded-full bg-green-400"></span>
-          Briefing approved ✓ — ready for 8:00 AM
-        </div>
-      );
+  const handleRetry = async () => {
+    try {
+      await api.post(`/briefings/${briefing.id}/retry`);
+      toast.success("Retry queued");
+      refetch();
+    } catch (err) {
+      toast.error(`Retry failed: ${err.message}`);
     }
-    if (status === "maya_reviewing") {
-      return (
-        <div className="w-full px-6 py-3 bg-severity-monitor/10 border-b border-severity-monitor/40 font-mono text-xs text-amber-400 uppercase tracking-widest flex items-center gap-2 print:hidden">
-          <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-          In review — confirm each section before approving
-        </div>
-      );
-    }
-    if (status === "agent_complete") {
-      return (
-        <div className="w-full px-6 py-3 bg-agent-blue/10 border-b border-agent-blue/40 font-mono text-xs text-agent-blue uppercase tracking-widest flex items-center gap-2 print:hidden">
-          <span className="w-2 h-2 rounded-full bg-agent-blue"></span>
-          Argus has drafted the briefing — review each section below
-        </div>
-      );
-    }
-    return null;
   };
 
-  // STATE 1 — no investigation running and no briefing
-  if (!isLoading && !briefing && !isJobActive) {
+  if (isLoading) {
+    return (
+      <AppShell variant="briefing">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--fg-4)" }}>
+            Loading…
+          </span>
+        </div>
+      </AppShell>
+    );
+  }
+
+  // ── STATE 1: No briefing ──────────────────────────────────────
+  if (!briefing) {
     return (
       <AppShell variant="briefing">
         <div style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100%",
-          gap: "16px",
-          padding: "48px",
-          textAlign: "center",
+          display: "flex", flexDirection: "column", alignItems: "center",
+          justifyContent: "center", height: "100%", gap: "16px",
+          padding: "48px", textAlign: "center",
         }}>
           <div style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "11px",
-            fontWeight: 600,
-            textTransform: "uppercase",
-            letterSpacing: "0.12em",
-            color: "var(--fg-4)",
-            marginBottom: "4px",
-          }}>
-            Briefing
-          </div>
-          <div style={{
-            fontFamily: "var(--font-sans)",
-            fontSize: "20px",
-            fontWeight: 500,
-            color: "var(--fg-2)",
-          }}>
+            fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600,
+            textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--fg-4)",
+          }}>Briefing</div>
+          <div style={{ fontFamily: "var(--font-sans)", fontSize: "20px", fontWeight: 500, color: "var(--fg-2)" }}>
             No briefing yet.
           </div>
-          <div style={{
-            fontFamily: "var(--font-sans)",
-            fontSize: "14px",
-            color: "var(--fg-4)",
-            maxWidth: "320px",
-          }}>
+          <div style={{ fontFamily: "var(--font-sans)", fontSize: "14px", color: "var(--fg-4)", maxWidth: "320px" }}>
             Run an investigation from the Investigate tab first. The briefing will appear once all incidents have been classified.
           </div>
-          <Link
-            href="/investigate"
-            style={{
-              marginTop: "8px",
-              display: "inline-block",
-              padding: "8px 20px",
-              background: "var(--accent)",
-              color: "var(--bg-base)",
-              fontFamily: "var(--font-mono)",
-              fontSize: "11px",
-              fontWeight: 600,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              textDecoration: "none",
-              borderRadius: "2px",
-            }}
-          >
+          <Link href="/investigate" style={{
+            marginTop: "8px", display: "inline-block", padding: "8px 20px",
+            background: "var(--accent)", color: "var(--bg-base)",
+            fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600,
+            letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "none", borderRadius: "2px",
+          }}>
             Go to Investigate →
           </Link>
         </div>
@@ -171,41 +151,167 @@ export default function BriefingPage() {
     );
   }
 
-  // STATE 2 — investigation is actively running
-  if (!isLoading && !briefing && isJobActive) {
+  // ── STATE 2: Generating ───────────────────────────────────────
+  if (briefing.status === "generating") {
+    const progressPct = Math.max(genProgress, briefing.generationStartedAt ? 5 : 0);
     return (
       <AppShell variant="briefing">
-        <div className="w-full max-w-3xl mx-auto flex flex-col items-center justify-center h-full gap-8 px-8">
-          <div className="text-center">
-            <h2 className="text-white text-2xl font-bold mb-2">Argus is completing the investigation...</h2>
-            <p className="text-text-secondary text-sm">The briefing will appear once all incidents have been classified.</p>
+        <div style={{
+          display: "flex", flexDirection: "column", alignItems: "center",
+          justifyContent: "center", height: "100%", gap: "32px", padding: "48px",
+        }}>
+          <div style={{ textAlign: "center" }}>
+            <div style={{
+              fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600,
+              textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--accent)",
+              marginBottom: "12px", display: "flex", alignItems: "center", gap: "8px",
+              justifyContent: "center",
+            }}>
+              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--accent)", animation: "pulse 2s ease-in-out infinite", display: "inline-block" }} />
+              Argus is drafting the briefing
+            </div>
+            <div style={{ fontFamily: "var(--font-sans)", fontSize: "20px", fontWeight: 500, color: "var(--fg-1)" }}>
+              Generation in progress…
+            </div>
           </div>
-          <div className="w-full bg-surface-3 rounded-full h-2 border border-border overflow-hidden">
-            <div
-              className={`h-full bg-agent-blue transition-all duration-500 ${progressWidthClass}`}
-            ></div>
+
+          {/* Progress bar */}
+          <div style={{ width: "100%", maxWidth: "480px" }}>
+            <div style={{
+              width: "100%", height: "4px", background: "var(--bg-surface-3)",
+              borderRadius: "2px", overflow: "hidden",
+            }}>
+              <div style={{
+                height: "100%", background: "var(--accent)",
+                width: `${progressPct}%`, transition: "width 400ms var(--ease-out)",
+              }} />
+            </div>
+            <div style={{
+              display: "flex", justifyContent: "space-between", marginTop: "8px",
+              fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--fg-3)",
+            }}>
+              <span>{progressPct}% complete</span>
+              <span>{genCompletedSections.length} / {SECTION_ORDER.length} sections</span>
+            </div>
           </div>
-          <span className="font-mono text-agent-blue text-sm">{Math.round(progressPercent)}% complete</span>
+
+          {/* Section checklist */}
+          <div style={{ width: "100%", maxWidth: "480px", display: "flex", flexDirection: "column", gap: "6px" }}>
+            {SECTION_ORDER.map((name) => {
+              const done = genCompletedSections.includes(name);
+              return (
+                <div key={name} style={{
+                  display: "flex", alignItems: "center", gap: "8px",
+                  fontFamily: "var(--font-mono)", fontSize: "11px",
+                  color: done ? "var(--fg-2)" : "var(--fg-4)",
+                }}>
+                  <span style={{
+                    width: "14px", height: "14px", borderRadius: "2px",
+                    background: done ? "var(--accent)" : "var(--bg-surface-2)",
+                    border: `1px solid ${done ? "var(--accent)" : "var(--border-default)"}`,
+                    flexShrink: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "9px", color: "var(--bg-base)",
+                  }}>
+                    {done ? "✓" : ""}
+                  </span>
+                  {name.replace(/_/g, " ").toUpperCase()}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </AppShell>
     );
   }
 
+  // ── STATE 4: Failed ───────────────────────────────────────────
+  if (briefing.status === "failed") {
+    return (
+      <AppShell variant="briefing">
+        <div style={{
+          display: "flex", flexDirection: "column", alignItems: "center",
+          justifyContent: "center", height: "100%", gap: "16px", padding: "48px", textAlign: "center",
+        }}>
+          <div style={{
+            padding: "16px 24px", border: "1px solid var(--sev-serious)",
+            background: "rgba(255,56,56,0.06)", maxWidth: "480px", width: "100%",
+          }}>
+            <div style={{
+              fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600,
+              textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--sev-serious)",
+              marginBottom: "8px",
+            }}>
+              Generation failed
+            </div>
+            {briefing.failureReason && (
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--fg-3)" }}>
+                {briefing.failureReason}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={handleRetry}
+            style={{
+              padding: "8px 20px", background: "var(--bg-surface-2)",
+              border: "1px solid var(--border-strong)", color: "var(--fg-1)",
+              fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600,
+              letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer",
+              borderRadius: "2px",
+            }}
+          >
+            Retry Generation
+          </button>
+          <Link href="/investigate" style={{
+            fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--fg-4)", textDecoration: "none",
+          }}>
+            ← Back to Investigate
+          </Link>
+        </div>
+      </AppShell>
+    );
+  }
+
+  // ── STATE 3 & 4: Draft / Approved ─────────────────────────────
   return (
     <AppShell variant="briefing">
-      <div className="w-full h-full flex flex-col">
-        {renderStatusBanner()}
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
 
-        {/* Document Header */}
-        <div className="flex items-center justify-between px-8 py-5 border-b border-border shrink-0 print:hidden">
-          <div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Morning Briefing</h1>
-            <p className="font-mono text-xs text-text-secondary mt-1 uppercase tracking-widest">{formatNightLabel(nightDate)}</p>
+        {/* Status banner */}
+        {briefing.status === "approved" && (
+          <div style={{
+            width: "100%", padding: "8px 24px",
+            background: "rgba(125,138,106,0.12)", borderBottom: "1px solid rgba(125,138,106,0.4)",
+            fontFamily: "var(--font-mono)", fontSize: "11px", textTransform: "uppercase",
+            letterSpacing: "0.12em", color: "var(--sev-harmless)",
+            display: "flex", alignItems: "center", gap: "8px",
+          }}>
+            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--sev-harmless)" }} />
+            Briefing approved ✓ — ready for 8:00 AM
           </div>
-          <div className="flex items-center gap-6">
-            <div className="text-right">
-              <div className={`font-mono text-lg font-bold ${urgencyClass}`}>{timeLeft}</div>
-              <div className="font-mono text-[10px] text-text-muted uppercase tracking-widest">until 08:00</div>
+        )}
+
+        {/* Header */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "20px 32px", borderBottom: "1px solid var(--border-hairline)", flexShrink: 0,
+        }}>
+          <div>
+            <h1 style={{ fontFamily: "var(--font-sans)", fontSize: "24px", fontWeight: 500, color: "var(--fg-1)", margin: 0 }}>
+              Morning Briefing
+            </h1>
+            <p style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--fg-3)", marginTop: "4px", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+              {formatNightLabel(nightDate)}
+            </p>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: "17px", fontWeight: 600, color: urgencyColor }}>
+                {timeLeft}
+              </div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--fg-4)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                until 08:00
+              </div>
             </div>
             <ApproveButton
               briefingId={briefing?.id}
@@ -216,13 +322,9 @@ export default function BriefingPage() {
           </div>
         </div>
 
-        {/* Document Body */}
-        <div className="flex-1 overflow-y-auto">
-          {isLoading ? (
-            <BriefingDocument briefing={null} />
-          ) : (
-            <BriefingDocument briefing={briefing} isApproved={isApproved} />
-          )}
+        {/* Document body */}
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          <BriefingDocument briefing={briefing} isApproved={isApproved} />
         </div>
       </div>
     </AppShell>

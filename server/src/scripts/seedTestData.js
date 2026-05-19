@@ -147,27 +147,27 @@ async function createIncidents(orgId, events) {
       title: 'Perimeter breach attempt — North Fence',
       eventSlice: [0, 1, 2],
       priority: 1,
-      primaryLocation: LOCATIONS[2],
+      location: LOCATIONS[2],
       correlationType: 'spatial',
-      finalSeverity: 'escalate',
+      severity: 'serious',
     },
     {
       incidentId: `INC-${dateStr}-002`,
       title: 'Unauthorised vehicle at road entrance',
       eventSlice: [2, 7],
       priority: 3,
-      primaryLocation: LOCATIONS[5],
+      location: LOCATIONS[5],
       correlationType: 'temporal',
-      finalSeverity: 'monitor',
+      severity: 'minor',
     },
     {
       incidentId: `INC-${dateStr}-003`,
       title: 'Repeated badge failures — Gate B',
       eventSlice: [3, 8],
       priority: 4,
-      primaryLocation: LOCATIONS[1],
+      location: LOCATIONS[1],
       correlationType: 'entity',
-      finalSeverity: 'harmless',
+      severity: 'harmless',
     },
   ];
 
@@ -187,13 +187,13 @@ async function createIncidents(orgId, events) {
       orgId,
       incidentId: tmpl.incidentId,
       title: tmpl.title,
-      nightDate: TODAY,
+      nightDate: TODAY.toISOString().split('T')[0],
       eventIds: linkedEvents,
-      primaryLocation: tmpl.primaryLocation,
-      correlationType: tmpl.correlationType,
+      location: tmpl.location,
+      correlation: { type: tmpl.correlationType, strategy: `${tmpl.correlationType}_clustering`, metadata: {} },
       priority: tmpl.priority,
-      status: 'pending',
-      finalSeverity: tmpl.finalSeverity,
+      status: 'open',
+      severity: tmpl.severity,
     });
     console.log(`[seed] Incident created: ${tmpl.incidentId} — "${tmpl.title}"`);
     created.push(inc);
@@ -235,9 +235,9 @@ const run = async () => {
 
   const org  = await findOrCreateOrg();
 
-  await findOrCreateUser({ email: 'admin@ridgeway.io',    username: 'admin',    role: 'super_admin', orgId: null      });
-  await findOrCreateUser({ email: 'orgadmin@ridgeway.io', username: 'orgadmin', role: 'org_admin',   orgId: org._id   });
-  await findOrCreateUser({ email: 'operator@ridgeway.io', username: 'operator', role: 'operator',    orgId: org._id   });
+  await findOrCreateUser({ email: 'admin@example.com',    username: 'admin',    role: 'super_admin', orgId: null      });
+  await findOrCreateUser({ email: 'orgadmin@example.com', username: 'orgadmin', role: 'org_admin',   orgId: org._id   });
+  await findOrCreateUser({ email: 'operator@example.com', username: 'operator', role: 'operator',    orgId: org._id   });
 
   const events    = await createEvents(org._id);
   const incidents = await createIncidents(org._id, events);
@@ -245,7 +245,7 @@ const run = async () => {
 
   console.log('\n[seed] ✅ Done');
   console.log(`  Org:       ${org.name}`);
-  console.log(`  Users:     admin@ridgeway.io, orgadmin@ridgeway.io, operator@ridgeway.io`);
+  console.log(`  Users:     admin@example.com, orgadmin@example.com, operator@example.com`);
   console.log(`  Events:    ${events.length}`);
   console.log(`  Incidents: ${incidents.length}`);
   console.log(`  Briefing:  ${briefing.briefingId}`);

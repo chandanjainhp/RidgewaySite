@@ -353,7 +353,7 @@ export default function AdminLoginPage() {
           border: 1px solid var(--border-default);
           color: var(--fg-1);
           font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.02em;
-          outline: none; border-radius: 0;
+          border-radius: 0;
           transition: border-color 120ms, box-shadow 120ms;
         }
         .auth-field::placeholder { color: var(--fg-4); font-size: 12px; }

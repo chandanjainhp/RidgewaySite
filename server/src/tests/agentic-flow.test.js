@@ -67,9 +67,12 @@ beforeAll(async () => {
     socketTimeoutMS: 10000,
   });
 
+  const redisDb = await import('../db/redis.js');
+  await redisDb.connectRedis();
+
   // Dynamically import models after connection is established
   Organisation = (await import('../models/organisation.model.js')).default;
-  User         = (await import('../models/user.model.js')).default;
+  User         = (await import('../models/user.models.js')).User;
   ApiKey       = (await import('../models/apiKey.model.js')).default;
   Event        = (await import('../models/event.model.js')).default;
   Incident     = (await import('../models/incident.model.js')).default;
@@ -88,7 +91,7 @@ beforeAll(async () => {
   const bcrypt = await import('bcrypt');
   const hashedPw = await bcrypt.default.hash('TestPass123!', 10);
   const user = await User.create({
-    email: `test-agentic-${Date.now()}@ridgeway.test`,
+    email: `test-agentic-${Date.now()}@test.example.com`,
     username: 'agentic-tester',
     password: hashedPw,
     role: 'org_admin',
@@ -100,14 +103,15 @@ beforeAll(async () => {
   testUserId = user._id;
 
   // Generate raw API key and its hash
-  testApiKey = `rw_test_${crypto.randomBytes(24).toString('hex')}`;
+  testApiKey = `sk_live_${crypto.randomBytes(24).toString('hex')}`;
   testApiKeyHash = crypto.createHash('sha256').update(testApiKey).digest('hex');
 
   await ApiKey.create({
     orgId: testOrgId,
     name: 'Agentic Flow Test Key',
     keyHash: testApiKeyHash,
-    prefix: testApiKey.slice(0, 8),
+    keyPrefix: testApiKey.slice(0, 8),
+    createdBy: testUserId,
     scopes: ['events:write', 'mcp'],
     isActive: true,
   });
@@ -150,14 +154,18 @@ afterAll(async () => {
   }
 
   await mongoose.disconnect();
+  
+  const redisDb = await import('../db/redis.js');
+  await redisDb.disconnectRedis();
 });
 
 // ── GROUP 1: Event ingestion ──────────────────────────────────────────────────
 
 describe('Group 1 — Event ingestion', () => {
-  test('POST /events accepts a valid motion_detected event', async () => {
+  test('POST /events accepts a valid motion_sensor event', async () => {
     const payload = {
-      type: 'motion_detected',
+      eventId: 'evt_' + Date.now(),
+      type: 'motion_sensor',
       timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
       location: {
         name: 'North Gate',
@@ -189,7 +197,7 @@ describe('Group 1 — Event ingestion', () => {
     const res = await fetch(`${baseUrl}/events`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'motion_detected', timestamp: new Date().toISOString() }),
+      body: JSON.stringify({ eventId: 'evt_noauth', type: 'motion_sensor', timestamp: new Date().toISOString() }),
     });
 
     expect(res.status).toBe(401);
@@ -202,7 +210,7 @@ describe('Group 1 — Event ingestion', () => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${testApiKey}`,
       },
-      body: JSON.stringify({ type: 'motion_detected' }), // missing timestamp + location
+      body: JSON.stringify({ eventId: 'evt_bad', type: 'motion_sensor' }), // missing timestamp + location
     });
 
     expect(res.status).toBe(400);
@@ -218,7 +226,7 @@ describe('Group 1 — Event ingestion', () => {
       rawData: {},
     };
 
-    for (const [type, sev] of [['badge_swipe_fail', 'minor'], ['motion_detected', 'serious']]) {
+    for (const [type, sev] of [['badge_fail', 'minor'], ['motion_sensor', 'serious']]) {
       const res = await fetch(`${baseUrl}/events`, {
         method: 'POST',
         headers: {
@@ -226,6 +234,7 @@ describe('Group 1 — Event ingestion', () => {
           'Authorization': `Bearer ${testApiKey}`,
         },
         body: JSON.stringify({
+          eventId: `evt_${Date.now()}_${Math.random()}`,
           ...base,
           type,
           severity: sev,
@@ -380,7 +389,7 @@ describe('Group 5 — RAG pipeline', () => {
   });
 
   test('Document upload endpoint exists and requires auth', async () => {
-    const res = await fetch(`${baseUrl}/org/documents`, {
+    const res = await fetch(`${baseUrl}/org/documents/upload`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${testJwt}` },
       // No file — should get 400, not 401/404

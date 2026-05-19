@@ -1,5 +1,5 @@
 import { format, parseISO } from "date-fns";
-import { SEVERITY_CONFIG } from "@/config/constants";
+import { getSeverity } from "@/lib/severity";
 
 /**
  * Safely parses Date or string into Date object.
@@ -57,12 +57,7 @@ export const formatConfidence = (score) => {
   return { label: 'Very Low', colorClass: 'text-red-600' };
 };
 
-export const formatSeverityLabel = (severity) => {
-  if (!severity || !SEVERITY_CONFIG[severity]) {
-    return SEVERITY_CONFIG['unknown'].label;
-  }
-  return SEVERITY_CONFIG[severity].label;
-};
+export const formatSeverityLabel = (severity) => getSeverity(severity).label;
 
 export const truncateText = (text, maxLength = 120) => {
   if (!text) return "";

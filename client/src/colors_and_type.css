@@ -1,20 +1,10 @@
 /* =========================================================================
-   Ridgeway Night Watch — Design Tokens
+   Sentinel — Night Watch Design Tokens
    Operational. Honest. Calm.
    ========================================================================= */
 
 /* ---------- Webfonts ---------- */
-/* Primary UI face: BMW TypeNext Pro (uploaded brand font).
-   Serif + mono are Google Fonts substitutes — see README. */
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Serif:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');
-
-@font-face {
-  font-family: 'BMWTypeNext Pro';
-  src: url('/fonts/BMWTypeNext_Pro_Regular.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
 
 :root {
   /* ============ COLOR — SURFACES ============
@@ -33,15 +23,15 @@
   --border-hairline: #1a2029; /* Divider inside a panel */
   --border-default:  #232b38; /* Panel edge */
   --border-strong:   #334055; /* Input, interactive outline */
-  --border-focus:    #b8d4e8; /* Focus ring — radar blue */
+  --border-focus:    #4cc2ff; /* Focus ring — bright cyan, distinct from accent */
 
   /* ============ COLOR — TEXT ============
      Four ranks of foreground. Nothing below rank 4 is ever legible —
      it's texture, timestamps, ticks. */
   --fg-1: #e6ecf3;   /* Headings, primary readout */
   --fg-2: #aab4c2;   /* Body */
-  --fg-3: #6b7686;   /* Metadata, labels */
-  --fg-4: #434d5c;   /* Scale ticks, disabled */
+  --fg-3: #8190a0;   /* Metadata, labels — 5.5:1 on bg-surface-1 (WCAG AA) */
+  --fg-4: #434d5c;   /* Scale ticks, disabled — non-text only, do not use for readable body text */
 
   /* ============ COLOR — SEVERITY ============
      The only saturated colors in the system. They mean what they look
@@ -52,9 +42,9 @@
   --sev-minor:       #e89a2b;   /* Amber — needs attention */
   --sev-minor-bg:    #2a1c0a;
   --sev-minor-dim:   #8a5a18;
-  --sev-harmless:    #7d8a6a;   /* Muted olive — recedes to gray */
-  --sev-harmless-bg: #181c16;
-  --sev-harmless-dim:#39402f;
+  --sev-harmless:    #5a6470;   /* Cool neutral — recedes against dark surfaces */
+  --sev-harmless-bg: #141820;
+  --sev-harmless-dim:#2d3540;
   --sev-unknown:     #6b7686;   /* Gray — unclassified */
   --sev-unknown-bg:  #171c24;
 
@@ -62,9 +52,9 @@
      Radar blue. A cold near-white blue used for the live time, focus
      rings, scrubber handle, agent pulse. Reads as instrumentation,
      not brand. Nothing decorative. */
-  --accent:          #b8d4e8;
-  --accent-dim:      #4a6778;
-  --accent-deep:     #15222b;
+  --accent:          #5ec8e0;  /* Instrumentation cyan — distinct from fg-1 */
+  --accent-dim:      #3a8fa8;
+  --accent-deep:     #0e2530;
 
   /* ============ COLOR — TERMINAL ============
      Agent feed uses distinct hues per message type so Maya can scan
@@ -78,7 +68,7 @@
   --term-error:      #FF3838;
 
   /* ============ TYPE — FAMILIES ============ */
-  --font-sans:    'BMWTypeNext Pro', 'IBM Plex Sans', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --font-sans:    'IBM Plex Sans', -apple-system, 'Segoe UI', Arial, sans-serif;
   --font-serif:   'IBM Plex Serif', Georgia, 'Times New Roman', serif;
   --font-mono:    'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
 
@@ -135,7 +125,7 @@
      step + a 1px inner highlight. For modals only, a real shadow. */
   --inner-highlight: inset 0 1px 0 rgba(255,255,255,0.03);
   --shadow-modal:    0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px var(--border-default);
-  --glow-accent:     0 0 0 1px var(--accent), 0 0 18px rgba(184,212,232,0.22);
+  --glow-accent:     0 0 0 1px var(--accent), 0 0 18px rgba(94,200,224,0.22);
   --glow-serious:    0 0 14px rgba(255,56,56,0.55);
   --glow-minor:      0 0 10px rgba(232,154,43,0.35);
   --glow-harmless:   0 0 6px rgba(125,138,106,0.2);

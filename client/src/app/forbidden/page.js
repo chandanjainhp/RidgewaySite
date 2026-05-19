@@ -26,7 +26,7 @@ export default function ForbiddenPage() {
             Return to Dashboard
           </Link>
           <a 
-            href="mailto:admin@ridgeway.com?subject=Access Request"
+            href="mailto:support@sentinel.io?subject=Access Request"
             className="w-full text-center bg-transparent text-text-secondary py-2 px-4 rounded font-medium text-sm transition-colors border border-border hover:bg-surface-3 hover:text-text-primary"
           >
             Request Access

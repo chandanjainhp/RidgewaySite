@@ -9,7 +9,6 @@ const INPUT_STYLE = {
   fontFamily: "var(--font-mono)",
   fontSize: "12px",
   padding: "8px 12px",
-  outline: "none",
   width: "100%",
   boxSizing: "border-box",
 };

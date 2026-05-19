@@ -154,7 +154,7 @@ export default function TopBar() {
       <div style={{ width: "1px", height: "20px", background: "var(--border-default)", flexShrink: 0, marginRight: "20px" }} />
 
       {/* Primary Nav */}
-      <nav style={{ display: "flex", alignItems: "center", gap: "20px", flex: 1 }}>
+      <nav aria-label="Primary navigation" style={{ display: "flex", alignItems: "center", gap: "20px", flex: 1 }}>
         <Link href="/overview" style={navLink(is(["/overview", "/dashboard"]))}>
           Overview
         </Link>

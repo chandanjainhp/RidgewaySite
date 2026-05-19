@@ -43,7 +43,7 @@ const inputStyle = {
   width: "100%", background: "var(--bg-surface-2)", color: "var(--fg-1)",
   border: "1px solid var(--border-strong)", borderRadius: "4px",
   padding: "8px 12px", fontSize: "14px",
-  fontFamily: "var(--font-sans)", outline: "none",
+  fontFamily: "var(--font-sans)",
   boxSizing: "border-box",
 };
 

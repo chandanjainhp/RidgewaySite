@@ -84,7 +84,7 @@ export default function BriefingSection({ sectionName, sectionData, briefingId, 
           <Icon className={`w-5 h-5 ${iconClass} shrink-0`} />
           <h2 className="text-white font-bold text-base tracking-tight">{label}</h2>
           {isEdited ? (
-            <span className="font-mono text-[10px] px-2 py-0.5 border border-amber-500/50 bg-amber-500/10 text-amber-500 uppercase tracking-widest">Edited by Maya</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", padding: "2px 8px", border: "1px solid var(--sev-minor-dim)", background: "var(--sev-minor-bg)", color: "var(--sev-minor)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Edited</span>
           ) : (
             <span className="font-mono text-[10px] px-2 py-0.5 border border-agent-blue/40 bg-agent-blue/10 text-agent-blue uppercase tracking-widest">Argus draft</span>
           )}
@@ -112,7 +112,7 @@ export default function BriefingSection({ sectionName, sectionData, briefingId, 
             disabled={isPending}
             value={editValue}
             onChange={handleChange}
-            className="w-full min-h-40 bg-surface border border-border text-text-primary text-sm leading-relaxed p-4 font-sans resize-none focus:outline-none focus:border-agent-blue/50 disabled:opacity-50 transition-colors"
+            className="w-full min-h-40 bg-surface border border-border text-text-primary text-sm leading-relaxed p-4 font-sans resize-none focus:border-agent-blue/50 disabled:opacity-50 transition-colors"
           />
 
           <div className="flex justify-between items-center">

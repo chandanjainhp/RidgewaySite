@@ -28,8 +28,9 @@ export default function RootFrame({ children }) {
 
   return (
     <>
+      {!suppressTopBar && <a href="#main" className="skip-to-content">Skip to content</a>}
       {!suppressTopBar ? <TopBar /> : null}
-      <div style={{ paddingTop: suppressTopBar ? "0" : "56px" }}>{children}</div>
+      <div id={suppressTopBar ? undefined : "main"} style={{ paddingTop: suppressTopBar ? "0" : "56px" }}>{children}</div>
     </>
   );
 }

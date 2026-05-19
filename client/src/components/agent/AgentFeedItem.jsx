@@ -2,7 +2,7 @@
 
 import React, { memo } from "react";
 import { formatToolName, truncateText, formatTimeWithSeconds } from "@/lib/formatters";
-import { SEVERITY_CONFIG } from "@/config/constants";
+import { getSeverity } from "@/lib/severity";
 
 /* terminal type → label & color token ─────────────────── */
 const TYPE_MAP = {
@@ -34,8 +34,7 @@ const AgentFeedItem = memo(({ item }) => {
   let msgColor = meta.color;
   let rowBg = "transparent";
   if (type === "classification") {
-    const sevConf = SEVERITY_CONFIG[data?.severity] || SEVERITY_CONFIG["unknown"];
-    msgColor = sevConf.color;
+    msgColor = getSeverity(data?.severity).token;
     rowBg = "rgba(255,255,255,0.02)";
   }
   if (type === "error") {

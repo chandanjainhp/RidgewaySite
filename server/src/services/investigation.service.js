@@ -79,11 +79,11 @@ export const startNightInvestigation = async (nightDate, orgFilter = {}) => {
       const incidentId = plannedIncident._id || plannedIncident.incidentId;
       const investigation = await Investigation.create({
         incidentId,
-        nightDate: start,
+        nightDate: typeof start === 'string' ? start : start.toISOString().split('T')[0],
         status: "queued",
         toolCallSequence: [],
         evidenceChain: [],
-        finalClassification: {
+        classification: {
           severity: "uncertain",
           confidence: 0,
           reasoning: "Investigation queued; classification pending.",
@@ -131,7 +131,7 @@ export const getInvestigationWithEvidence = async (investigationId) => {
     const investigation = await Investigation.findById(investigationId)
       .populate({
         path: "incidentId",
-        select: "title description eventIds primaryLocation finalSeverity raghavsNote",
+        select: "title description eventIds location severity",
       })
       .lean();
 
@@ -157,10 +157,10 @@ export const getInvestigationWithEvidence = async (investigationId) => {
       investigationId: investigation._id.toString(),
       incidentId: investigation.incidentId?._id?.toString() || null,
       incidentTitle: investigation.incidentId?.title || "",
-      severity: investigation.finalClassification?.severity || "unknown",
-      confidence: investigation.finalClassification?.confidence || 0,
-      reasoning: investigation.finalClassification?.reasoning || "",
-      uncertainties: investigation.finalClassification?.uncertainties || [],
+      severity: investigation.classification?.severity || "uncertain",
+      confidence: investigation.classification?.confidence || 0,
+      reasoning: investigation.classification?.reasoning || "",
+      uncertainties: investigation.classification?.uncertainties || [],
       status: investigation.status,
       startedAt: investigation.createdAt,
       completedAt: investigation.updatedAt,

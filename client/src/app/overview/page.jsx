@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/authStore";
 import { getLatestBriefing, getIncidents, startInvestigation, getOrgMe } from "@/lib/api";
+import LoadingBriefing from "@/components/LoadingBriefing";
+import SeverityBadge from "@/components/events/SeverityBadge";
 
 const MONO = "var(--font-mono)";
 const SANS = "var(--font-sans)";
@@ -71,29 +73,6 @@ function StatCard({ label, value, sub, accent, onClick }) {
   );
 }
 
-const SEV_COLOR = {
-  serious:  "var(--sev-serious)",
-  minor:    "var(--sev-minor)",
-  harmless: "var(--sev-harmless)",
-  uncertain:"var(--sev-unknown)",
-  unknown:  "var(--sev-unknown)",
-};
-
-function SeverityBadge({ severity }) {
-  const label = severity?.toUpperCase() ?? "—";
-  return (
-    <span style={{
-      fontFamily: MONO,
-      fontSize: "9px",
-      fontWeight: 700,
-      letterSpacing: "0.12em",
-      color: SEV_COLOR[severity] || "var(--fg-4)",
-      textTransform: "uppercase",
-    }}>
-      {label}
-    </span>
-  );
-}
 
 function PrimaryBtn({ children, onClick, disabled }) {
   return (
@@ -162,6 +141,7 @@ export default function OverviewPage() {
   const { data: briefingData, isLoading: briefingLoading } = useQuery({
     queryKey: ["briefing", nightDate],
     queryFn: () => getLatestBriefing(nightDate),
+    refetchInterval: (query) => (query.state.data?.status === 'generating' ? 5000 : false),
     staleTime: 60 * 1000,
     retry: false,
   });
@@ -198,6 +178,7 @@ export default function OverviewPage() {
   // Determine which state to show
   let dashState = "none"; // no briefing, no incidents
   if (briefingStatus === "approved") dashState = "approved";
+  else if (briefingStatus === "generating") dashState = "generating";
   else if (briefingStatus === "draft" || totalIncidents > 0) dashState = "ready";
   else if (isStarting) dashState = "running";
 
@@ -288,6 +269,10 @@ export default function OverviewPage() {
               <div style={{ fontFamily: SANS, fontSize: "14px", color: "var(--accent)" }}>
                 Investigation running…
               </div>
+            ) : dashState === "generating" ? (
+              <div style={{ fontFamily: SANS, fontSize: "14px", color: "var(--accent)" }}>
+                Generating morning briefing…
+              </div>
             ) : (
               <div style={{ fontFamily: SANS, fontSize: "14px", color: "var(--fg-3)" }}>
                 No patrol data for {nightDate} yet. Events recorded tonight will appear here tomorrow morning.
@@ -302,22 +287,26 @@ export default function OverviewPage() {
             ) : dashState === "ready" && briefingStatus === "draft" ? (
               <>
                 <PrimaryBtn onClick={() => router.push("/briefing")}>Review briefing</PrimaryBtn>
-                <GhostBtn href="/investigate">View incidents</GhostBtn>
+                <GhostBtn href="/incidents">View incidents</GhostBtn>
               </>
             ) : dashState === "ready" ? (
               <>
                 <PrimaryBtn onClick={() => kickStart()} disabled={isStarting}>
                   {isStarting ? "Starting…" : "Start investigation"}
                 </PrimaryBtn>
-                <GhostBtn href="/investigate">View incidents</GhostBtn>
+                <GhostBtn href="/incidents">View incidents</GhostBtn>
               </>
             ) : dashState === "none" ? null : null}
           </div>
         </div>
       </section>
 
-      {/* Stat cards */}
-      <div style={{
+      {dashState === "generating" ? (
+        <LoadingBriefing />
+      ) : (
+        <>
+          {/* Stat cards */}
+          <div style={{
         display: "flex",
         gap: "12px",
         marginBottom: "24px",
@@ -333,7 +322,7 @@ export default function OverviewPage() {
             "None flagged"
           }
           accent={seriousCount > 0 ? "var(--sev-serious)" : "var(--fg-1)"}
-          onClick={() => router.push("/investigate")}
+          onClick={() => router.push("/incidents")}
         />
         <StatCard
           label="Briefing"
@@ -375,7 +364,7 @@ export default function OverviewPage() {
             }}>
               Recent incidents
             </span>
-            <Link href="/investigate" style={{
+            <Link href="/incidents" style={{
               fontFamily: MONO,
               fontSize: "10px",
               color: "var(--accent)",
@@ -402,7 +391,7 @@ export default function OverviewPage() {
               onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
             >
               <div style={{ flexShrink: 0, width: "64px" }}>
-                <SeverityBadge severity={incident.severity || incident.finalClassification?.severity} />
+                <SeverityBadge severity={incident.severity || 'uncertain'} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
@@ -421,7 +410,7 @@ export default function OverviewPage() {
                   color: "var(--fg-4)",
                   marginTop: "2px",
                 }}>
-                  {incident.primaryLocation?.name || incident.location?.name || "Unknown location"}
+                  {incident.location?.name || "Unknown location"}
                 </div>
               </div>
               <div style={{
@@ -472,6 +461,8 @@ export default function OverviewPage() {
             Events sent by your drones tonight will appear here tomorrow morning.
           </div>
         </section>
+      )}
+        </>
       )}
     </div>
   );

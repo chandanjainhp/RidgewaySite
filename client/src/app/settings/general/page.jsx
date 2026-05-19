@@ -52,7 +52,6 @@ const INPUT_BASE_STYLE = {
   fontFamily: SANS,
   fontSize: '13px',
   color: 'var(--fg-1)',
-  outline: 'none',
   transition: 'border-color 120ms',
 };
 
@@ -480,7 +479,7 @@ export default function GeneralSettingsPage() {
           }}>
             For account closure requests, contact{' '}
             <a
-              href="mailto:support@ridgeway.io"
+              href="mailto:support@sentinel.io"
               style={{
                 fontFamily: MONO,
                 fontSize: '12px',
@@ -489,7 +488,7 @@ export default function GeneralSettingsPage() {
                 textUnderlineOffset: '2px',
               }}
             >
-              support@ridgeway.io
+              support@sentinel.io
             </a>
             . Our team will process your request within 5 business days.
           </p>

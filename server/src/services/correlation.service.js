@@ -8,8 +8,10 @@
 
 import Event from '../models/event.model.js';
 import Incident from '../models/incident.model.js';
+import Investigation from '../models/investigation.model.js';
 import { ApiError } from '../utils/api-error.js';
 import { getEventsNearLocation } from '../tools/map.tool.js';
+import { dispatchInvestigation } from '../queues/investigation.queue.js';
 
 // Clustering constants
 const SPATIAL_DISTANCE_M = 200;          // 200m proximity threshold
@@ -32,14 +34,15 @@ function getDayRange(dateString) {
  * @param {Date|string} nightDate - night to correlate
  * @returns {Promise<array>} created Incident IDs
  */
-export const correlateNightEvents = async (nightDate) => {
+export const correlateNightEvents = async (orgId, nightDate) => {
   try {
-    console.log(`[CorrelationService] Correlating events for ${nightDate}`);
+    console.log(`[CorrelationService] Correlating events for org ${orgId} on ${nightDate}`);
 
     const { start, end } = getDayRange(nightDate);
 
     // Fetch all events for the night
     const events = await Event.find({
+      orgId,
       nightDate: { $gte: start, $lte: end },
     }).lean();
 
@@ -74,21 +77,23 @@ export const correlateNightEvents = async (nightDate) => {
     // Create incident documents
     const incidentIds = [];
     for (const cluster of deduplicatedClusters) {
+      const primaryEvent = await Event.findById(cluster.eventIds[0]).lean();
       const incident = await Incident.create({
+        orgId,
         incidentId: `INC-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        nightDate: start,
+        nightDate: typeof start === 'string' ? start : start.toISOString().split('T')[0],
         title: generateIncidentTitle(cluster),
         description: generateIncidentDescription(cluster),
         eventIds: cluster.eventIds,
+        location: primaryEvent?.location || { name: cluster.metadata?.locationName || 'Unknown', coordinates: { lat: 0, lng: 0 }, zone: 'perimeter' },
         correlation: {
           type: cluster.correlationType,
           strategy: cluster.strategy,
           metadata: cluster.metadata || {},
         },
-        severity: 'uncertain', // AI determines severity
+        severity: 'uncertain',
         priority: calculateInitialPriority(cluster),
-        status: 'pending',
-        raghavsNote: cluster.metadata?.blockC ? true : false,
+        status: 'open',
       });
 
       // Update events to link to incident
@@ -97,9 +102,29 @@ export const correlateNightEvents = async (nightDate) => {
         { incidentId: incident._id }
       );
 
+      // Auto-dispatch investigation
+      const investigation = await Investigation.create({
+        orgId,
+        incidentId: incident._id,
+        nightDate: typeof start === 'string' ? start : start.toISOString().split('T')[0],
+        status: 'queued',
+        classification: { severity: 'uncertain' },
+      });
+
+      await dispatchInvestigation(
+        incident._id.toString(),
+        incident.priority || 3,
+        `inv:${investigation._id.toString()}`,
+        {
+          orgId,
+          nightDate: start.toISOString(),
+          investigationId: investigation._id.toString()
+        }
+      );
+
       incidentIds.push(incident._id);
       console.log(
-        `[CorrelationService] Created incident ${incident.incidentId} (${cluster.correlationType})`
+        `[CorrelationService] Created incident ${incident.incidentId} (${cluster.correlationType}) and dispatched investigation`
       );
     }
 

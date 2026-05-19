@@ -23,7 +23,7 @@ export default function IncidentMiniMap({ incidentId, location }) {
   }, []);
 
   const fallbackIcon = useMemo(() => L.divIcon({
-    html: `<div style="width:20px;height:20px;background:#ef4444;border-radius:50%;border:2px solid white;box-shadow:0 0 10px rgba(239,68,68,0.5)"></div>`,
+    html: `<div style="width:20px;height:20px;background:var(--sev-serious);border-radius:50%;border:2px solid rgba(255,255,255,0.3);box-shadow:var(--glow-serious)"></div>`,
     className: "",
     iconSize: [20, 20],
   }), []);

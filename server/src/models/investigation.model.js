@@ -17,16 +17,15 @@ const investigationSchema = new mongoose.Schema(
 
     // Night and timing
     nightDate: {
-      type: Date,
+      type: String,
       required: true,
       index: true,
-      description: 'Date only (no time) — which night this investigation occurred',
+      match: /^\d{4}-\d{2}-\d{2}$/,
     },
 
-    // Investigation lifecycle
     status: {
       type: String,
-      enum: ['queued', 'running', 'complete', 'failed', 'incomplete'],
+      enum: ['queued', 'running', 'complete', 'failed'],
       default: 'queued',
       index: true,
     },
@@ -83,27 +82,19 @@ const investigationSchema = new mongoose.Schema(
       },
     ],
 
-    // Final classification
-    finalClassification: {
+    classification: {
       severity: {
         type: String,
-        enum: ['harmless', 'monitor', 'escalate', 'uncertain'],
+        enum: ['serious', 'minor', 'harmless', 'uncertain'],
         required: true,
       },
       confidence: {
         type: Number,
         min: 0,
         max: 1,
-        description: 'Confidence in final assessment (0-1)',
       },
-      reasoning: {
-        type: String,
-        description: 'Full agent reasoning paragraph',
-      },
-      uncertainties: {
-        type: [String],
-        description: 'List of things the agent could not confirm',
-      },
+      reasoning: String,
+      uncertainties: [String],
       recommendedFollowup: String,
     },
 

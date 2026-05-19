@@ -9,7 +9,7 @@ import { dispatchInvestigation } from '../queues/investigation.queue.js';
 // Setup MCP server
 export const mcpServer = new McpServer(
   {
-    name: 'ridgeway-mcp',
+    name: 'sentinel-mcp',
     version: '1.0.0',
   },
   { capabilities: { tools: {} } }
@@ -63,7 +63,7 @@ mcpServer.tool(
         if (startDate) query.createdAt.$gte = new Date(startDate);
         if (endDate) query.createdAt.$lte = new Date(endDate);
       }
-      if (severity) query.$or = [{ finalSeverity: severity }, { severity }];
+      if (severity) query.severity = severity;
       if (status) query.status = status;
 
       const incidents = await Incident.find(query)
@@ -81,7 +81,7 @@ mcpServer.tool(
             id: i._id,
             title: i.title,
             description: i.description,
-            severity: i.finalSeverity || i.severity,
+            severity: i.severity || 'uncertain',
             status: i.status,
             detectedAt: i.createdAt,
             resolutionTime: i.resolutionTime,
@@ -130,7 +130,7 @@ mcpServer.tool(
         events: events.map(e => ({ type: e.type, time: e.timestamp, location: e.location })),
         investigation: investigation ? {
           status: investigation.status,
-          classification: investigation.finalClassification,
+          classification: investigation.classification,
           evidenceChain: investigation.evidenceChain,
           toolCalls: investigation.toolCallSequence
         } : null

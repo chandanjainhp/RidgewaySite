@@ -111,7 +111,7 @@ const getFullHealth = asyncHandler(async (req, res) => {
     ]),
     Incident.aggregate([
       { $match: { nightDate: { $gte: start, $lte: end } } },
-      { $group: { _id: { $ifNull: ["$finalSeverity", "$severity"] }, count: { $sum: 1 } } },
+      { $group: { _id: { $ifNull: ["$severity", "uncertain"] }, count: { $sum: 1 } } },
       { $project: { _id: 0, key: { $ifNull: ["$_id", "unknown"] }, count: 1 } },
     ]),
     Event.aggregate([
@@ -121,7 +121,7 @@ const getFullHealth = asyncHandler(async (req, res) => {
     ]),
     Incident.aggregate([
       { $match: { nightDate: { $gte: start, $lte: end } } },
-      { $group: { _id: "$primaryLocation.zone", count: { $sum: 1 } } },
+      { $group: { _id: "$location.zone", count: { $sum: 1 } } },
       { $project: { _id: 0, key: { $ifNull: ["$_id", "unknown"] }, count: 1 } },
     ]),
   ]);

@@ -3,7 +3,9 @@ import Event from "../models/event.model.js";
 import Investigation from "../models/investigation.model.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
-import { triggerWebhook } from "../services/webhook.service.js";
+import OutboxEvent from "../models/outboxEvent.model.js";
+
+const OUTBOX_ENABLED = process.env.OUTBOX_ENABLED === 'true';
 
 const startAndEndOfNight = (nightDate) => {
   const start = new Date(nightDate);
@@ -20,12 +22,10 @@ const toIncidentSummary = (incident) => ({
   incidentId: incident.incidentId || incident._id.toString(),
   title: incident.title,
   description: incident.description,
-  severity: incident.finalSeverity || incident.severity || "unknown",
+  severity: incident.severity || 'uncertain',
   status: incident.status,
   priority: incident.priority,
-  primaryLocation: incident.primaryLocation,
-  location: incident.primaryLocation,
-  raghavsNote: incident.raghavsNote,
+  location: incident.location,
 });
 
 const mapSignificanceToConfidence = (significance) => {
@@ -58,13 +58,18 @@ export const createIncident = async (req, res) => {
   const incident = new Incident({ ...req.body, orgId: req.user.orgId });
   const savedIncident = await incident.save();
 
-  // Webhook integration
-  triggerWebhook(req.user.orgId, "incident.created", {
+  const webhookPayload = {
     incidentId: savedIncident._id,
     severity: savedIncident.severity,
     summary: savedIncident.title || savedIncident.description,
     timestamp: savedIncident.createdAt,
-  });
+  };
+  if (OUTBOX_ENABLED) {
+    await OutboxEvent.create({ orgId: req.user.orgId, eventType: 'incident.created', payload: webhookPayload, status: 'pending' });
+  } else {
+    const { triggerWebhook } = await import('../services/webhook.service.js');
+    triggerWebhook(req.user.orgId, 'incident.created', webhookPayload);
+  }
 
   return res.status(201).json(new ApiResponse(201, savedIncident, "Incident reported successfully"));
 };
@@ -83,7 +88,7 @@ export const getIncidents = async (req, res) => {
   }
 
   if (severity) {
-    query.$or = [{ finalSeverity: severity }, { severity }];
+    query.severity = severity;
   }
 
   Object.assign(query, req.orgFilter);
@@ -132,16 +137,10 @@ export const getIncidentById = async (req, res) => {
       severity: event.severity,
       location: event.location,
     })),
-    finalClassification: investigation?.finalClassification || {
-      severity: incident.finalSeverity || incident.severity || "unknown",
+    classification: investigation?.classification || {
+      severity: incident.severity || 'uncertain',
       confidence: 0,
-      reasoning: incident.agentSummary || "",
-      uncertainties: [],
-    },
-    agentClassification: investigation?.finalClassification || {
-      severity: incident.finalSeverity || incident.severity || "unknown",
-      confidence: 0,
-      reasoning: incident.agentSummary || "",
+      reasoning: incident.agentSummary || '',
       uncertainties: [],
     },
   };
@@ -192,7 +191,7 @@ export const getIncidentEvidenceGraph = async (req, res) => {
 
   const graph = {
     steps: evidenceFromChain.length > 0 ? evidenceFromChain : evidenceFromToolCalls,
-    classification: investigation?.finalClassification || null,
+    classification: investigation?.classification || null,
     investigationId: investigation?._id || null,
   };
 

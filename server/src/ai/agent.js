@@ -53,7 +53,7 @@ export const runInvestigation = async (
   let conversationHistory = [];
   const toolCallSequence = [];
   const evidenceChain = [];
-  let finalClassification = null;
+  let classification = null;
   let toolCallCount = 0;
   let tokenUsage = { inputTokens: 0, outputTokens: 0 };
 
@@ -94,7 +94,7 @@ export const runInvestigation = async (
     try {
       const orgId = investigation.orgId ?? incident.orgId;
       if (orgId) {
-        const ragQueryText = `${incident.title} ${incident.primaryLocation?.name ?? ''}`;
+        const ragQueryText = `${incident.title} ${incident.location?.name ?? ''}`;
         const ragResults = await queryRag(ragQueryText, orgId, 5);
         if (ragResults.length > 0) {
           systemPrompt +=
@@ -117,13 +117,13 @@ export const runInvestigation = async (
 
     const initialMessage = `Investigate incident: ${incident.title}
 
-Primary Location: ${incident.primaryLocation.name}
-Correlation Type: ${incident.correlationType}
+Primary Location: ${incident.location?.name || 'Unknown'}
+Correlation Type: ${incident.correlation?.type || 'unknown'}
 
 Events to investigate:
 ${eventSummary}
 
-Begin by gathering all available data for this location and these event types. Once you have sufficient evidence, call classify_incident with your severity assessment.`;
+Begin by gathering all available data for this location and these event types. Once you have sufficient evidence, call submit_classification with your severity assessment.`;
 
     conversationHistory.push({
       role: 'user',
@@ -309,12 +309,12 @@ Begin by gathering all available data for this location and these event types. O
           const jsonMatch = textContent.match(/```json\n([\s\S]*?)\n```/);
           if (jsonMatch) {
             try {
-              finalClassification = JSON.parse(jsonMatch[1]);
-              console.log(`[Agent] Classification extracted: severity=${finalClassification.severity}`);
+              classification = JSON.parse(jsonMatch[1]);
+              console.log(`[Agent] Classification extracted: severity=${classification.severity}`);
             } catch (parseError) {
               console.error(`[Agent] Failed to parse classification JSON:`, parseError.message);
               // Fall back to creating classification from text
-              finalClassification = {
+              classification = {
                 severity: 'uncertain',
                 confidence: 0.5,
                 reasoning: textContent,
@@ -324,7 +324,7 @@ Begin by gathering all available data for this location and these event types. O
           } else {
             // No JSON found, create classification from text
             console.log(`[Agent] No JSON classification found, using text as reasoning`);
-            finalClassification = {
+            classification = {
               severity: 'uncertain',
               confidence: 0.5,
               reasoning: textContent,
@@ -339,8 +339,8 @@ Begin by gathering all available data for this location and these event types. O
               jobId,
               timestamp: new Date(),
               data: {
-                classification: finalClassification,
-                summary: `Incident classified as: ${finalClassification.severity}`,
+                classification: classification,
+                summary: `Incident classified as: ${classification.severity}`,
               },
             });
           } catch (err) {
@@ -382,13 +382,13 @@ Begin by gathering all available data for this location and these event types. O
     let failureReason = null;
 
     if (!loopComplete && toolCallCount >= MAX_TOOL_CALLS) {
-      finalStatus = 'incomplete';
+      finalStatus = 'failed';
       failureReason = `Tool call limit (${MAX_TOOL_CALLS}) reached without completion`;
       console.warn(`[Agent] ${failureReason}`);
 
       // Default classification if we didn't complete
-      if (!finalClassification) {
-        finalClassification = {
+      if (!classification) {
+        classification = {
           severity: 'uncertain',
           confidence: 0.3,
           reasoning: 'Investigation reached tool call limit before completion',
@@ -402,7 +402,7 @@ Begin by gathering all available data for this location and these event types. O
     investigation.status = finalStatus;
     investigation.toolCallSequence = toolCallSequence;
     investigation.evidenceChain = evidenceChain;
-    investigation.finalClassification = finalClassification || {
+    investigation.classification = classification || {
       severity: 'uncertain',
       confidence: 0.0,
       reasoning: 'No classification produced',
@@ -420,14 +420,14 @@ Begin by gathering all available data for this location and these event types. O
     // Update incident with investigation results
     await Incident.findByIdAndUpdate(incidentId, {
       investigationId: investigation._id,
-      status: 'complete',
-      finalSeverity: finalClassification?.severity || 'uncertain',
-      agentSummary: finalClassification?.reasoning?.substring(0, 500),
+      status: 'reviewed',
+      severity: classification?.severity || 'uncertain',
+      agentSummary: classification?.reasoning?.substring(0, 500),
     });
 
     // Emit completion event if not already sent
     try {
-      if (loopComplete && finalClassification) {
+      if (loopComplete && classification) {
         // Classification already emitted in the loop
         await emitProgress({
           type: 'complete',

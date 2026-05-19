@@ -213,7 +213,7 @@ router.get('/investigation-status/:jobId', asyncHandler(async (req, res) => {
   const inv = await Investigation.findOne({
     ...req.orgFilter,
     jobId,
-  }).select('status toolCallSequence finalSeverity').lean();
+  }).select('status toolCallSequence classification').lean();
 
   // Get today's briefing status
   const nightDate = todayNightDate();

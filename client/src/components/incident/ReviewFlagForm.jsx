@@ -17,8 +17,8 @@ export default function ReviewFlagForm({
   return (
     <div style={{
       width: "100%",
-      border: "1px solid rgba(99,102,241,0.4)",
-      background: "rgba(99,102,241,0.04)",
+      border: "1px solid rgba(107,118,134,0.4)",
+      background: "rgba(107,118,134,0.04)",
       padding: "24px",
     }}>
       <div style={{
@@ -26,7 +26,7 @@ export default function ReviewFlagForm({
         marginBottom: "16px",
         fontFamily: "var(--font-mono)", fontSize: "10px",
         fontWeight: 700, textTransform: "uppercase",
-        letterSpacing: "0.14em", color: "#6366f1",
+        letterSpacing: "0.14em", color: "var(--sev-unknown)",
       }}>
         <Flag size={14} />
         Schedule Automated Follow-up
@@ -39,7 +39,7 @@ export default function ReviewFlagForm({
         This will queue{" "}
         <strong style={{
           fontFamily: "var(--font-mono)", letterSpacing: "0.08em",
-          color: "#6366f1",
+          color: "var(--sev-unknown)",
         }}>
           {locationName}
         </strong>{" "}
@@ -65,7 +65,7 @@ export default function ReviewFlagForm({
             color: "var(--fg-1)",
             fontFamily: "var(--font-mono)", fontSize: "12px",
             padding: "12px", lineHeight: "var(--lh-snug)",
-            outline: "none", boxSizing: "border-box",
+            boxSizing: "border-box",
           }}
         />
       </div>
@@ -91,7 +91,7 @@ export default function ReviewFlagForm({
           style={{
             display: "flex", alignItems: "center", gap: "8px",
             padding: "8px 24px",
-            background: "#6366f1",
+            background: "var(--sev-unknown)",
             border: "1px solid #818cf8",
             color: "#ffffff",
             fontFamily: "var(--font-mono)", fontSize: "11px",

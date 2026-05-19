@@ -12,8 +12,8 @@ const DECISION_STYLE = {
     background: "var(--sev-minor-bg)",
   },
   flagged: {
-    border: "#6366f1", color: "#6366f1",
-    background: "rgba(99,102,241,0.06)",
+    border: "var(--sev-unknown)", color: "var(--sev-unknown)",
+    background: "rgba(107,118,134,0.06)",
   },
 };
 

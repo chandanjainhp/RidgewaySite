@@ -1,4 +1,4 @@
-/* Design tokens: Sentinel Night Watch color + type system */
+/* Design tokens: Night Watch color + type system */
 @import '../colors_and_type.css';
 
 @import 'tailwindcss';
@@ -14,15 +14,32 @@
 *:focus-visible {
   outline: 2px solid var(--border-focus);
   outline-offset: 2px;
+  border-radius: 2px;
 }
 button:focus-visible,
 a:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible,
+[role="button"]:focus-visible,
 [role="menuitem"]:focus-visible {
-  outline: 2px solid var(--border-focus);
-  outline-offset: 2px;
+  outline-offset: 3px;
+}
+
+/* Skip-to-content — visible only on keyboard focus */
+.skip-to-content {
+  position: absolute;
+  top: -100%;
+  left: 8px;
+  z-index: 9999;
+  padding: 8px 16px;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-focus);
+  color: var(--fg-1);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.skip-to-content:focus {
+  top: 8px;
 }
 
 /* =============================================
@@ -111,7 +128,7 @@ textarea:focus-visible,
 }
 
 /* =============================================
-   DARK MODE — mapped to Ridgeway Night Watch tokens
+   DARK MODE — mapped to Night Watch tokens
    (colors_and_type.css defines: --bg-base, --fg-1,
    --accent, --sev-serious, --border-default, etc.)
 ============================================= */
@@ -187,11 +204,10 @@ textarea:focus-visible,
    TAILWIND V4 THEME MAPPING
 ============================================= */
 @theme inline {
-  /* --- Typography: BMWTypeNext Pro first, then fallbacks --- */
-  --font-sans:    'BMWTypeNext Pro', 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
-  --font-display: "Oswald", "Helvetica Neue", Arial, sans-serif;
-  --font-mono:    'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
-  --font-serif:   'IBM Plex Serif', Georgia, 'Times New Roman', serif;
+  /* --- Typography --- */
+  --font-sans:  'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --font-mono:  'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  --font-serif: 'IBM Plex Serif', Georgia, 'Times New Roman', serif;
 
   /* --- Letter spacing --- */
   --letter-spacing-display: -2.125px;

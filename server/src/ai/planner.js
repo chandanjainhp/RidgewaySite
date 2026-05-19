@@ -47,10 +47,9 @@ const scoreIncident = async (incident) => {
   let score = 0;
 
   // 1. Base score by correlation type or entity type
-  if (incident.correlationType === 'cross_type' && incident.entityInvolved?.type === 'vehicle') {
-    // Vehicle in multiple zones = escalation candidate
+  if (incident.correlation?.type === 'cross_type' && incident.entityInvolved?.type === 'vehicle') {
     score = BASE_SCORES.escalation_candidate;
-  } else if (incident.correlationType === 'entity' && incident.entityInvolved?.type === 'employee') {
+  } else if (incident.correlation?.type === 'entity' && incident.entityInvolved?.type === 'employee') {
     // Repeated access failures
     score = BASE_SCORES.repeated_access_failure;
   } else if (incident.entityInvolved?.type === 'unknown') {
@@ -70,33 +69,25 @@ const scoreIncident = async (incident) => {
     }
   }
 
-  // 2. Raghav's note flag (+5 for Block C concerns)
-  if (incident.raghavsNote === true) {
-    score += 5;
-  }
-
-  // 3. Drone coverage analysis (+3 if gap, -3 if confirmed harmless)
+  // 2. Drone coverage analysis (+3 if gap, -3 if confirmed harmless)
   try {
-    const locationId = incident.primaryLocation.name;
-    const droneObs = getDroneObservationsNear(locationId, 300);
+    const locationId = incident.location?.name;
+    const droneObs = locationId ? getDroneObservationsNear(locationId, 300) : [];
 
     if (droneObs.length === 0) {
-      // Drone did not cover this location
       score += 3;
     } else {
-      // Check if drone confirmed harmless at this location
       const hasHarmlessConfirmation = droneObs.some(obs =>
         obs.observation?.toLowerCase().includes('harmless') ||
         obs.observation?.toLowerCase().includes('animal') ||
         obs.observation?.toLowerCase().includes('false alarm')
       );
-
       if (hasHarmlessConfirmation) {
         score -= 3;
       }
     }
   } catch (droneError) {
-    console.warn(`[Planner] Error checking drone coverage for ${incident.primaryLocation.name}:`, droneError.message);
+    console.warn(`[Planner] Error checking drone coverage for ${incident.location?.name}:`, droneError.message);
     // Default: assume gap if we can't check
     score += 2;
   }
