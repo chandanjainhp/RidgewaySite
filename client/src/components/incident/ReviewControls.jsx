@@ -10,13 +10,19 @@ import ReviewOverrideForm from "@/components/incident/ReviewOverrideForm";
 import ReviewFlagForm from "@/components/incident/ReviewFlagForm";
 import { toast } from "sonner";
 
-export default function ReviewControls({ incidentId, agentClassification, incidentLocation }) {
+export default function ReviewControls({
+  incidentId,
+  agentClassification,
+  incidentLocation,
+}) {
   const [activeForm, setActiveForm] = useState(null); // 'override' | 'flag' | null
 
   // Storage Hooks
-  const getReviewForIncident = useReviewStore(state => state.getReviewForIncident);
-  const setPendingReview = useReviewStore(state => state.setPendingReview);
-  const addFollowUpLocation = useMapStore(state => state.addFollowUpLocation);
+  const getReviewForIncident = useReviewStore(
+    (state) => state.getReviewForIncident,
+  );
+  const setPendingReview = useReviewStore((state) => state.setPendingReview);
+  const addFollowUpLocation = useMapStore((state) => state.addFollowUpLocation);
 
   // Mutation Hooks
   const { mutate: applyReview, isPending } = useApplyReview();
@@ -25,7 +31,7 @@ export default function ReviewControls({ incidentId, agentClassification, incide
   const currentReview = getReviewForIncident(incidentId);
 
   // Form State
-  const [overrideSeverity, setOverrideSeverity] = useState("monitor");
+  const [overrideSeverity, setOverrideSeverity] = useState("minor");
   const [overrideReason, setOverrideReason] = useState("");
   const [flagNote, setFlagNote] = useState("");
 
@@ -41,7 +47,11 @@ export default function ReviewControls({ incidentId, agentClassification, incide
   // --- Handlers ---
   const handleAgree = () => {
     // Stage securely to memory
-    const reviewData = { decision: "agreed", flagDetails: null, override: null };
+    const reviewData = {
+      decision: "agreed",
+      flagDetails: null,
+      override: null,
+    };
     setPendingReview(incidentId, reviewData);
 
     // Dispatch
@@ -54,7 +64,7 @@ export default function ReviewControls({ incidentId, agentClassification, incide
     const reviewData = {
       decision: "overridden",
       override: { newSeverity: overrideSeverity, reason: overrideReason },
-      flagDetails: null
+      flagDetails: null,
     };
 
     setPendingReview(incidentId, reviewData);
@@ -66,16 +76,19 @@ export default function ReviewControls({ incidentId, agentClassification, incide
     const reviewData = {
       decision: "flagged",
       override: null,
-      flagDetails: { note: flagNote }
+      flagDetails: { note: flagNote },
     };
 
     setPendingReview(incidentId, reviewData);
 
     // Cross-wire map drone state immediately so Maya visualizes her decision
     if (incidentLocation) {
-       const locationName = typeof incidentLocation === 'string' ? incidentLocation : incidentLocation?.name || 'Unknown Location';
-       addFollowUpLocation({ name: locationName, incidentId });
-       toast.success(`Location ${locationName} staged for automated sweep.`);
+      const locationName =
+        typeof incidentLocation === "string"
+          ? incidentLocation
+          : incidentLocation?.name || "Unknown Location";
+      addFollowUpLocation({ name: locationName, incidentId });
+      toast.success(`Location ${locationName} staged for automated sweep.`);
     }
 
     applyReview({ eventId: incidentId, reviewData });

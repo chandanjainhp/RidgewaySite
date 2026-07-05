@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/authStore';
-import { Building2, Users, Key, Activity, ShieldCheck, ArrowLeft, LogOut } from 'lucide-react';
+import { Building2, Users, Key, Activity, ShieldCheck, ArrowLeft, LogOut, Sliders } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import api, { clearStoredToken } from '../../lib/api';
 
@@ -36,6 +36,7 @@ export default function AdminLayout({ children }) {
     { name: 'API Keys', path: '/admin/apikeys', icon: Key },
     { name: 'Jobs', path: '/admin/jobs', icon: Activity },
     { name: 'Audit Log', path: '/admin/audit', icon: ShieldCheck },
+    { name: 'Setup / Ingest', path: '/admin/setup', icon: Sliders },
   ];
 
   return (

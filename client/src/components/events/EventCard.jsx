@@ -67,7 +67,7 @@ const EventCard = memo(({ incident }) => {
 
       {/* name + meta */}
       <div>
-        <div style={{ fontSize: "12.5px", color: "var(--fg-1)", fontWeight: 500, lineHeight: 1.3, marginBottom: "2px" }}>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--fg-1)", fontWeight: 400, lineHeight: 1.3, marginBottom: "2px" }}>
           {location}
         </div>
         <div style={{ fontFamily: "var(--font-mono)", fontSize: "10.5px", color: "var(--fg-3)", lineHeight: 1.3 }}>
@@ -80,7 +80,7 @@ const EventCard = memo(({ incident }) => {
 
       {/* severity badge */}
       <span style={{
-        fontFamily: "var(--font-sans)", fontSize: "9px", fontWeight: 600,
+        fontFamily: "var(--font-mono)", fontSize: "9px", fontWeight: 600,
         textTransform: "uppercase", letterSpacing: "0.1em",
         padding: "2px 7px", borderRadius: "2px",
         background: tok.bg, color: tok.text, border: `1px solid ${tok.border}`,

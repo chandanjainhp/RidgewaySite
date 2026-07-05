@@ -7,14 +7,17 @@ export function useStartInvestigation(options = {}) {
   const setJobId = useInvestigationStore((state) => state.setJobId);
   const setJobIds = useInvestigationStore((state) => state.setJobIds);
   const setJobStatus = useInvestigationStore((state) => state.setJobStatus);
-  const setInvestigationStats = useInvestigationStore((state) => state.setInvestigationStats);
+  const setInvestigationStats = useInvestigationStore(
+    (state) => state.setInvestigationStats,
+  );
 
   return useMutation({
     mutationFn: (input) => {
       const nightDate =
         typeof input === "string"
           ? input
-          : input?.nightDate || (() => {
+          : input?.nightDate ||
+            (() => {
               const d = new Date();
               d.setDate(d.getDate() - 1);
               const year = d.getFullYear();
@@ -23,14 +26,14 @@ export function useStartInvestigation(options = {}) {
               return `${year}-${month}-${day}`;
             })();
 
-      console.log('[MUTATION] Starting investigation for', nightDate);
+      console.log("[MUTATION] Starting investigation for", nightDate);
       return startInvestigation(nightDate);
     },
     onSuccess: (result, variables, context) => {
-      console.log('[MUTATION] SUCCESS - Got result:', result);
+      console.log("[MUTATION] SUCCESS - Got result:", result);
 
       if (result.jobIds && result.jobIds.length > 0) {
-        console.log('[MUTATION] Setting jobId:', result.jobIds[0]);
+        console.log("[MUTATION] Setting jobId:", result.jobIds[0]);
         setJobIds(result.jobIds);
         setJobId(result.jobIds[0]);
       } else {
@@ -47,27 +50,32 @@ export function useStartInvestigation(options = {}) {
       }
 
       if (result.totalJobs !== undefined) {
-        console.log('[MUTATION] Setting stats - totalJobs:', result.totalJobs);
+        console.log("[MUTATION] Setting stats - totalJobs:", result.totalJobs);
         setInvestigationStats({ totalIncidents: result.totalJobs });
       }
 
       const toastMessages = {
-        already_running:  "Investigation already running — connecting to stream.",
+        already_running:
+          "Investigation already running — connecting to stream.",
         already_complete: "Night already investigated — loading results.",
       };
-      toast.success(toastMessages[result.status] || "Investigation protocol initiated.");
+      toast.success(
+        toastMessages[result.status] || "Investigation protocol initiated.",
+      );
       if (options.onSuccess) options.onSuccess(result, variables, context);
     },
     onError: (error, variables, context) => {
-      console.error('[MUTATION] ERROR raw:', error);
-      console.error('[MUTATION] ERROR details:', {
+      console.error("[MUTATION] ERROR raw:", error);
+      console.error("[MUTATION] ERROR details:", {
         message: error?.message,
         name: error?.name,
         type: error?.type,
         statusCode: error?.statusCode,
         variables,
       });
-      toast.error(`Investigation failed to initialize: ${error?.message || String(error) || 'Unknown error'}`);
+      toast.error(
+        `Investigation failed to initialize: ${error?.message || String(error) || "Unknown error"}`,
+      );
       if (options.onError) options.onError(error, variables, context);
     },
     ...options,
@@ -92,11 +100,11 @@ export function useNightSummary(nightDate, options = {}) {
       const incidents = Array.isArray(data) ? data : [];
       // Group incidents preemptively for radar views
       const groups = {
-        escalations: incidents.filter(i => i.severity === 'escalate'),
-        monitored: incidents.filter(i => i.severity === 'monitor'),
-        harmless: incidents.filter(i => i.severity === 'harmless'),
-        uncertain: incidents.filter(i => i.severity === 'uncertain'),
-        unclassified: incidents.filter(i => !i.severity || i.severity === 'unknown'),
+        serious: incidents.filter((i) => i.severity === "serious"),
+        minor: incidents.filter((i) => i.severity === "minor"),
+        harmless: incidents.filter((i) => i.severity === "harmless"),
+        uncertain: incidents.filter((i) => i.severity === "uncertain"),
+        unclassified: incidents.filter((i) => !i.severity),
       };
       return { incidents, ...groups };
     },

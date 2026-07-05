@@ -12,7 +12,7 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function AdminLoginPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [formData, setFormData] = useState({ email: 'admin@ridgeway.com', password: 'jsfj3#fkej_83' });
   const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({ email: '', password: '' });
   const [serverError, setServerError] = useState('');

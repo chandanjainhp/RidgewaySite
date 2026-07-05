@@ -4,11 +4,14 @@ import { memo } from "react";
 import { formatConfidence } from "@/lib/formatters";
 
 const getToneClasses = (value) => {
-  if (value === null || value === undefined) return { bar: "bg-text-muted", text: "text-text-muted" };
-  if (value > 0.8) return { bar: "bg-severity-harmless", text: "text-severity-harmless" };
-  if (value >= 0.5) return { bar: "bg-severity-monitor", text: "text-severity-monitor" };
+  if (value === null || value === undefined)
+    return { bar: "bg-text-muted", text: "text-text-muted" };
+  if (value > 0.8)
+    return { bar: "bg-severity-harmless", text: "text-severity-harmless" };
+  if (value >= 0.5)
+    return { bar: "bg-severity-minor", text: "text-severity-minor" };
   if (value >= 0.3) return { bar: "bg-orange-500", text: "text-orange-500" };
-  return { bar: "bg-severity-escalate", text: "text-severity-escalate" };
+  return { bar: "bg-severity-serious", text: "text-severity-serious" };
 };
 
 const getWidthClass = (value) => {
@@ -38,12 +41,18 @@ const ConfidenceBar = memo(({ confidence, showLabel = true, size = "sm" }) => {
 
   return (
     <div className="w-full flex flex-col gap-1">
-      <div className={`w-full ${trackHeight} bg-surface-3 rounded-full overflow-hidden`}>
-        <div className={`h-full rounded-full transition-all duration-500 ease-out ${tone.bar} ${widthClass}`} />
+      <div
+        className={`w-full ${trackHeight} bg-surface-3 rounded-full overflow-hidden`}
+      >
+        <div
+          className={`h-full rounded-full transition-all duration-500 ease-out ${tone.bar} ${widthClass}`}
+        />
       </div>
 
       {showLabel && (
-        <span className={`font-mono text-[10px] uppercase tracking-widest ${tone.text}`}>
+        <span
+          className={`font-mono text-[10px] uppercase tracking-widest ${tone.text}`}
+        >
           {label}
         </span>
       )}

@@ -156,8 +156,6 @@ export default function IncidentDetailView({ params }) {
           Back to Investigation
         </Link>
 
-        )}
-
         <h1 style={{
           fontSize: "var(--text-2xl)", fontWeight: 500,
           color: "var(--fg-1)", lineHeight: "var(--lh-tight)",

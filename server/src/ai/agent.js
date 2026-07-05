@@ -9,11 +9,11 @@
   5. Save complete investigation record to MongoDB
 */
 
-import { getClaudeClient, getModelName } from '../utils/anthropic.js';
-import { buildSystemPrompt } from './prompts/system.js';
-import { TOOLS_FOR_CLAUDE, executeTool } from './tools-registry.js';
-import Incident from '../models/incident.model.js';
-import { queryRag } from '../services/rag.service.js';
+import { getClaudeClient, getModelName } from "../utils/anthropic.js";
+import { buildSystemPrompt } from "./prompts/system.js";
+import { TOOLS_FOR_CLAUDE, executeTool } from "./tools-registry.js";
+import Incident from "../models/incident.model.js";
+import { queryRag } from "../services/rag.service.js";
 
 const MAX_TOOL_CALLS = 12;
 
@@ -27,10 +27,16 @@ const extractTokenUsage = (response) => {
 
   return {
     input: toUsageNumber(
-      usage.input_tokens ?? usage.inputTokens ?? usage.prompt_tokens ?? usage.promptTokens
+      usage.input_tokens ??
+        usage.inputTokens ??
+        usage.prompt_tokens ??
+        usage.promptTokens,
     ),
     output: toUsageNumber(
-      usage.output_tokens ?? usage.outputTokens ?? usage.completion_tokens ?? usage.completionTokens
+      usage.output_tokens ??
+        usage.outputTokens ??
+        usage.completion_tokens ??
+        usage.completionTokens,
     ),
   };
 };
@@ -46,7 +52,7 @@ export const runInvestigation = async (
   incidentId,
   jobId,
   emitProgress,
-  investigationRecord = null
+  investigationRecord = null,
 ) => {
   const startTime = Date.now();
   let investigation = null;
@@ -62,12 +68,12 @@ export const runInvestigation = async (
     console.log(`[Agent] Starting investigation for incident: ${incidentId}`);
 
     // Load incident and associated events
-    const incident = await Incident.findById(incidentId).populate('eventIds');
+    const incident = await Incident.findById(incidentId).populate("eventIds");
     if (!incident) {
       const error = `Incident not found: ${incidentId}`;
       console.error(`[Agent] ${error}`);
       await emitProgress({
-        type: 'error',
+        type: "error",
         jobId,
         timestamp: new Date(),
         data: { summary: error },
@@ -84,7 +90,9 @@ export const runInvestigation = async (
 
     investigation = investigationRecord;
     if (!investigation) {
-      throw new Error('Investigation record is required before running the agent');
+      throw new Error(
+        "Investigation record is required before running the agent",
+      );
     }
 
     // Build system prompt
@@ -94,15 +102,15 @@ export const runInvestigation = async (
     try {
       const orgId = investigation.orgId ?? incident.orgId;
       if (orgId) {
-        const ragQueryText = `${incident.title} ${incident.location?.name ?? ''}`;
+        const ragQueryText = `${incident.title} ${incident.location?.name ?? ""}`;
         const ragResults = await queryRag(ragQueryText, orgId, 5);
         if (ragResults.length > 0) {
           systemPrompt +=
             `\n\nRelevant historical context from site documents:\n` +
             ragResults
               .map((r, i) => `[${i + 1}] From "${r.filename}":\n${r.text}`)
-              .join('\n\n');
-          investigation.ragDocumentsQueried = ragResults.map(r => r.filename);
+              .join("\n\n");
+          investigation.ragDocumentsQueried = ragResults.map((r) => r.filename);
           await investigation.save();
         }
       }
@@ -112,13 +120,16 @@ export const runInvestigation = async (
 
     // Build initial user message
     const eventSummary = events
-      .map(e => `• ${e.type} at ${e.location.name} (${e.timestamp.toISOString()})`)
-      .join('\n');
+      .map(
+        (e) =>
+          `• ${e.type} at ${e.location.name} (${e.timestamp.toISOString()})`,
+      )
+      .join("\n");
 
     const initialMessage = `Investigate incident: ${incident.title}
 
-Primary Location: ${incident.location?.name || 'Unknown'}
-Correlation Type: ${incident.correlation?.type || 'unknown'}
+  Location: ${incident.location?.name || "Unknown"}
+  Correlation: ${incident.correlation?.type || "unknown"}
 
 Events to investigate:
 ${eventSummary}
@@ -126,7 +137,7 @@ ${eventSummary}
 Begin by gathering all available data for this location and these event types. Once you have sufficient evidence, call submit_classification with your severity assessment.`;
 
     conversationHistory.push({
-      role: 'user',
+      role: "user",
       content: initialMessage,
     });
 
@@ -144,18 +155,21 @@ Begin by gathering all available data for this location and these event types. O
         const tools = TOOLS_FOR_CLAUDE;
         const messages = conversationHistory;
 
-        console.log('[TOOLS]', JSON.stringify(TOOLS_FOR_CLAUDE, null, 2));
-        console.log('[CLAUDE CALL] model:', model);
-        console.log('[CLAUDE CALL] tools count:', tools?.length);
-        console.log('[CLAUDE CALL] messages count:', messages.length);
+        console.log("[TOOLS]", JSON.stringify(TOOLS_FOR_CLAUDE, null, 2));
+        console.log("[CLAUDE CALL] model:", model);
+        console.log("[CLAUDE CALL] tools count:", tools?.length);
+        console.log("[CLAUDE CALL] messages count:", messages.length);
         console.log(
-          '[FIRST MSG]',
+          "[FIRST MSG]",
           messages[0]?.role,
-          typeof messages[0]?.content === 'string'
+          typeof messages[0]?.content === "string"
             ? messages[0].content.slice(0, 100)
-            : JSON.stringify(messages[0]?.content || '').slice(0, 100)
+            : JSON.stringify(messages[0]?.content || "").slice(0, 100),
         );
-        console.log('[CLAUDE CALL] last message role:', messages[messages.length - 1]?.role);
+        console.log(
+          "[CLAUDE CALL] last message role:",
+          messages[messages.length - 1]?.role,
+        );
 
         // Call Claude with current conversation
         const response = await claude.messages.create({
@@ -163,43 +177,51 @@ Begin by gathering all available data for this location and these event types. O
           max_tokens: 2000,
           system: systemPrompt,
           tools,
-          tool_choice: { type: 'auto' },
+          tool_choice: { type: "auto" },
           messages,
         });
 
-        console.log('[CLAUDE RESPONSE] stop_reason:', response.stop_reason);
+        console.log("[CLAUDE RESPONSE] stop_reason:", response.stop_reason);
         console.log(
-          '[CLAUDE RESPONSE] content blocks:',
-          (Array.isArray(response?.content) ? response.content : []).map((b) => b.type).join(', ')
+          "[CLAUDE RESPONSE] content blocks:",
+          (Array.isArray(response?.content) ? response.content : [])
+            .map((b) => b.type)
+            .join(", "),
         );
-        console.log('[CLAUDE RESPONSE] usage:', response.usage);
+        console.log("[CLAUDE RESPONSE] usage:", response.usage);
 
         // Track token usage
         const usage = extractTokenUsage(response);
         tokenUsage.inputTokens += usage.input;
         tokenUsage.outputTokens += usage.output;
 
-        const responseContent = Array.isArray(response?.content) ? response.content : [];
+        const responseContent = Array.isArray(response?.content)
+          ? response.content
+          : [];
 
-        console.log('CLAUDE RESPONSE stop_reason', response.stop_reason);
+        console.log("CLAUDE RESPONSE stop_reason", response.stop_reason);
         console.log(
-          'CLAUDE CONTENT TYPES',
-          responseContent.map((block) => block?.type || 'unknown')
+          "CLAUDE CONTENT TYPES",
+          responseContent.map((block) => block?.type || "unknown"),
         );
 
-        console.log(`[Agent] Claude response received (stop_reason: ${response.stop_reason})`);
+        console.log(
+          `[Agent] Claude response received (stop_reason: ${response.stop_reason})`,
+        );
 
         // Append assistant response to history (before processing)
         conversationHistory.push({
-          role: 'assistant',
+          role: "assistant",
           content: responseContent,
         });
 
         // ===== CASE 1: Tool use =====
-        if (response.stop_reason === 'tool_use') {
+        if (response.stop_reason === "tool_use") {
           console.log(`[Agent] Tool use detected, processing...`);
 
-          const toolUseBlocks = responseContent.filter(block => block.type === 'tool_use');
+          const toolUseBlocks = responseContent.filter(
+            (block) => block.type === "tool_use",
+          );
           const toolResults = [];
 
           for (const toolBlock of toolUseBlocks) {
@@ -212,7 +234,7 @@ Begin by gathering all available data for this location and these event types. O
             // Emit tool called event
             try {
               await emitProgress({
-                type: 'tool_called',
+                type: "tool_called",
                 jobId,
                 timestamp: new Date(),
                 data: {
@@ -221,14 +243,21 @@ Begin by gathering all available data for this location and these event types. O
                 },
               });
             } catch (err) {
-              console.error(`[Agent] Error emitting tool_called progress:`, err.message);
+              console.error(
+                `[Agent] Error emitting tool_called progress:`,
+                err.message,
+              );
             }
 
             // Execute tool and capture result
             const toolStartTime = Date.now();
             let toolResult;
             try {
-              toolResult = await executeTool(toolName, toolInput, investigationNightDate);
+              toolResult = await executeTool(
+                toolName,
+                toolInput,
+                investigationNightDate,
+              );
             } catch (toolError) {
               console.error(`[Agent] Tool execution error:`, toolError.message);
               toolResult = {
@@ -252,7 +281,7 @@ Begin by gathering all available data for this location and these event types. O
             // Emit tool result event
             try {
               await emitProgress({
-                type: 'tool_result',
+                type: "tool_result",
                 jobId,
                 timestamp: new Date(),
                 data: {
@@ -263,12 +292,15 @@ Begin by gathering all available data for this location and these event types. O
                 },
               });
             } catch (err) {
-              console.error(`[Agent] Error emitting tool_result progress:`, err.message);
+              console.error(
+                `[Agent] Error emitting tool_result progress:`,
+                err.message,
+              );
             }
 
             // Add tool result to conversation history for next Claude call
             toolResults.push({
-              type: 'tool_result',
+              type: "tool_result",
               tool_use_id: toolBlock.id,
               content: JSON.stringify(toolResult),
             });
@@ -279,7 +311,7 @@ Begin by gathering all available data for this location and these event types. O
                 step: evidenceChain.length + 1,
                 finding: `${toolName}: ${JSON.stringify(toolResult).substring(0, 100)}...`,
                 source: toolName,
-                confidence: 'medium',
+                confidence: "medium",
               });
             }
           }
@@ -287,55 +319,64 @@ Begin by gathering all available data for this location and these event types. O
           // Add all tool results to conversation
           if (toolResults.length > 0) {
             conversationHistory.push({
-              role: 'user',
+              role: "user",
               content: toolResults,
             });
           }
         }
         // ===== CASE 2: End turn (agent is done) =====
-        else if (response.stop_reason === 'end_turn') {
+        else if (response.stop_reason === "end_turn") {
           console.log(`[Agent] Agent complete (end_turn received)`);
           loopComplete = true;
 
           // Extract text content and parse JSON classification
           const textContent = responseContent
-            .filter(block => block.type === 'text')
-            .map(block => block.text)
-            .join('\n');
+            .filter((block) => block.type === "text")
+            .map((block) => block.text)
+            .join("\n");
 
-          console.log(`[Agent] Agent final text: ${textContent.substring(0, 200)}...`);
+          console.log(
+            `[Agent] Agent final text: ${textContent.substring(0, 200)}...`,
+          );
 
           // Try to extract JSON classification from response
           const jsonMatch = textContent.match(/```json\n([\s\S]*?)\n```/);
           if (jsonMatch) {
             try {
               classification = JSON.parse(jsonMatch[1]);
-              console.log(`[Agent] Classification extracted: severity=${classification.severity}`);
+              console.log(
+                `[Agent] Classification extracted: severity=${classification.severity}`,
+              );
             } catch (parseError) {
-              console.error(`[Agent] Failed to parse classification JSON:`, parseError.message);
+              console.error(
+                `[Agent] Failed to parse classification JSON:`,
+                parseError.message,
+              );
               // Fall back to creating classification from text
               classification = {
-                severity: 'uncertain',
+                severity: "uncertain",
                 confidence: 0.5,
                 reasoning: textContent,
-                uncertainties: ['Could not extract structured classification'],
+                uncertainties: ["Could not extract structured classification"],
               };
             }
           } else {
             // No JSON found, create classification from text
-            console.log(`[Agent] No JSON classification found, using text as reasoning`);
+            console.log(
+              `[Agent] No JSON classification found, using text as reasoning`,
+            );
             classification = {
-              severity: 'uncertain',
+              severity: "uncertain",
               confidence: 0.5,
               reasoning: textContent,
-              uncertainties: ['Classification not in expected JSON format'],
+              uncertainties: ["Classification not in expected JSON format"],
             };
           }
 
           // Emit classification event
           try {
             await emitProgress({
-              type: 'classification',
+              type: "classification",
               jobId,
               timestamp: new Date(),
               data: {
@@ -344,24 +385,32 @@ Begin by gathering all available data for this location and these event types. O
               },
             });
           } catch (err) {
-            console.error(`[Agent] Error emitting classification progress:`, err.message);
+            console.error(
+              `[Agent] Error emitting classification progress:`,
+              err.message,
+            );
           }
         }
         // ===== CASE 3: Unexpected stop reason =====
         else {
-          console.warn(`[Agent] Unexpected stop_reason: ${response.stop_reason}`);
+          console.warn(
+            `[Agent] Unexpected stop_reason: ${response.stop_reason}`,
+          );
           loopComplete = true;
         }
       } catch (loopError) {
-        console.error('[CLAUDE ERROR] status:', loopError?.status);
-        console.error('[CLAUDE ERROR] message:', loopError?.message);
-        console.error('[CLAUDE ERROR] full:', JSON.stringify(loopError, null, 2));
+        console.error("[CLAUDE ERROR] status:", loopError?.status);
+        console.error("[CLAUDE ERROR] message:", loopError?.message);
+        console.error(
+          "[CLAUDE ERROR] full:",
+          JSON.stringify(loopError, null, 2),
+        );
         console.error(`[Agent] Error in loop iteration:`, loopError.message);
 
         // Emit error progress
         try {
           await emitProgress({
-            type: 'error',
+            type: "error",
             jobId,
             timestamp: new Date(),
             data: { summary: `Loop error: ${loopError.message}` },
@@ -378,22 +427,22 @@ Begin by gathering all available data for this location and these event types. O
     const duration = Date.now() - startTime;
 
     // Determine final status
-    let finalStatus = 'complete';
+    let finalStatus = "complete";
     let failureReason = null;
 
     if (!loopComplete && toolCallCount >= MAX_TOOL_CALLS) {
-      finalStatus = 'failed';
+      finalStatus = "failed";
       failureReason = `Tool call limit (${MAX_TOOL_CALLS}) reached without completion`;
       console.warn(`[Agent] ${failureReason}`);
 
       // Default classification if we didn't complete
       if (!classification) {
         classification = {
-          severity: 'uncertain',
+          severity: "uncertain",
           confidence: 0.3,
-          reasoning: 'Investigation reached tool call limit before completion',
-          uncertainties: ['Investigation incomplete'],
-          recommendedFollowup: 'Manual review recommended',
+          reasoning: "Investigation reached tool call limit before completion",
+          uncertainties: ["Investigation incomplete"],
+          recommendedFollowup: "Manual review recommended",
         };
       }
     }
@@ -403,10 +452,10 @@ Begin by gathering all available data for this location and these event types. O
     investigation.toolCallSequence = toolCallSequence;
     investigation.evidenceChain = evidenceChain;
     investigation.classification = classification || {
-      severity: 'uncertain',
+      severity: "uncertain",
       confidence: 0.0,
-      reasoning: 'No classification produced',
-      uncertainties: ['Investigation failed to produce classification'],
+      reasoning: "No classification produced",
+      uncertainties: ["Investigation failed to produce classification"],
     };
     investigation.tokenUsage = tokenUsage;
     investigation.totalToolCalls = toolCallCount;
@@ -420,8 +469,8 @@ Begin by gathering all available data for this location and these event types. O
     // Update incident with investigation results
     await Incident.findByIdAndUpdate(incidentId, {
       investigationId: investigation._id,
-      status: 'reviewed',
-      severity: classification?.severity || 'uncertain',
+      status: "reviewed",
+      severity: classification?.severity || "uncertain",
       agentSummary: classification?.reasoning?.substring(0, 500),
     });
 
@@ -430,7 +479,7 @@ Begin by gathering all available data for this location and these event types. O
       if (loopComplete && classification) {
         // Classification already emitted in the loop
         await emitProgress({
-          type: 'complete',
+          type: "complete",
           jobId,
           timestamp: new Date(),
           data: {
@@ -451,7 +500,7 @@ Begin by gathering all available data for this location and these event types. O
 
     // Try to save investigation in failed state if it exists
     if (investigation) {
-      investigation.status = 'failed';
+      investigation.status = "failed";
       investigation.failureReason = fatalError.message;
       investigation.toolCallSequence = toolCallSequence;
       investigation.evidenceChain = evidenceChain;
@@ -462,20 +511,26 @@ Begin by gathering all available data for this location and these event types. O
       try {
         await investigation.save();
       } catch (saveError) {
-        console.error(`[Agent] Failed to save investigation record:`, saveError.message);
+        console.error(
+          `[Agent] Failed to save investigation record:`,
+          saveError.message,
+        );
       }
     }
 
     // Emit final error
     try {
       await emitProgress({
-        type: 'error',
+        type: "error",
         jobId,
         timestamp: new Date(),
         data: { summary: `Investigation failed: ${fatalError.message}` },
       });
     } catch (emitError) {
-      console.error(`[Agent] Error emitting fatal error progress:`, emitError.message);
+      console.error(
+        `[Agent] Error emitting fatal error progress:`,
+        emitError.message,
+      );
     }
 
     throw fatalError;

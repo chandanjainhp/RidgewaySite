@@ -1,9 +1,12 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Settings, Key, Users, Webhook, Plug, BookOpen, Lock } from 'lucide-react';
+import { Settings, Key, Users, Webhook, Plug, BookOpen, Lock, LogOut, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
+import { getAdminGateStatus, logoutAdminGate } from '@/lib/api';
+import { useRouter } from 'next/navigation';
 
 const MONO = 'var(--font-mono)';
 const SANS = 'var(--font-sans)';
@@ -19,16 +22,75 @@ const ALL_NAV_ITEMS = [
 
 export default function SettingsLayout({ children }) {
   const pathname = usePathname();
+  const router = useRouter();
   const role = useAuthStore((s) => s.role);
   const user = useAuthStore((s) => s.user);
   const orgName = useAuthStore((s) => s.orgName);
   const isAdmin = role === 'org_admin' || role === 'super_admin';
+  const [gateStatus, setGateStatus] = useState('checking');
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function verifyGate() {
+      try {
+        const status = await getAdminGateStatus();
+        if (!isMounted) return;
+
+        if (status?.authenticated) {
+          setGateStatus('authenticated');
+          return;
+        }
+
+        setGateStatus('redirecting');
+        router.replace(`/settings-access?from=${encodeURIComponent(pathname || '/settings/general')}`);
+      } catch (_) {
+        if (!isMounted) return;
+        setGateStatus('redirecting');
+        router.replace(`/settings-access?from=${encodeURIComponent(pathname || '/settings/general')}`);
+      }
+    }
+
+    verifyGate();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [pathname, router]);
+
+  const handleGateLogout = async () => {
+    try {
+      await logoutAdminGate();
+    } finally {
+      router.replace(`/settings-access?from=${encodeURIComponent(pathname || '/settings/general')}`);
+    }
+  };
 
   function formatRole(r) {
     if (r === 'super_admin') return 'Super Admin';
     if (r === 'org_admin') return 'Org Admin';
     if (r === 'operator') return 'Operator';
     return r || '';
+  }
+
+  if (gateStatus !== 'authenticated') {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'var(--bg-base)',
+        color: 'var(--fg-3)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontFamily: MONO,
+        fontSize: '11px',
+        letterSpacing: '0.12em',
+        textTransform: 'uppercase',
+      }}>
+        <Loader2 size={14} className="animate-spin" style={{ marginRight: '8px' }} />
+        Checking settings access
+      </div>
+    );
   }
 
   return (
@@ -136,6 +198,38 @@ export default function SettingsLayout({ children }) {
           >
             ← Dashboard
           </Link>
+          <button
+            type="button"
+            onClick={handleGateLogout}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              width: '100%',
+              padding: '7px 10px',
+              marginTop: '4px',
+              background: 'transparent',
+              border: '1px solid transparent',
+              borderRadius: 0,
+              fontFamily: MONO,
+              fontSize: '10px',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'var(--fg-3)',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--sev-serious)';
+              e.currentTarget.style.background = 'var(--bg-surface-2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--fg-3)';
+              e.currentTarget.style.background = 'transparent';
+            }}
+          >
+            <LogOut size={12} />
+            Lock Settings
+          </button>
           {(orgName || user?.email) && (
             <div style={{
               marginTop: '8px',

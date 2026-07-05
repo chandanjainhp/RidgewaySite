@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { SEV } from '@/lib/severity';
+import { SEV_TOKENS } from '@/lib/severity';
 
-const allSeverities = Object.keys(SEV);
+const allSeverities = Object.keys(SEV_TOKENS);
 
 export const useMapStore = create(
   devtools(

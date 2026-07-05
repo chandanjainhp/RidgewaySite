@@ -1,5 +1,6 @@
 import express from 'express';
 import { authenticateRequest, requireRole } from '../middlewares/auth.middleware.js';
+import { requireAdminGateSession } from '../controllers/adminGate.controllers.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import {
   listOrgs, createOrg, getOrgDetail, updateOrgStatus, updateOrgConfig, inviteOrgAdmin, resendInvite,
@@ -21,9 +22,9 @@ router.use(requireRole('super_admin'));
 // Org Management
 router.get('/orgs', asyncHandler(listOrgs));
 router.post('/orgs', asyncHandler(createOrg));
-router.get('/orgs/:orgId', asyncHandler(getOrgDetail));
+router.get('/orgs/:orgId', requireAdminGateSession, asyncHandler(getOrgDetail));
 router.patch('/orgs/:orgId/status', asyncHandler(updateOrgStatus));
-router.patch('/orgs/:orgId/config', asyncHandler(updateOrgConfig));
+router.patch('/orgs/:orgId/config', requireAdminGateSession, asyncHandler(updateOrgConfig));
 router.post('/orgs/:orgId/invite', asyncHandler(inviteOrgAdmin));
 router.post('/orgs/:orgId/resend-invite/:userId', asyncHandler(resendInvite));
 

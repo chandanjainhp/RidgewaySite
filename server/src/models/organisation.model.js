@@ -60,6 +60,24 @@ const organisationSchema = new mongoose.Schema(
         type: String,
         default: null,
       },
+      zoneCount: {
+        type: Number,
+        default: 0,
+      },
+      droneIds: {
+        type: [String],
+        default: [],
+      },
+      argusEnabled: {
+        type: Boolean,
+        default: true,
+      },
+      argusThresholds: {
+        serious: { type: Number, default: 50 },
+        minor: { type: Number, default: 50 },
+        harmless: { type: Number, default: 50 },
+        uncertain: { type: Number, default: 50 },
+      },
       usageLimits: {
         eventsPerDay: {
           type: Number,

@@ -132,12 +132,12 @@ export default function SiteMap({
         <div
           style={{
             position: "absolute",
-            top: "50%", left: "50%",
-            transform: "translate(-50%, -50%)",
+            top: "30%", left: "50%",
+            transform: "translateX(-50%)",
             pointerEvents: "none",
             background: "rgba(7,9,12,0.7)",
             border: "1px solid var(--border-default)",
-            borderRadius: "var(--radius-sm, 4px)",
+            borderRadius: 0,
             padding: "12px 20px",
             zIndex: 500,
             textAlign: "center",
@@ -151,7 +151,7 @@ export default function SiteMap({
             No events recorded{nightDate ? ` for ${nightDate}` : ""}.
           </p>
           <p style={{
-            fontFamily: "var(--font-sans)", fontSize: "11px",
+            fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 400,
             color: "var(--fg-4)", margin: "6px 0 0 0",
           }}>
             Patrol either did not run or did not detect anything reportable.
@@ -167,27 +167,26 @@ function EmptyOverlay({ title, subtitle, ctaLabel, ctaHref }) {
     <div
       style={{
         position: "absolute",
-        top: "50%", left: "50%",
-        transform: "translate(-50%, -50%)",
+        top: "30%", left: "50%",
+        transform: "translateX(-50%)",
         background: "var(--bg-surface-1)",
         border: "1px solid var(--border-default)",
-        borderRadius: "var(--radius-sm, 4px)",
+        borderRadius: 0,
         padding: "24px 28px",
         zIndex: 600,
         textAlign: "center",
         maxWidth: "380px",
-        boxShadow: "var(--shadow-modal, 0 4px 16px rgba(0,0,0,0.4))",
       }}
     >
       <p style={{
-        fontFamily: "var(--font-sans)", fontSize: "var(--text-sm, 13px)",
-        color: "var(--fg-1)", margin: 0, fontWeight: 500,
+        fontFamily: "var(--font-mono)", fontSize: "12px",
+        color: "var(--fg-2)", margin: 0, fontWeight: 400,
       }}>
         {title}
       </p>
       {subtitle && (
         <p style={{
-          fontFamily: "var(--font-sans)", fontSize: "12px",
+          fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 400,
           color: "var(--fg-3)", margin: "6px 0 0 0",
         }}>
           {subtitle}
@@ -200,15 +199,25 @@ function EmptyOverlay({ title, subtitle, ctaLabel, ctaHref }) {
             display: "inline-block",
             marginTop: "14px",
             padding: "8px 14px",
-            background: "var(--accent)",
-            color: "var(--bg-base)",
+            background: "transparent",
+            color: "var(--accent)",
             fontFamily: "var(--font-mono)",
             fontSize: "11px",
-            fontWeight: 600,
-            letterSpacing: "0.1em",
+            fontWeight: 500,
+            letterSpacing: "0.5px",
             textTransform: "uppercase",
             textDecoration: "none",
-            borderRadius: "var(--radius-xs, 2px)",
+            borderRadius: 0,
+            border: "1px solid var(--accent)",
+            transition: "background 120ms ease, color 120ms ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "var(--accent)";
+            e.currentTarget.style.color = "var(--bg-base)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.color = "var(--accent)";
           }}
         >
           {ctaLabel}

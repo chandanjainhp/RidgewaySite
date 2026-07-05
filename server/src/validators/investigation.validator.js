@@ -7,7 +7,9 @@ const createInvestigationSchema = Joi.object({
 });
 
 const startInvestigationSchema = Joi.object({
-  nightDate: Joi.string().isoDate().optional(),
+  nightDate: Joi.string()
+    .pattern(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
 });
 
 const updateFindingsSchema = Joi.object({
@@ -16,11 +18,11 @@ const updateFindingsSchema = Joi.object({
       category: Joi.string(),
       detail: Joi.string(),
       severity: Joi.string(),
-    })
+    }),
   ),
   rootCause: Joi.string(),
   recommendedActions: Joi.array().items(Joi.string()),
-  status: Joi.string().valid("pending", "in_progress", "completed", "escalated"),
+  status: Joi.string().valid("queued", "running", "complete", "failed"),
 });
 
 const executionLogSchema = Joi.object({

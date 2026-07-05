@@ -5,22 +5,22 @@
   Delegates to logs tool for data access, handles classifications and reviews.
 */
 
-import Event from '../models/event.model.js';
-import Review from '../models/review.model.js';
-import { ApiError } from '../utils/api-error.js';
+import Event from "../models/event.model.js";
+import Review from "../models/review.model.js";
+import { ApiError } from "../utils/api-error.js";
 import {
   getOvernightAlerts as queryOvernightAlerts,
   getVehiclePaths as queryVehiclePaths,
   getBadgeSwipeHistory as queryBadgeSwipeHistory,
   getDronePatrolLog as queryDronePatrolLog,
-} from '../tools/logs.tool.js';
+} from "../tools/logs.tool.js";
 
 function getDayRange(dateString) {
-  const start = new Date(dateString)
-  start.setHours(0, 0, 0, 0)
-  const end = new Date(dateString)
-  end.setHours(23, 59, 59, 999)
-  return { start, end }
+  const start = new Date(dateString);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(dateString);
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
 }
 
 // ========== DELEGATION TO LOGS TOOL ==========
@@ -36,8 +36,13 @@ export const getOvernightAlerts = async (nightDate) => {
     console.log(`[EventService] Retrieved ${alerts.length} overnight alerts`);
     return alerts;
   } catch (error) {
-    console.error(`[EventService] Error getting overnight alerts:`, error.message);
-    throw new ApiError(500, 'Failed to retrieve overnight alerts', [error.message]);
+    console.error(
+      `[EventService] Error getting overnight alerts:`,
+      error.message,
+    );
+    throw new ApiError(500, "Failed to retrieve overnight alerts", [
+      error.message,
+    ]);
   }
 };
 
@@ -53,7 +58,9 @@ export const getVehiclePaths = async (vehicleId = null, nightDate) => {
     return paths;
   } catch (error) {
     console.error(`[EventService] Error getting vehicle paths:`, error.message);
-    throw new ApiError(500, 'Failed to retrieve vehicle paths', [error.message]);
+    throw new ApiError(500, "Failed to retrieve vehicle paths", [
+      error.message,
+    ]);
   }
 };
 
@@ -68,8 +75,13 @@ export const getBadgeSwipeHistory = async (filters = {}, nightDate) => {
     console.log(`[EventService] Retrieved badge swipe history`);
     return history;
   } catch (error) {
-    console.error(`[EventService] Error getting badge swipe history:`, error.message);
-    throw new ApiError(500, 'Failed to retrieve badge swipe history', [error.message]);
+    console.error(
+      `[EventService] Error getting badge swipe history:`,
+      error.message,
+    );
+    throw new ApiError(500, "Failed to retrieve badge swipe history", [
+      error.message,
+    ]);
   }
 };
 
@@ -83,8 +95,13 @@ export const getDronePatrolLog = async (nightDate) => {
     console.log(`[EventService] Retrieved drone patrol log`);
     return log;
   } catch (error) {
-    console.error(`[EventService] Error getting drone patrol log:`, error.message);
-    throw new ApiError(500, 'Failed to retrieve drone patrol log', [error.message]);
+    console.error(
+      `[EventService] Error getting drone patrol log:`,
+      error.message,
+    );
+    throw new ApiError(500, "Failed to retrieve drone patrol log", [
+      error.message,
+    ]);
   }
 };
 
@@ -104,15 +121,17 @@ export const getEventsForNight = async (nightDate, orgFilter = {}) => {
       ...orgFilter,
       nightDate: { $gte: start, $lte: end },
     })
-      .populate('incidentId', 'title status')
+      .populate("incidentId", "title status")
       .lean();
 
     const events = rawEvents.map((e) => ({
       ...e,
-      reviewed: !!(e.mayaReview?.decision),
+      reviewed: !!e.mayaReview?.decision,
     }));
 
-    console.log(`[EventService] Retrieved ${events.length} events for ${nightDate}`);
+    console.log(
+      `[EventService] Retrieved ${events.length} events for ${nightDate}`,
+    );
 
     // Group by incident
     const grouped = {
@@ -134,8 +153,13 @@ export const getEventsForNight = async (nightDate, orgFilter = {}) => {
 
     return grouped;
   } catch (error) {
-    console.error(`[EventService] Error getting events for night:`, error.message);
-    throw new ApiError(500, 'Failed to retrieve events for night', [error.message]);
+    console.error(
+      `[EventService] Error getting events for night:`,
+      error.message,
+    );
+    throw new ApiError(500, "Failed to retrieve events for night", [
+      error.message,
+    ]);
   }
 };
 
@@ -145,31 +169,40 @@ export const getEventsForNight = async (nightDate, orgFilter = {}) => {
  * @param {object} classificationData - { severity, confidence, reasoning, uncertainties }
  * @returns {Promise<object>} updated event
  */
-export const updateEventClassification = async (eventId, classificationData) => {
+export const updateEventClassification = async (
+  eventId,
+  classificationData,
+) => {
   try {
     // Validate classification data
-    const required = ['severity', 'confidence', 'reasoning'];
+    const required = ["severity", "confidence", "reasoning"];
     const missing = required.filter((key) => !(key in classificationData));
 
     if (missing.length > 0) {
-      throw new ApiError(400, 'Missing required classification fields', missing);
+      throw new ApiError(
+        400,
+        "Missing required classification fields",
+        missing,
+      );
     }
 
     // Validate severity enum
-    const validSeverities = ['harmless', 'monitor', 'escalate', 'uncertain'];
+    const validSeverities = ["serious", "minor", "harmless", "uncertain"];
     if (!validSeverities.includes(classificationData.severity)) {
-      throw new ApiError(400, `Invalid severity: ${classificationData.severity}`, [
-        'Must be one of: ' + validSeverities.join(', '),
-      ]);
+      throw new ApiError(
+        400,
+        `Invalid severity: ${classificationData.severity}`,
+        ["Must be one of: " + validSeverities.join(", ")],
+      );
     }
 
     // Validate confidence range
     if (
-      typeof classificationData.confidence !== 'number' ||
+      typeof classificationData.confidence !== "number" ||
       classificationData.confidence < 0 ||
       classificationData.confidence > 1
     ) {
-      throw new ApiError(400, 'Confidence must be a number between 0 and 1');
+      throw new ApiError(400, "Confidence must be a number between 0 and 1");
     }
 
     // Update the event
@@ -184,7 +217,7 @@ export const updateEventClassification = async (eventId, classificationData) => 
           classifiedAt: new Date(),
         },
       },
-      { new: true }
+      { new: true },
     ).lean();
 
     if (!updated) {
@@ -195,8 +228,13 @@ export const updateEventClassification = async (eventId, classificationData) => 
     return updated;
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    console.error(`[EventService] Error updating classification:`, error.message);
-    throw new ApiError(500, 'Failed to update event classification', [error.message]);
+    console.error(
+      `[EventService] Error updating classification:`,
+      error.message,
+    );
+    throw new ApiError(500, "Failed to update event classification", [
+      error.message,
+    ]);
   }
 };
 
@@ -210,10 +248,10 @@ export const updateEventClassification = async (eventId, classificationData) => 
 export const applyMayaReview = async (eventId, reviewData, userId) => {
   try {
     // Validate review data
-    const validDecisions = ['agreed', 'overridden', 'flagged'];
+    const validDecisions = ["agreed", "overridden", "flagged"];
     if (!validDecisions.includes(reviewData.decision)) {
       throw new ApiError(400, `Invalid decision: ${reviewData.decision}`, [
-        'Must be one of: ' + validDecisions.join(', '),
+        "Must be one of: " + validDecisions.join(", "),
       ]);
     }
 
@@ -226,7 +264,7 @@ export const applyMayaReview = async (eventId, reviewData, userId) => {
     // Prepare review data
     const review = {
       decision: reviewData.decision,
-      note: reviewData.note || '',
+      note: reviewData.note || "",
       reviewedAt: new Date(),
       reviewedBy: userId,
     };
@@ -236,18 +274,25 @@ export const applyMayaReview = async (eventId, reviewData, userId) => {
       mayaReview: review,
     };
 
-    if (reviewData.decision === 'overridden' && reviewData.overrideSeverity) {
-      const validSeverities = ['harmless', 'monitor', 'escalate'];
+    if (reviewData.decision === "overridden" && reviewData.overrideSeverity) {
+      const validSeverities = ["serious", "minor", "harmless", "uncertain"];
       if (!validSeverities.includes(reviewData.overrideSeverity)) {
-        throw new ApiError(400, `Invalid override severity: ${reviewData.overrideSeverity}`);
+        throw new ApiError(
+          400,
+          `Invalid override severity: ${reviewData.overrideSeverity}`,
+        );
       }
       updateData.severity = reviewData.overrideSeverity;
     }
 
     // Update the event
-    const updated = await Event.findByIdAndUpdate(eventId, updateData, { new: true }).lean();
+    const updated = await Event.findByIdAndUpdate(eventId, updateData, {
+      new: true,
+    }).lean();
 
-    console.log(`[EventService] Applied review to event ${eventId}: ${reviewData.decision}`);
+    console.log(
+      `[EventService] Applied review to event ${eventId}: ${reviewData.decision}`,
+    );
 
     // Create a Review record for audit trail
     try {
@@ -260,7 +305,10 @@ export const applyMayaReview = async (eventId, reviewData, userId) => {
         reviewedAt: new Date(),
       });
     } catch (reviewError) {
-      console.warn(`[EventService] Failed to create Review record:`, reviewError.message);
+      console.warn(
+        `[EventService] Failed to create Review record:`,
+        reviewError.message,
+      );
       // Don't fail the whole operation if audit record fails
     }
 
@@ -268,7 +316,7 @@ export const applyMayaReview = async (eventId, reviewData, userId) => {
   } catch (error) {
     if (error instanceof ApiError) throw error;
     console.error(`[EventService] Error applying Maya review:`, error.message);
-    throw new ApiError(500, 'Failed to apply review', [error.message]);
+    throw new ApiError(500, "Failed to apply review", [error.message]);
   }
 };
 

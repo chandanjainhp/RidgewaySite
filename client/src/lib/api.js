@@ -166,6 +166,19 @@ api.interceptors.response.use(
       errorType = ERROR_TYPES.VALIDATION_ERROR;
     else if (statusCode >= 500) errorType = ERROR_TYPES.SERVER_ERROR;
 
+    const isAdminGateAuthError =
+      statusCode === 401 &&
+      message.toLowerCase().includes("admin settings session required");
+
+    if (isAdminGateAuthError && typeof window !== "undefined") {
+      const from = encodeURIComponent(window.location.pathname + window.location.search);
+      window.location.href = `/settings-access?from=${from}`;
+      const gateError = new Error("Admin settings access required");
+      gateError.type = ERROR_TYPES.UNAUTHORIZED;
+      gateError.statusCode = 401;
+      throw gateError;
+    }
+
     // 403 handling: only suspended orgs force a redirect. For regular forbidden
     // responses, surface a toast and let the calling code decide what to do —
     // the /forbidden page is reached only via middleware route protection.
@@ -308,6 +321,9 @@ export const forgotPassword = async (email) => api.post("/auth/forgot-password",
 export const resetPassword = async (otp, newPassword) => api.post("/auth/reset-password", { otp, newPassword });
 
 export const resendEmailVerification = async () => api.post("/auth/resend-email-verification");
+export const loginAdminGate = async (email, password) => api.post("/auth/admin-gate/login", { email, password });
+export const getAdminGateStatus = async () => api.get("/auth/admin-gate/status");
+export const logoutAdminGate = async () => api.post("/auth/admin-gate/logout");
 
 export const logoutUser = async () => {
   try {
@@ -411,6 +427,7 @@ export const resendOrgUserInvite = (userId) => api.post(`/org/users/${userId}/re
 export const listOrgApiKeys = () => api.get("/org/api-keys");
 export const createOrgApiKey = (data) => api.post("/org/api-keys", data);
 export const revokeOrgApiKey = (keyId) => api.delete(`/org/api-keys/${keyId}`);
+export const getIngestionStatus = () => api.get("/org/ingestion-status");
 
 // Org Webhooks
 export const getOrgWebhooks = () => api.get("/org/webhooks");

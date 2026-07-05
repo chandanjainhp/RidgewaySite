@@ -4,6 +4,7 @@ import WebhookDelivery from '../models/webhookDelivery.model.js';
 import ApiKey from '../models/apiKey.model.js';
 import AuditLog from '../models/auditLog.model.js';
 import RagDocument from '../models/ragDocument.model.js';
+import Event from '../models/event.model.js';
 import { ApiError } from '../utils/api-error.js';
 import { ApiResponse } from '../utils/api-response.js';
 import { logAudit } from '../utils/audit.js';
@@ -506,4 +507,16 @@ export const completeSetup = async (req, res) => {
   logAudit(req, 'org.setup.complete', { type: 'Organisation', id: org._id }, {});
 
   res.status(200).json(new ApiResponse(200, { setupComplete: true }, 'Setup complete'));
+};
+
+export const getIngestionStatus = async (req, res) => {
+  const latestEvent = await Event.findOne({ orgId: req.user.orgId })
+    .sort({ timestamp: -1 })
+    .select('timestamp')
+    .lean();
+
+  res.status(200).json(new ApiResponse(200, {
+    active: Boolean(latestEvent),
+    lastReceivedAt: latestEvent ? latestEvent.timestamp : null,
+  }, 'Ingestion status retrieved'));
 };

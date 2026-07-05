@@ -14,6 +14,7 @@ import {
   listOrgApiKeys,
   createOrgApiKey,
   revokeOrgApiKey,
+  getIngestionStatus,
   testWebhook,
   retryWebhookDelivery,
   getMcpActivity,
@@ -25,6 +26,7 @@ import {
   approveDocument,
   rejectDocument,
 } from '../controllers/org.controller.js';
+import { requireAdminGateSession } from '../controllers/adminGate.controllers.js';
 
 const router = express.Router();
 
@@ -44,9 +46,11 @@ router.get('/me', asyncHandler(getOrgMe));
 
 // All remaining routes require org_admin or super_admin
 router.use(requireRole('org_admin', 'super_admin'));
+router.post('/setup/complete', asyncHandler(completeSetup));
+router.use(requireAdminGateSession);
 
 router.patch('/me/config', asyncHandler(updateOrgConfig));
-router.post('/setup/complete', asyncHandler(completeSetup));
+router.get('/ingestion-status', asyncHandler(getIngestionStatus));
 
 // Members
 router.post('/users/invite', asyncHandler(inviteOperator));

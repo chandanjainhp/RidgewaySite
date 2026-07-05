@@ -12,16 +12,16 @@ import {
   getVehiclePaths,
   getBadgeSwipeHistory,
   getDronePatrolLog,
-} from '../services/event.service.js';
-import { getEventsByLocation } from '../services/correlation.service.js';
-import Incident from '../models/incident.model.js';
-import { queryVehicleRegistry } from '../tools/vehicleRegistry.tool.js';
-import { queryAccessControl } from '../tools/accessControl.tool.js';
-import { queryEnvironmentalData } from '../tools/environmentalSensor.tool.js';
+} from "../services/event.service.js";
+import { getEventsByLocation } from "../services/correlation.service.js";
+import Incident from "../models/incident.model.js";
+import { queryVehicleRegistry } from "../tools/vehicleRegistry.tool.js";
+import { queryAccessControl } from "../tools/accessControl.tool.js";
+import { queryEnvironmentalData } from "../tools/environmentalSensor.tool.js";
 
 const normalizeNightDate = (nightDate) => {
   if (!nightDate) {
-    throw new Error('nightDate is required for tool execution');
+    throw new Error("nightDate is required for tool execution");
   }
 
   const parsed = new Date(nightDate);
@@ -36,168 +36,183 @@ const normalizeNightDate = (nightDate) => {
 // Tool definitions for Claude API (no handlers, just schema)
 export const TOOLS_FOR_CLAUDE = [
   {
-    name: 'get_overnight_alerts',
+    name: "get_overnight_alerts",
     description:
-      'Returns all security sensor alerts for last night. Use this first to understand the full scope of overnight activity. Returns event type, location, timestamp, and raw sensor data for each alert.',
+      "Returns all security sensor alerts for last night. Use this first to understand the full scope of overnight activity. Returns event type, location, timestamp, and raw sensor data for each alert.",
     input_schema: {
-      type: 'object',
+      type: "object",
       properties: {
         nightDate: {
-          type: 'string',
-          description: 'ISO date string (optional, defaults to last night)',
+          type: "string",
+          description: "ISO date string (optional, defaults to last night)",
         },
       },
       required: [],
     },
   },
   {
-    name: 'get_vehicle_paths',
+    name: "get_vehicle_paths",
     description:
-      'Returns movement logs for all vehicles tracked on site last night. Each entry shows vehicle ID, the sequence of locations visited, and timestamps. Use this when investigating vehicle-related alerts.',
+      "Returns movement logs for all vehicles tracked on site last night. Each entry shows vehicle ID, the sequence of locations visited, and timestamps. Use this when investigating vehicle-related alerts.",
     input_schema: {
-      type: 'object',
+      type: "object",
       properties: {
         vehicleId: {
-          type: 'string',
-          description: 'Optional filter for a specific vehicle ID',
+          type: "string",
+          description: "Optional filter for a specific vehicle ID",
         },
       },
       required: [],
     },
   },
   {
-    name: 'get_badge_swipe_history',
+    name: "get_badge_swipe_history",
     description:
-      'Returns all access control attempts from last night including successes and failures. Groups multiple attempts by the same employee. Use this when investigating access point alerts or repeated failure patterns.',
+      "Returns all access control attempts from last night including successes and failures. Groups multiple attempts by the same employee. Use this when investigating access point alerts or repeated failure patterns.",
     input_schema: {
-      type: 'object',
+      type: "object",
       properties: {
         locationName: {
-          type: 'string',
-          description: 'Optional filter by location name',
+          type: "string",
+          description: "Optional filter by location name",
         },
         employeeId: {
-          type: 'string',
-          description: 'Optional filter by employee ID',
+          type: "string",
+          description: "Optional filter by employee ID",
         },
       },
       required: [],
     },
   },
   {
-    name: 'get_drone_patrol_log',
+    name: "get_drone_patrol_log",
     description:
-      'Returns the complete drone patrol log for last night. Includes the route flown, timestamp at each waypoint, and field observations. Drone observations are ground truth — always check this after any alert at a location the drone visited.',
+      "Returns the complete drone patrol log for last night. Includes the route flown, timestamp at each waypoint, and field observations. Drone observations are ground truth — always check this after any alert at a location the drone visited.",
     input_schema: {
-      type: 'object',
+      type: "object",
       properties: {},
       required: [],
     },
   },
   {
-    name: 'correlate_events_by_location',
+    name: "correlate_events_by_location",
     description:
-      'Given a location name, returns all events that occurred at or near that location last night, sorted by time. Use this to find connections between events that sensors logged separately.',
+      "Given a location name, returns all events that occurred at or near that location last night, sorted by time. Use this to find connections between events that sensors logged separately.",
     input_schema: {
-      type: 'object',
+      type: "object",
       properties: {
         locationName: {
-          type: 'string',
-          description: 'Required: location name (e.g., "North Gate", "Storage Block A")',
+          type: "string",
+          description:
+            'Required: location name (e.g., "North Gate", "Storage Block A")',
         },
         radiusMeters: {
-          type: 'number',
-          description: 'Optional: search radius in meters (default 200)',
+          type: "number",
+          description: "Optional: search radius in meters (default 200)",
         },
       },
-      required: ['locationName'],
+      required: ["locationName"],
     },
   },
   {
-    name: 'classify_incident',
+    name: "submit_classification",
     description:
-      'Submits your classification for a specific incident after you have gathered sufficient evidence. Provide the incident ID, your severity classification, confidence score, full reasoning, list of uncertainties, and recommended follow-up if any. Call this once per incident after investigation.',
+      "Submits your classification for a specific incident after you have gathered sufficient evidence. Provide the incident ID, your severity classification, confidence score, full reasoning, list of uncertainties, and recommended follow-up if any. Call this once per incident after investigation.",
     input_schema: {
-      type: 'object',
+      type: "object",
       properties: {
         incidentId: {
-          type: 'string',
-          description: 'Required: incident ID',
+          type: "string",
+          description: "Required: incident ID",
         },
         severity: {
-          type: 'string',
-          enum: ['harmless', 'monitor', 'escalate', 'uncertain'],
-          description: 'Required: severity classification',
+          type: "string",
+          enum: ["serious", "minor", "harmless", "uncertain"],
+          description: "Required: severity classification",
         },
         confidence: {
-          type: 'number',
+          type: "number",
           minimum: 0,
           maximum: 1,
-          description: 'Required: confidence score 0-1',
+          description: "Required: confidence score 0-1",
         },
         reasoning: {
-          type: 'string',
-          description: 'Required: full reasoning paragraph explaining the classification',
+          type: "string",
+          description:
+            "Required: full reasoning paragraph explaining the classification",
         },
         uncertainties: {
-          type: 'array',
+          type: "array",
           items: {
-            type: 'string',
+            type: "string",
           },
-          description: 'Required: list of uncertainties or things that could not be confirmed (can be empty)',
+          description:
+            "Required: list of uncertainties or things that could not be confirmed (can be empty)",
         },
         recommendedFollowup: {
-          type: 'string',
-          description: 'Optional: recommended follow-up actions if any',
+          type: "string",
+          description: "Optional: recommended follow-up actions if any",
         },
       },
-      required: ['incidentId', 'severity', 'confidence', 'reasoning', 'uncertainties'],
+      required: [
+        "incidentId",
+        "severity",
+        "confidence",
+        "reasoning",
+        "uncertainties",
+      ],
     },
   },
   {
-    name: 'draft_briefing_section',
+    name: "draft_briefing_section",
     description:
-      'Drafts one section of the morning briefing based on completed classifications. Call this after all incidents are classified. Sections: "whatHappened", "harmlessEvents", "escalations", "droneFindings", "followUpItems". Call once per section.',
+      'Drafts one section of the morning briefing based on completed classifications. Call this after all incidents are classified. Sections: "whatHappened", "harmlessEvents", "seriousEvents", "droneFindings", "followUpItems". Call once per section.',
     input_schema: {
-      type: 'object',
+      type: "object",
       properties: {
         sectionName: {
-          type: 'string',
-          enum: ['whatHappened', 'harmlessEvents', 'escalations', 'droneFindings', 'followUpItems'],
-          description: 'Required: briefing section to draft',
+          type: "string",
+          enum: [
+            "whatHappened",
+            "harmlessEvents",
+            "seriousEvents",
+            "droneFindings",
+            "followUpItems",
+          ],
+          description: "Required: briefing section to draft",
         },
         incidentIds: {
-          type: 'array',
+          type: "array",
           items: {
-            type: 'string',
+            type: "string",
           },
-          description: 'Required: relevant incident IDs for this section',
+          description: "Required: relevant incident IDs for this section",
         },
       },
-      required: ['sectionName', 'incidentIds'],
+      required: ["sectionName", "incidentIds"],
     },
   },
   {
-    name: 'query_vehicle_registry',
+    name: "query_vehicle_registry",
     description:
-      'Queries the site vehicle and contractor registry to check if a detected vehicle is authorized to be on site. Call this for any vehicle-related incident. Returns contractor details, authorization status, and previous appearance history. Always call this before classifying any vehicle incident.',
+      "Queries the site vehicle and contractor registry to check if a detected vehicle is authorized to be on site. Call this for any vehicle-related incident. Returns contractor details, authorization status, and previous appearance history. Always call this before classifying any vehicle incident.",
     input_schema: {
-      type: 'object',
+      type: "object",
       properties: {
         vehicleId: {
-          type: 'string',
+          type: "string",
         },
         locationName: {
-          type: 'string',
+          type: "string",
         },
         timeRange: {
-          type: 'object',
+          type: "object",
           properties: {
             start: {
-              type: 'string',
+              type: "string",
             },
             end: {
-              type: 'string',
+              type: "string",
             },
           },
           required: [],
@@ -207,26 +222,26 @@ export const TOOLS_FOR_CLAUDE = [
     },
   },
   {
-    name: 'query_access_control',
+    name: "query_access_control",
     description:
-      'Queries the employee badge and access control system. Call this for any badge failure or personnel access incident. Returns employee identity, authorization status, and any infrastructure issues that might explain failed access attempts. Always call this before classifying badge-related incidents.',
+      "Queries the employee badge and access control system. Call this for any badge failure or personnel access incident. Returns employee identity, authorization status, and any infrastructure issues that might explain failed access attempts. Always call this before classifying badge-related incidents.",
     input_schema: {
-      type: 'object',
+      type: "object",
       properties: {
         badgeId: {
-          type: 'string',
+          type: "string",
         },
         gateId: {
-          type: 'string',
+          type: "string",
         },
         timeRange: {
-          type: 'object',
+          type: "object",
           properties: {
             start: {
-              type: 'string',
+              type: "string",
             },
             end: {
-              type: 'string',
+              type: "string",
             },
           },
           required: [],
@@ -236,29 +251,29 @@ export const TOOLS_FOR_CLAUDE = [
     },
   },
   {
-    name: 'query_environmental_data',
+    name: "query_environmental_data",
     description:
-      'Queries environmental conditions and sensor health data for a specific location and time. Call this for fence alerts, motion sensor events, or light anomalies. Returns wind speed, temperature, sensor fault history, and false positive rates. Use this to determine if environmental conditions or sensor faults explain an alert before escalating.',
+      "Queries environmental conditions and sensor health data for a specific location and time. Call this for fence alerts, motion sensor events, or light anomalies. Returns wind speed, temperature, sensor fault history, and false positive rates. Use this to determine if environmental conditions or sensor faults explain an alert before escalating.",
     input_schema: {
-      type: 'object',
+      type: "object",
       properties: {
         locationName: {
-          type: 'string',
+          type: "string",
         },
         timeRange: {
-          type: 'object',
+          type: "object",
           properties: {
             start: {
-              type: 'string',
+              type: "string",
             },
             end: {
-              type: 'string',
+              type: "string",
             },
           },
           required: [],
         },
       },
-      required: ['locationName'],
+      required: ["locationName"],
     },
   },
 ];
@@ -271,7 +286,7 @@ const toolHandlers = {
 
     return {
       success: true,
-      nightDate: queryNightDate.toISOString().split('T')[0],
+      nightDate: queryNightDate.toISOString().split("T")[0],
       alertCount: alerts.length,
       alerts,
       message: `Retrieved ${alerts.length} overnight alerts`,
@@ -280,11 +295,14 @@ const toolHandlers = {
 
   async get_vehicle_paths(input, nightDate) {
     const queryNightDate = normalizeNightDate(nightDate || input?.nightDate);
-    const vehiclePaths = await getVehiclePaths(input?.vehicleId || null, queryNightDate);
+    const vehiclePaths = await getVehiclePaths(
+      input?.vehicleId || null,
+      queryNightDate,
+    );
 
     return {
       success: true,
-      nightDate: queryNightDate.toISOString().split('T')[0],
+      nightDate: queryNightDate.toISOString().split("T")[0],
       vehicleCount: vehiclePaths.length,
       vehiclePaths,
       message: `Retrieved movement history for ${vehiclePaths.length} vehicles`,
@@ -298,12 +316,12 @@ const toolHandlers = {
         locationName: input?.locationName,
         employeeId: input?.employeeId,
       },
-      queryNightDate
+      queryNightDate,
     );
 
     return {
       success: true,
-      nightDate: queryNightDate.toISOString().split('T')[0],
+      nightDate: queryNightDate.toISOString().split("T")[0],
       groupedEmployeeCount: history.length,
       history,
       message: `Retrieved badge history for ${history.length} employees`,
@@ -316,9 +334,9 @@ const toolHandlers = {
 
     return {
       success: true,
-      nightDate: queryNightDate.toISOString().split('T')[0],
+      nightDate: queryNightDate.toISOString().split("T")[0],
       patrolLog,
-      message: patrolLog.routeSummary || 'Drone patrol log retrieved',
+      message: patrolLog.routeSummary || "Drone patrol log retrieved",
     };
   },
 
@@ -327,18 +345,18 @@ const toolHandlers = {
     const locationSummary = await getEventsByLocation(
       input?.locationName,
       input?.radiusMeters || 200,
-      queryNightDate
+      queryNightDate,
     );
 
     return {
       success: true,
-      nightDate: queryNightDate.toISOString().split('T')[0],
+      nightDate: queryNightDate.toISOString().split("T")[0],
       ...locationSummary,
       message: `Correlated ${locationSummary.eventCount} events around ${input?.locationName}`,
     };
   },
 
-  async classify_incident(input) {
+  async submit_classification(input) {
     const incident = await Incident.findById(input.incidentId);
 
     if (!incident) {
@@ -362,7 +380,7 @@ const toolHandlers = {
         uncertainties: input.uncertainties || [],
         recommendedFollowup: input.recommendedFollowup || null,
       },
-      message: 'Classification accepted and persisted',
+      message: "Classification accepted and persisted",
     };
   },
 
@@ -370,25 +388,26 @@ const toolHandlers = {
     const incidents = await Incident.find({
       _id: { $in: input?.incidentIds || [] },
     })
-      .select('title severity agentSummary location')
+      .select("title severity agentSummary location")
       .lean();
 
     const incidentLines = incidents.map((incident) => {
-      const location = incident.location?.name || 'unknown location';
-      const severity = incident.severity || 'uncertain';
-      const summary = incident.agentSummary || 'No summary available';
+      const location = incident.location?.name || "unknown location";
+      const severity = incident.severity || "uncertain";
+      const summary = incident.agentSummary || "No summary available";
       return `- ${incident.title} (${severity}) at ${location}: ${summary}`;
     });
 
     const sectionLabelMap = {
-      whatHappened: 'What Happened Overnight',
-      harmlessEvents: 'Harmless Events',
-      escalations: 'Escalations',
-      droneFindings: 'Drone Findings',
-      followUpItems: 'Follow-up Items',
+      whatHappened: "What Happened Overnight",
+      harmlessEvents: "Harmless Events",
+      seriousEvents: "Requires Escalation",
+      droneFindings: "Drone Findings",
+      followUpItems: "Follow-up Items",
+      recommendations: "Requires Escalation",
     };
 
-    const generatedContent = `${sectionLabelMap[input.sectionName] || input.sectionName}\n${incidentLines.join('\n')}`;
+    const generatedContent = `${sectionLabelMap[input.sectionName] || input.sectionName}\n${incidentLines.join("\n")}`;
 
     return {
       success: true,
@@ -409,9 +428,11 @@ const toolHandlers = {
 
     return {
       success: true,
-      nightDate: nightDate ? new Date(nightDate).toISOString().split('T')[0] : null,
+      nightDate: nightDate
+        ? new Date(nightDate).toISOString().split("T")[0]
+        : null,
       ...result,
-      message: 'Vehicle registry query completed',
+      message: "Vehicle registry query completed",
     };
   },
 
@@ -425,9 +446,11 @@ const toolHandlers = {
 
     return {
       success: true,
-      nightDate: nightDate ? new Date(nightDate).toISOString().split('T')[0] : null,
+      nightDate: nightDate
+        ? new Date(nightDate).toISOString().split("T")[0]
+        : null,
       ...result,
-      message: 'Access control query completed',
+      message: "Access control query completed",
     };
   },
 
@@ -439,9 +462,11 @@ const toolHandlers = {
 
     return {
       success: true,
-      nightDate: nightDate ? new Date(nightDate).toISOString().split('T')[0] : null,
+      nightDate: nightDate
+        ? new Date(nightDate).toISOString().split("T")[0]
+        : null,
       ...result,
-      message: 'Environmental and sensor health query completed',
+      message: "Environmental and sensor health query completed",
     };
   },
 };
@@ -468,7 +493,9 @@ export const executeTool = async (toolName, toolInput, nightDate) => {
 
     console.log(`[Tools] Executing ${toolName}`, {
       input: JSON.stringify(toolInput),
-      nightDate: nightDate ? new Date(nightDate).toISOString().split('T')[0] : null,
+      nightDate: nightDate
+        ? new Date(nightDate).toISOString().split("T")[0]
+        : null,
       timestamp: new Date().toISOString(),
     });
 

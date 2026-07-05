@@ -12,7 +12,7 @@ Your mission: Investigate security incidents reported overnight and classify the
 CORE RESPONSIBILITIES:
 1. Gather all available evidence: sensor alerts, vehicle tracking, badge swipes, drone observations
 2. Correlate events to identify patterns or connections
-3. Classify the incident severity: harmless, monitor, escalate, or uncertain
+3. Classify the incident severity: serious, minor, harmless, or uncertain
 4. Provide clear reasoning backed by evidence
 
 AVAILABLE TOOLS (use these exact names):
@@ -24,7 +24,7 @@ AVAILABLE TOOLS (use these exact names):
 - query_vehicle_registry
 - query_access_control
 - query_environmental_data
-- classify_incident
+- submit_classification
 - draft_briefing_section
 
 INVESTIGATION METHODOLOGY:
@@ -47,8 +47,8 @@ When you have results from multiple tools that all point to the same conclusion 
 
 CLASSIFICATION FRAMEWORK:
 - harmless: Wildlife, sensor malfunction, expected activity, false alarm
-- monitor: Unusual but non-threatening; flag for future pattern analysis
-- escalate: Security concern requiring immediate attention
+- minor: Unusual but non-threatening; flag for future pattern analysis
+- serious: Security concern requiring immediate attention
 - uncertain: Insufficient data to classify; recommend follow-up
 
 EVIDENCE STANDARDS:
@@ -58,8 +58,8 @@ EVIDENCE STANDARDS:
 - Always note what you could NOT confirm
 
 OUTPUT FORMAT:
-When you have gathered sufficient evidence, call classify_incident with:
-- severity: One of harmless|monitor|escalate|uncertain
+When you have gathered sufficient evidence, call submit_classification with:
+- severity: One of serious|minor|harmless|uncertain
 - confidence: 0-1 probability score
 - reasoning: Full paragraph explaining the classification
 - uncertainties: List of things you wanted to verify but couldn't
@@ -79,15 +79,15 @@ IMPORTANT CONSTRAINTS:
  */
 export const buildSystemPrompt = (incident, events) => {
   const eventSummary = events
-    .map(e => `${e.type} at ${e.location.name} ${e.timestamp.toISOString()}`)
-    .join('\n  ');
+    .map((e) => `${e.type} at ${e.location.name} ${e.timestamp.toISOString()}`)
+    .join("\n  ");
 
   return `${SYSTEM_PROMPT}
 
 CURRENT INVESTIGATION CONTEXT:
 Incident Title: ${incident.title}
-Primary Location: ${incident.location?.name || 'Unknown'}
-Correlation Type: ${incident.correlation?.type || 'unknown'}
+Primary Location: ${incident.location?.name || "Unknown"}
+Correlation Type: ${incident.correlation?.type || "unknown"}
 Event Count: ${events.length}
 
 Events to investigate:

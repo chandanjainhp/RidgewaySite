@@ -180,7 +180,7 @@ function OtpPageInner() {
           <span style={{
             fontFamily: 'var(--font-mono)', fontSize: '10px',
             color: 'var(--fg-4)', letterSpacing: '0.1em', textTransform: 'uppercase',
-          }}>6:10 Assistant</span>
+          }}>Sentinel</span>
         </div>
 
         {/* Header */}

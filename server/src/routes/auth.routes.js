@@ -13,7 +13,13 @@ import {
   validateInviteToken,
   acceptInvite,
 } from "../controllers/auth.controllers.js";
+import {
+  loginAdminGate,
+  getAdminGateStatus,
+  logoutAdminGate,
+} from "../controllers/adminGate.controllers.js";
 import { validate } from "../middlewares/validator.middleware.js";
+import { authLimiter } from "../middlewares/rateLimit.middleware.js";
 import {
   userChangeCurrentPasswordValidator,
   userForgotPasswordValidator,
@@ -39,6 +45,9 @@ router
 
 router.route("/invite/:token").get(validateInviteToken);
 router.route("/accept-invite").post(acceptInvite);
+router.route("/admin-gate/login").post(authLimiter, loginAdminGate);
+router.route("/admin-gate/status").get(getAdminGateStatus);
+router.route("/admin-gate/logout").post(logoutAdminGate);
 
 //secure routes
 router.route("/logout").post(verifyJWT, logoutUser);

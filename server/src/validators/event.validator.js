@@ -5,14 +5,13 @@ const createEventSchema = Joi.object({
   type: Joi.string()
     .valid(
       "fence_alert",
-      "vehicle_detected",
-      "badge_fail",
-      "motion_sensor",
-      "light_anomaly",
-      "drone_observation"
+      "vehicle_entry",
+      "badge_swipe_fail",
+      "motion_detected",
+      "environmental",
     )
     .required(),
-  severity: Joi.string().valid("unknown", "harmless", "monitor", "escalate"),
+  severity: Joi.string().valid("serious", "minor", "harmless", "uncertain"),
   description: Joi.string().allow(""),
   location: Joi.object({
     name: Joi.string().required(),
@@ -29,7 +28,7 @@ const createEventSchema = Joi.object({
 
 const updateStatusSchema = Joi.object({
   status: Joi.string()
-    .valid("queued", "running", "complete", "failed", "incomplete")
+    .valid("queued", "running", "complete", "failed")
     .required(),
 });
 
@@ -40,7 +39,7 @@ const correlateSchema = Joi.object({
 const applyReviewSchema = Joi.object({
   decision: Joi.string().valid("agreed", "overridden", "flagged").required(),
   overrideSeverity: Joi.string()
-    .valid("harmless", "monitor", "escalate")
+    .valid("serious", "minor", "harmless", "uncertain")
     .when("decision", {
       is: "overridden",
       then: Joi.required(),

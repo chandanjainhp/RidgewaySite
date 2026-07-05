@@ -15,19 +15,23 @@ const EventPin = memo(({ pin }) => {
   const selectPin = useMapStore((state) => state.selectPin);
   const selectedPinId = useMapStore((state) => state.selectedPinId);
 
-  const { id, type, coordinates, severity, incidentId, timestamp, location } = pin;
+  const { id, type, coordinates, severity, incidentId, timestamp, location } =
+    pin;
 
   const isSelected = selectedPinId === id;
   const sev = getSeverity(severity);
-  const eventData = EVENT_TYPE_CONFIG[type] || { label: 'Unknown Event', icon: 'zap' };
+  const eventData = EVENT_TYPE_CONFIG[type] || {
+    label: "Unknown Event",
+    icon: "zap",
+  };
 
   const size = isSelected ? 28 : 20;
-  const isSerious = severity === 'serious' || severity === 'escalate';
-  const isUnknown = !severity || severity === 'unknown' || severity === 'uncertain';
+  const isSerious = severity === "serious";
+  const isUnknown = !severity || severity === "uncertain";
 
   const pulseHtml = isSerious
     ? `<div style="position:absolute;inset:0;border:2px solid var(--sev-serious);border-radius:50%;animation:ping 1s cubic-bezier(0,0,0.2,1) infinite"></div>`
-    : '';
+    : "";
 
   const iconHtml = `<div style="
     position:relative;width:${size}px;height:${size}px;
@@ -35,7 +39,7 @@ const EventPin = memo(({ pin }) => {
     border:2px solid rgba(255,255,255,0.3);border-radius:50%;
     box-shadow:0 0 10px rgba(0,0,0,0.5);
     background:${sev.bg};
-    ${isUnknown ? 'animation:spin 2s linear infinite' : ''}
+    ${isUnknown ? "animation:spin 2s linear infinite" : ""}
   ">${pulseHtml}</div>`;
 
   const customIcon = L.divIcon({
@@ -59,35 +63,47 @@ const EventPin = memo(({ pin }) => {
       eventHandlers={{
         click: () => {
           selectPin(id);
-        }
+        },
       }}
     >
       <Popup className="dark-popup font-sans rounded-none border-border bg-surface-2 text-text-primary p-0">
         <div className="p-4 bg-surface-2 min-w-50 border border-border">
           <div className="flex justify-between items-start mb-2">
-            <span className="font-mono text-xs uppercase tracking-widest text-text-muted">{eventData.label}</span>
-            <span className="font-mono text-[10px] text-text-secondary">{formatTime(timestamp)}</span>
+            <span className="font-mono text-xs uppercase tracking-widest text-text-muted">
+              {eventData.label}
+            </span>
+            <span className="font-mono text-[10px] text-text-secondary">
+              {formatTime(timestamp)}
+            </span>
           </div>
 
-          <h3 className="text-white text-sm font-bold mb-3">{typeof location === 'string' ? location : location?.name || 'Unknown Location'}</h3>
+          <h3 className="text-white text-sm font-bold mb-3">
+            {typeof location === "string"
+              ? location
+              : location?.name || "Unknown Location"}
+          </h3>
 
           <div className="flex items-center gap-2 mb-4">
-             {isUnknown ? (
-                <span className="flex items-center gap-1 text-[10px] uppercase tracking-widest text-text-secondary font-mono bg-surface p-1 border border-border">
-                  <Loader2 className="w-3 h-3 animate-spin"/> Investigating
-                </span>
-             ) : (
-                <span style={{
-                  fontSize: "10px", textTransform: "uppercase",
-                  fontFamily: "var(--font-mono)", letterSpacing: "0.08em",
+            {isUnknown ? (
+              <span className="flex items-center gap-1 text-[10px] uppercase tracking-widest text-text-secondary font-mono bg-surface p-1 border border-border">
+                <Loader2 className="w-3 h-3 animate-spin" /> Investigating
+              </span>
+            ) : (
+              <span
+                style={{
+                  fontSize: "10px",
+                  textTransform: "uppercase",
+                  fontFamily: "var(--font-mono)",
+                  letterSpacing: "0.08em",
                   padding: "3px 8px",
                   color: sev.token,
                   background: sev.bg,
                   border: `1px solid ${sev.dim}`,
-                }}>
-                  {sev.label}
-                </span>
-             )}
+                }}
+              >
+                {sev.label}
+              </span>
+            )}
           </div>
 
           <button

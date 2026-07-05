@@ -1,5 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getIncidents, getIncidentById, getIncidentEvidenceGraph, applyMayaReview } from "@/lib/api";
+import {
+  getIncidents,
+  getIncidentById,
+  getIncidentEvidenceGraph,
+  applyMayaReview,
+} from "@/lib/api";
 import { toast } from "sonner";
 import { useReviewStore } from "@/store/reviewStore"; // Safe assumption for upcoming store
 
@@ -11,15 +16,13 @@ export function useIncidents(filters = {}, options = {}) {
       const incidents = Array.isArray(data) ? data : [];
       return {
         incidents,
-        escalations: incidents.filter((i) => i.severity === "escalate"),
-        monitored: incidents.filter((i) => i.severity === "monitor"),
+        serious: incidents.filter((i) => i.severity === "serious"),
+        minor: incidents.filter((i) => i.severity === "minor"),
         uncertain: incidents.filter((i) => i.severity === "uncertain"),
         harmless: incidents.filter((i) => i.severity === "harmless"),
-        unclassified: incidents.filter(
-          (i) => !i.severity || i.severity === "unknown"
-        ),
+        unclassified: incidents.filter((i) => !i.severity),
         pending: incidents.filter(
-          (i) => i.status !== "resolved" && i.status !== "complete"
+          (i) => i.status !== "resolved" && i.status !== "complete",
         ),
       };
     },
@@ -36,7 +39,7 @@ export function useIncidents(filters = {}, options = {}) {
       return failureCount < 1;
     },
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    ...options
+    ...options,
   });
 }
 
@@ -46,7 +49,7 @@ export function useIncidentById(id, options = {}) {
     queryFn: () => getIncidentById(id),
     enabled: !!id,
     staleTime: 0,
-    ...options
+    ...options,
   });
 }
 
@@ -55,16 +58,19 @@ export function useIncidentEvidenceGraph(id, options = {}) {
     queryKey: ["incidents", id, "evidence-graph"],
     queryFn: () => getIncidentEvidenceGraph(id),
     enabled: !!id,
-    ...options
+    ...options,
   });
 }
 
 export function useApplyReview(options = {}) {
   const queryClient = useQueryClient();
-  const confirmReview = useReviewStore ? useReviewStore.getState?.().confirmReview : () => {};
+  const confirmReview = useReviewStore
+    ? useReviewStore.getState?.().confirmReview
+    : () => {};
 
   return useMutation({
-    mutationFn: ({ eventId, reviewData }) => applyMayaReview(eventId, reviewData),
+    mutationFn: ({ eventId, reviewData }) =>
+      applyMayaReview(eventId, reviewData),
     onSuccess: (result, variables, context) => {
       if (confirmReview) confirmReview(variables.eventId, variables.reviewData);
 
@@ -79,6 +85,6 @@ export function useApplyReview(options = {}) {
       toast.error(`Review dispatch failed: ${error.message}`);
       if (options.onError) options.onError(error, variables, context);
     },
-    ...options
+    ...options,
   });
 }

@@ -59,13 +59,14 @@ const COL_HEAD = {
     borderBottom: "1px solid var(--border-default)",
   },
   title: {
-    fontFamily: "var(--font-sans)", fontSize: "10px", fontWeight: 600,
-    letterSpacing: "0.14em", color: "var(--fg-1)", textTransform: "uppercase",
+    fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600,
+    letterSpacing: "0.12em", color: "var(--fg-1)", textTransform: "uppercase",
   },
   sub: {
-    fontFamily: "var(--font-mono)", fontSize: "10px",
-    color: "var(--fg-4)", marginLeft: "auto",
+    fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600,
+    color: "var(--fg-1)", marginLeft: "auto",
     fontVariantNumeric: "tabular-nums",
+    letterSpacing: "0.04em",
   },
   liveDot: {
     width: "7px", height: "7px", borderRadius: "50%",
@@ -87,7 +88,6 @@ export default function InvestigationView() {
 
   const { user } = useAuth();
   const [showWelcome, setShowWelcome] = useState(false);
-  const [activityExpanded, setActivityExpanded] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && user) {
@@ -159,13 +159,14 @@ export default function InvestigationView() {
   const totalEvents   = incidentsData?.incidents?.length ?? 0;
   const reviewPending = stats.escalationCount ?? 0;
   const isLive        = jobStatus === "running";
-  const activityCollapsed = jobStatus === "idle" && !jobId && !activityExpanded;
+  const showStartOverlay = jobStatus === "idle" && !jobId;
 
   return (
     <div style={{
       position: "fixed", top: "56px", left: 0, right: 0, bottom: 0,
       display: "grid", gridTemplateRows: showWelcome ? "auto auto 1fr" : "auto 1fr",
       background: "var(--bg-base)", overflow: "hidden",
+      fontFamily: "var(--font-mono)",
     }}>
 
       {/* ── WELCOME BANNER ──────────────────────────────── */}
@@ -186,7 +187,7 @@ export default function InvestigationView() {
               fontSize: "13px", flexShrink: 0,
             }}>👋</span>
             <p style={{
-              fontFamily: "var(--font-sans)", fontSize: "var(--text-sm)",
+              fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)", fontWeight: 400,
               color: "var(--fg-2)", margin: 0,
             }}>
               Welcome to Sentinel. Platform configured — tonight&apos;s events will appear here tomorrow morning.
@@ -220,99 +221,63 @@ export default function InvestigationView() {
       />
 
       {/* ── THREE-COLUMN GRID ────────────────────────────── */}
-      {/* Activity column collapses to 56px rail when idle and no jobId. */}
       <div style={{
         display: "grid",
-        gridTemplateColumns: activityCollapsed ? "56px 1fr 360px" : "360px 1fr 360px",
+        gridTemplateColumns: "360px 1fr 360px",
         gap: "1px",
         background: "var(--border-default)",
         overflow: "hidden", minHeight: 0,
-        transition: "grid-template-columns var(--dur-med, 220ms) var(--ease-out, ease-out)",
       }}>
 
         {/* ══ LEFT · Argus Activity ════════════════════════ */}
         <aside aria-label="Argus activity" style={{
           background: "var(--bg-base)",
+          border: "1px solid var(--border-hairline)",
           display: "flex", flexDirection: "column",
           overflow: "hidden", minHeight: 0,
           position: "relative",
         }}>
-          {activityCollapsed ? (
-            <button
-              onClick={() => setActivityExpanded(true)}
-              aria-label="Expand Argus activity column"
-              style={{
-                height: "100%", width: "100%",
-                background: "var(--bg-surface-1)",
-                border: "none",
-                borderRight: "1px solid var(--border-default)",
-                display: "flex", flexDirection: "column",
-                alignItems: "center", justifyContent: "space-between",
-                padding: "16px 0",
-                cursor: "pointer",
-                color: "var(--fg-3)",
-              }}
-            >
-              <span style={{
-                fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 700,
-                letterSpacing: "0.18em", textTransform: "uppercase",
-                color: "var(--fg-2)",
-                writingMode: "vertical-rl",
-                transform: "rotate(180deg)",
-              }}>
-                Argus
-              </span>
-              <span style={{
-                fontFamily: "var(--font-mono)", fontSize: "10px",
-                color: "var(--fg-4)",
-                writingMode: "vertical-rl",
-                transform: "rotate(180deg)",
-              }}>
+          <>
+            {/* Column header */}
+            <div style={{
+              ...COL_HEAD.wrapper,
+              borderLeft: isLive ? "2px solid var(--accent)" : "2px solid transparent",
+              paddingLeft: isLive ? "14px" : "16px",
+            }}>
+              {isLive && <span style={COL_HEAD.liveDot} />}
+              <span style={COL_HEAD.title}>Argus Activity</span>
+              <span style={COL_HEAD.sub}>
+                {stats.totalIncidents > 0
+                  ? `${stats.resolvedIncidents}/${stats.totalIncidents} · `
+                  : ""}
                 {toolCallCount} calls
               </span>
-            </button>
-          ) : (
-            <>
-              {/* Column header */}
-              <div style={{
-                ...COL_HEAD.wrapper,
-                borderLeft: isLive ? "2px solid var(--accent)" : "2px solid transparent",
-                paddingLeft: isLive ? "14px" : "16px",
-              }}>
-                {isLive && <span style={COL_HEAD.liveDot} />}
-                <span style={COL_HEAD.title}>Argus Activity</span>
-                <span style={COL_HEAD.sub}>
-                  {stats.totalIncidents > 0
-                    ? `${stats.resolvedIncidents}/${stats.totalIncidents} · `
-                    : ""}
-                  {toolCallCount} calls
-                </span>
-              </div>
-              <div style={{ flex: 1, overflow: "hidden", minHeight: 0 }}>
-                {jobStatus === "idle" && !jobId ? (
-                  <div style={{
-                    height: "100%", display: "flex", flexDirection: "column",
-                    alignItems: "center", justifyContent: "center", gap: "16px",
-                    padding: "24px",
+            </div>
+            <div style={{ flex: 1, overflow: "hidden", minHeight: 0 }}>
+              {jobStatus === "idle" && !jobId ? (
+                <div style={{
+                  height: "100%", display: "flex", flexDirection: "column",
+                  alignItems: "center", justifyContent: "flex-start", gap: "12px",
+                  padding: "30% 24px 24px",
+                }}>
+                  <p style={{
+                    fontFamily: "var(--font-mono)", fontSize: "12px",
+                    color: "var(--fg-3)", textAlign: "center", margin: 0,
                   }}>
-                    <p style={{
-                      fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)",
-                      color: "var(--fg-3)", textAlign: "center", margin: 0,
-                    }}>
-                      No Argus activity yet.
-                    </p>
-                  </div>
-                ) : (
-                  <AgentFeed />
-                )}
-              </div>
-            </>
-          )}
+                    No Argus activity yet.
+                  </p>
+                </div>
+              ) : (
+                <AgentFeed />
+              )}
+            </div>
+          </>
         </aside>
-
         {/* ══ CENTER · Site Map ═════════════════════════════ */}
         <div style={{
-          background: "var(--bg-base)",
+          background: "var(--bg-canvas)",
+          borderLeft: "2px solid var(--accent)",
+          borderRight: "1px solid var(--border-hairline)",
           display: "flex", flexDirection: "column",
           overflow: "hidden", minHeight: 0,
         }}>
@@ -333,22 +298,21 @@ export default function InvestigationView() {
               nightDate={nightDate}
             />
 
-            {/* Start-investigation overlay — only when activity column is collapsed */}
-            {activityCollapsed && (
+            {/* Start-investigation overlay */}
+            {showStartOverlay && (
               <div style={{
-                position: "absolute", top: "50%", left: "50%",
-                transform: "translate(-50%, -50%)",
+                position: "absolute", top: "30%", left: "50%",
+                transform: "translateX(-50%)",
                 background: "var(--bg-surface-1)",
                 border: "1px solid var(--border-default)",
-                borderRadius: "var(--radius-sm, 4px)",
+                borderRadius: 0,
                 padding: "20px 24px",
                 display: "flex", flexDirection: "column", alignItems: "center", gap: "12px",
-                boxShadow: "var(--shadow-modal, 0 4px 16px rgba(0,0,0,0.4))",
                 zIndex: 500,
               }}>
                 <p style={{
-                  fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)",
-                  color: "var(--fg-3)", textAlign: "center", margin: 0,
+                  fontFamily: "var(--font-mono)", fontSize: "12px",
+                  color: "var(--fg-3)", textAlign: "center", margin: 0, fontWeight: 400,
                 }}>
                   No investigation running for {nightDate}.
                 </p>
@@ -356,16 +320,30 @@ export default function InvestigationView() {
                   onClick={() => startInvestigation({ nightDate })}
                   disabled={isStarting}
                   style={{
-                    background: "var(--accent)", color: "var(--bg-base)",
-                    border: "none", borderRadius: "var(--radius-xs)",
-                    padding: "8px 20px", fontSize: "var(--text-sm)",
-                    fontFamily: "var(--font-sans)", fontWeight: 600,
+                    background: "transparent",
+                    color: "var(--accent)",
+                    border: "1px solid var(--accent)",
+                    borderRadius: 0,
+                    padding: "8px 20px",
+                    fontSize: "11px",
+                    fontFamily: "var(--font-mono)",
+                    fontWeight: 500,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
                     cursor: isStarting ? "not-allowed" : "pointer",
                     opacity: isStarting ? 0.6 : 1,
-                    letterSpacing: "0.02em",
+                    transition: "background 120ms ease, color 120ms ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "var(--accent)";
+                    e.currentTarget.style.color = "var(--bg-base)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.color = "var(--accent)";
                   }}
                 >
-                  {isStarting ? "Starting…" : "Start investigation"}
+                  {isStarting ? "STARTING…" : "START INVESTIGATION"}
                 </button>
               </div>
             )}
@@ -380,6 +358,7 @@ export default function InvestigationView() {
         {/* ══ RIGHT · Events ════════════════════════════════ */}
         <aside aria-label="Events list" style={{
           background: "var(--bg-base)",
+          border: "1px solid var(--border-hairline)",
           display: "flex", flexDirection: "column",
           overflow: "hidden", minHeight: 0,
         }}>

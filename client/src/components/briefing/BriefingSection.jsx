@@ -1,15 +1,45 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Moon, CheckCircle2, AlertTriangle, Scan, ListTodo, Pencil, Loader2, Eye, EyeOff } from "lucide-react";
+import {
+  Moon,
+  CheckCircle2,
+  AlertTriangle,
+  Scan,
+  ListTodo,
+  Pencil,
+  Loader2,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { useUpdateBriefingSection } from "@/hooks/useBriefing";
 
 const SECTION_CONFIG = {
-  whatHappened:  { label: "What Happened Last Night", Icon: Moon,          iconClass: "text-text-secondary" },
-  harmlessEvents:{ label: "Cleared — No Action Required", Icon: CheckCircle2,  iconClass: "text-severity-harmless" },
-  escalations:   { label: "Requires Escalation",        Icon: AlertTriangle, iconClass: "text-severity-escalate" },
-  droneFindings: { label: "Drone Patrol Findings",       Icon: Scan,          iconClass: "text-agent-blue" },
-  followUpItems: { label: "Requires Follow-Up",          Icon: ListTodo,      iconClass: "text-severity-monitor" },
+  whatHappened: {
+    label: "What Happened Last Night",
+    Icon: Moon,
+    iconClass: "text-text-secondary",
+  },
+  harmlessEvents: {
+    label: "Cleared — No Action Required",
+    Icon: CheckCircle2,
+    iconClass: "text-severity-harmless",
+  },
+  seriousEvents: {
+    label: "Requires Escalation",
+    Icon: AlertTriangle,
+    iconClass: "text-severity-serious",
+  },
+  droneFindings: {
+    label: "Drone Patrol Findings",
+    Icon: Scan,
+    iconClass: "text-agent-blue",
+  },
+  followUpItems: {
+    label: "Requires Follow-Up",
+    Icon: ListTodo,
+    iconClass: "text-severity-minor",
+  },
 };
 
 function getSectionContent(content) {
@@ -34,11 +64,24 @@ function getSectionContent(content) {
   return trimmed;
 }
 
-export default function BriefingSection({ sectionName, sectionData, briefingId, isApproved }) {
-  const config = SECTION_CONFIG[sectionName] || { label: sectionName, Icon: Moon, iconClass: "text-text-secondary" };
+export default function BriefingSection({
+  sectionName,
+  sectionData,
+  briefingId,
+  isApproved,
+}) {
+  const config = SECTION_CONFIG[sectionName] || {
+    label: sectionName,
+    Icon: Moon,
+    iconClass: "text-text-secondary",
+  };
   const { Icon, label, iconClass } = config;
 
-  const { agentDraft = "", mayaVersion = null, isEdited = false } = sectionData || {};
+  const {
+    agentDraft = "",
+    mayaVersion = null,
+    isEdited = false,
+  } = sectionData || {};
   const currentContent = isEdited && mayaVersion ? mayaVersion : agentDraft;
   const displayContent = getSectionContent(currentContent);
 
@@ -50,12 +93,17 @@ export default function BriefingSection({ sectionName, sectionData, briefingId, 
   const { mutate: updateSection, isPending } = useUpdateBriefingSection();
 
   // Keep draft in sync when props refresh
-  useEffect(() => { setEditValue(displayContent); }, [displayContent]);
+  useEffect(() => {
+    setEditValue(displayContent);
+  }, [displayContent]);
 
-  const save = useCallback((value) => {
-    if (!briefingId) return;
-    updateSection({ briefingId, sectionName, content: value });
-  }, [briefingId, sectionName, updateSection]);
+  const save = useCallback(
+    (value) => {
+      if (!briefingId) return;
+      updateSection({ briefingId, sectionName, content: value });
+    },
+    [briefingId, sectionName, updateSection],
+  );
 
   const handleChange = (e) => {
     setEditValue(e.target.value);
@@ -82,11 +130,28 @@ export default function BriefingSection({ sectionName, sectionData, briefingId, 
       <div className="flex items-center justify-between mb-5 print:hidden">
         <div className="flex items-center gap-4">
           <Icon className={`w-5 h-5 ${iconClass} shrink-0`} />
-          <h2 className="text-white font-bold text-base tracking-tight">{label}</h2>
+          <h2 className="text-white font-bold text-base tracking-tight">
+            {label}
+          </h2>
           {isEdited ? (
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", padding: "2px 8px", border: "1px solid var(--sev-minor-dim)", background: "var(--sev-minor-bg)", color: "var(--sev-minor)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Edited</span>
+            <span
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "10px",
+                padding: "2px 8px",
+                border: "1px solid var(--sev-minor-dim)",
+                background: "var(--sev-minor-bg)",
+                color: "var(--sev-minor)",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+              }}
+            >
+              Edited
+            </span>
           ) : (
-            <span className="font-mono text-[10px] px-2 py-0.5 border border-agent-blue/40 bg-agent-blue/10 text-agent-blue uppercase tracking-widest">Argus draft</span>
+            <span className="font-mono text-[10px] px-2 py-0.5 border border-agent-blue/40 bg-agent-blue/10 text-agent-blue uppercase tracking-widest">
+              Argus draft
+            </span>
           )}
         </div>
 
@@ -116,15 +181,25 @@ export default function BriefingSection({ sectionName, sectionData, briefingId, 
           />
 
           <div className="flex justify-between items-center">
-            <span className="font-mono text-[10px] text-text-muted">{wordCount} words</span>
+            <span className="font-mono text-[10px] text-text-muted">
+              {wordCount} words
+            </span>
             <div className="flex items-center gap-4">
-              <button onClick={handleCancel} className="font-mono text-[10px] text-text-muted hover:text-white uppercase tracking-widest transition-colors">Cancel</button>
+              <button
+                onClick={handleCancel}
+                className="font-mono text-[10px] text-text-muted hover:text-white uppercase tracking-widest transition-colors"
+              >
+                Cancel
+              </button>
               <button
                 onClick={handleSave}
                 disabled={isPending}
                 className="flex items-center gap-2 bg-agent-blue hover:bg-agent-blue/90 text-white font-mono text-[10px] uppercase tracking-widest px-4 py-2 transition-colors disabled:opacity-50"
               >
-                {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : null} Save
+                {isPending ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : null}{" "}
+                Save
               </button>
             </div>
           </div>
@@ -132,16 +207,27 @@ export default function BriefingSection({ sectionName, sectionData, briefingId, 
       ) : (
         /* VIEW MODE */
         <div>
-          {sectionName === "escalations" && Array.isArray(sectionData?.items) && sectionData.items.length > 0 ? (
+          {sectionName === "seriousEvents" &&
+          Array.isArray(sectionData?.items) &&
+          sectionData.items.length > 0 ? (
             <div className="flex flex-col gap-4">
               {sectionData.items.map((item, i) => (
-                <div key={i} className="border-l-4 border-severity-escalate bg-severity-escalate/5 px-5 py-4 rounded-r-sm">
-                  <p className="text-text-primary text-sm leading-relaxed">{item}</p>
+                <div
+                  key={i}
+                  className="border-l-4 border-severity-serious bg-severity-serious/5 px-5 py-4 rounded-r-sm"
+                >
+                  <p className="text-text-primary text-sm leading-relaxed">
+                    {item}
+                  </p>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-text-primary whitespace-pre-wrap text-[16px] leading-[1.75]">{displayContent || <span className="text-text-muted italic">No content yet.</span>}</p>
+            <p className="text-text-primary whitespace-pre-wrap text-[16px] leading-[1.75]">
+              {displayContent || (
+                <span className="text-text-muted italic">No content yet.</span>
+              )}
+            </p>
           )}
 
           {/* Agent draft comparison toggle */}
@@ -151,7 +237,11 @@ export default function BriefingSection({ sectionName, sectionData, briefingId, 
                 onClick={() => setShowAgentDraft(!showAgentDraft)}
                 className="flex items-center gap-1.5 font-mono text-[10px] text-text-muted hover:text-text-secondary uppercase tracking-widest transition-colors"
               >
-                {showAgentDraft ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                {showAgentDraft ? (
+                  <EyeOff className="w-3 h-3" />
+                ) : (
+                  <Eye className="w-3 h-3" />
+                )}
                 {showAgentDraft ? "Hide" : "Show"} agent draft
               </button>
               {showAgentDraft && (

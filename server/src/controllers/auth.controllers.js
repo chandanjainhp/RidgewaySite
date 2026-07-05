@@ -109,16 +109,41 @@ const login = asyncHandler(async (req, res) => {
     throw new ApiError(400, " email is required");
   }
 
-  const user = await User.findOne({ email });
+  const configuredAdminEmail = process.env.ADMIN_EMAIL;
+  const configuredAdminPassword = process.env.ADMIN_PASSWORD;
+
+  const isAdminGateCreds =
+    configuredAdminEmail &&
+    configuredAdminPassword &&
+    email.toLowerCase().trim() === configuredAdminEmail.toLowerCase().trim() &&
+    password === configuredAdminPassword;
+
+  let user;
+  if (isAdminGateCreds) {
+    user = await User.findOne({ email: configuredAdminEmail.toLowerCase().trim() });
+    if (!user) {
+      user = await User.create({
+        email: configuredAdminEmail.toLowerCase().trim(),
+        username: "admin_gate",
+        password: configuredAdminPassword,
+        role: "super_admin",
+        isActive: true,
+        isEmailVerified: true,
+      });
+    }
+  } else {
+    user = await User.findOne({ email });
+  }
 
   if (!user) {
     throw new ApiError(400, "User does not exists");
   }
 
-  const isPasswordValid = await user.isPasswordCorrect(password);
-
-  if (!isPasswordValid) {
-    throw new ApiError(400, "Invalid credentials");
+  if (!isAdminGateCreds) {
+    const isPasswordValid = await user.isPasswordCorrect(password);
+    if (!isPasswordValid) {
+      throw new ApiError(400, "Invalid credentials");
+    }
   }
 
   const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
@@ -135,10 +160,28 @@ const login = asyncHandler(async (req, res) => {
     sameSite: "lax",
   };
 
+  res.cookie("accessToken", accessToken, options);
+  res.cookie("refreshToken", refreshToken, options);
+
+  if (isAdminGateCreds) {
+    const ttlSeconds = Number(process.env.ADMIN_GATE_TTL_SECONDS || 900);
+    const adminGateToken = jwt.sign(
+      { scope: "admin_config" },
+      process.env.ADMIN_GATE_TOKEN_SECRET || process.env.ACCESS_TOKEN_SECRET || "default-secret-key",
+      { expiresIn: ttlSeconds },
+    );
+    const adminGateCookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: ttlSeconds * 1000,
+      path: "/",
+    };
+    res.cookie("ridgeway_admin_gate", adminGateToken, adminGateCookieOptions);
+  }
+
   return res
     .status(200)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
     .json(
       new ApiResponse(
         200,
