@@ -30,7 +30,7 @@ export default class AppErrorBoundary extends React.Component {
 
   handleNavigateHome = () => {
     this.setState({ hasError: false, error: null, errorInfo: null });
-    window.location.href = "/investigate";
+    window.location.href = "/incidents";
   };
 
   handleClearData = () => {

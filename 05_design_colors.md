@@ -8,7 +8,7 @@
 
 ## 3A — Disambiguate accent from focus ring (half day)
 
-**Problem.** `--accent: #b8d4e8` and `--border-focus: #b8d4e8` are the same value. Focus state is invisible against any accent-colored element. WCAG 2.4.7 (Focus Visible) requires a focus indicator that is perceivable.
+**Problem.** `--accent: #b8d4e8` and `--border-focus: #b8dgit4e8` are the same value. Focus state is invisible against any accent-colored element. WCAG 2.4.7 (Focus Visible) requires a focus indicator that is perceivable.
 
 **Decision.** Keep `--accent` as the pale instrumentation tint. Change `--border-focus` to a clearly distinct, higher-saturation cyan that reads as "system is highlighting this":
 

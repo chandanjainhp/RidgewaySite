@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Copy, Check } from "lucide-react";
+import { useAuthStore } from "@/store/authStore";
 
 const SECTIONS = [
   { id: "what-is",       label: "What is Sentinel?" },
@@ -212,6 +213,7 @@ const MCP_TOOLS = [
 ];
 
 export default function DocsPage() {
+  const user = useAuthStore((s) => s.user);
   const [activeSection, setActiveSection] = useState("what-is");
   const contentRef = useRef(null);
 
@@ -332,37 +334,58 @@ export default function DocsPage() {
           flexDirection: "column",
           gap: "6px",
         }}>
-          <Link href="/login" style={{
-            display: "block",
-            padding: "7px 10px",
-            fontFamily: "var(--font-mono)",
-            fontSize: "11px",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            color: "var(--fg-2)",
-            background: "var(--bg-surface-2)",
-            border: "1px solid var(--border-default)",
-            borderRadius: "2px",
-            textDecoration: "none",
-            textAlign: "center",
-          }}>
-            Sign in →
-          </Link>
-          <Link href="/register" style={{
-            display: "block",
-            padding: "7px 10px",
-            fontFamily: "var(--font-mono)",
-            fontSize: "11px",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            color: "var(--bg-base)",
-            background: "var(--accent)",
-            borderRadius: "2px",
-            textDecoration: "none",
-            textAlign: "center",
-          }}>
-            Get started →
-          </Link>
+          {user ? (
+            <Link href="/overview" style={{
+              display: "block",
+              padding: "7px 10px",
+              fontFamily: "var(--font-mono)",
+              fontSize: "11px",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              color: "var(--bg-base)",
+              background: "var(--accent)",
+              borderRadius: "2px",
+              textDecoration: "none",
+              textAlign: "center",
+              fontWeight: 600,
+            }}>
+              Console →
+            </Link>
+          ) : (
+            <>
+              <Link href="/login" style={{
+                display: "block",
+                padding: "7px 10px",
+                fontFamily: "var(--font-mono)",
+                fontSize: "11px",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: "var(--fg-2)",
+                background: "var(--bg-surface-2)",
+                border: "1px solid var(--border-default)",
+                borderRadius: "2px",
+                textDecoration: "none",
+                textAlign: "center",
+              }}>
+                Sign in →
+              </Link>
+              <Link href="/register" style={{
+                display: "block",
+                padding: "7px 10px",
+                fontFamily: "var(--font-mono)",
+                fontSize: "11px",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: "var(--bg-base)",
+                background: "var(--accent)",
+                borderRadius: "2px",
+                textDecoration: "none",
+                textAlign: "center",
+              }}>
+                Get started →
+              </Link>
+            </>
+          )}
         </div>
       </div>
 

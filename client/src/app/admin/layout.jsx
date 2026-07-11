@@ -1,11 +1,56 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { useState, useEffect, useRef, useMemo, Suspense } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/authStore';
 import { Building2, Users, Key, Activity, ShieldCheck, ArrowLeft, LogOut, Sliders } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import api, { clearStoredToken } from '../../lib/api';
+
+function SetupSubItems({ isActive }) {
+  const searchParams = useSearchParams();
+  if (!isActive) return null;
+  const currentTab = searchParams.get('tab') || 'api-keys';
+
+  const subItems = [
+    { label: 'API Keys', tab: 'api-keys' },
+    { label: 'Site Config', tab: 'site-config' },
+    { label: 'Argus Config', tab: 'argus-config' },
+  ];
+
+  return (
+    <div className="pl-9 mt-1 flex flex-col gap-1">
+      {subItems.map((sub) => {
+        const isSubActive = currentTab === sub.tab;
+        return (
+          <Link
+            key={sub.tab}
+            href={`/admin/setup?tab=${sub.tab}`}
+            className="text-xs py-1.5 px-3 rounded transition-all font-medium"
+            style={{
+              color: isSubActive ? 'var(--accent)' : 'var(--fg-3)',
+              background: isSubActive ? 'rgba(184,212,232,0.04)' : 'transparent',
+            }}
+            onMouseEnter={(e) => {
+              if (!isSubActive) {
+                e.currentTarget.style.background = 'var(--bg-surface-2)';
+                e.currentTarget.style.color = 'var(--fg-1)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isSubActive) {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = 'var(--fg-3)';
+              }
+            }}
+          >
+            {sub.label}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function AdminLayout({ children }) {
   const pathname = usePathname();
@@ -65,33 +110,39 @@ export default function AdminLayout({ children }) {
               const isActive = pathname === item.path || pathname.startsWith(item.path + '/');
               const Icon = item.icon;
               return (
-                <Link
-                  key={item.name}
-                  href={item.path}
-                  className="flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-all"
-                  style={{
-                    background: isActive ? 'rgba(184,212,232,0.08)' : 'transparent',
-                    color: isActive ? 'var(--accent)' : 'var(--fg-2)',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.background = 'var(--bg-surface-3)';
-                      e.currentTarget.style.color = 'var(--fg-1)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.color = 'var(--fg-2)';
-                    }
-                  }}
-                >
-                  <Icon
-                    className="mr-3 h-4 w-4 flex-shrink-0"
-                    style={{ color: isActive ? 'var(--accent)' : 'var(--fg-3)' }}
-                  />
-                  {item.name}
-                </Link>
+                <div key={item.name} className="flex flex-col">
+                  <Link
+                    href={item.path}
+                    className="flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-all"
+                    style={{
+                      background: isActive ? 'rgba(184,212,232,0.08)' : 'transparent',
+                      color: isActive ? 'var(--accent)' : 'var(--fg-2)',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.background = 'var(--bg-surface-3)';
+                        e.currentTarget.style.color = 'var(--fg-1)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.color = 'var(--fg-2)';
+                      }
+                    }}
+                  >
+                    <Icon
+                      className="mr-3 h-4 w-4 flex-shrink-0"
+                      style={{ color: isActive ? 'var(--accent)' : 'var(--fg-3)' }}
+                    />
+                    {item.name}
+                  </Link>
+                  {item.name === 'Setup / Ingest' && (
+                    <Suspense fallback={null}>
+                      <SetupSubItems isActive={isActive} />
+                    </Suspense>
+                  )}
+                </div>
               );
             })}
           </nav>
@@ -99,7 +150,7 @@ export default function AdminLayout({ children }) {
 
         <div className="p-4" style={{ borderTop: '1px solid var(--border-default)' }}>
           <Link
-            href="/investigate"
+            href="/incidents"
             className="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-all"
             style={{ color: 'var(--fg-3)' }}
             onMouseEnter={(e) => {

@@ -178,11 +178,11 @@ export default function BriefingPage() {
               maxWidth: "320px",
             }}
           >
-            Run an investigation from the Investigate tab first. The briefing
+            Run an investigation from the Incidents workspace first. The briefing
             will appear once all incidents have been classified.
           </div>
           <Link
-            href="/investigate"
+            href="/incidents"
             style={{
               marginTop: "8px",
               display: "inline-block",
@@ -423,7 +423,7 @@ export default function BriefingPage() {
             Retry Generation
           </button>
           <Link
-            href="/investigate"
+            href="/incidents"
             style={{
               fontFamily: "var(--font-mono)",
               fontSize: "11px",
@@ -431,7 +431,7 @@ export default function BriefingPage() {
               textDecoration: "none",
             }}
           >
-            ← Back to Investigate
+            ← Back to Incidents
           </Link>
         </div>
       </AppShell>

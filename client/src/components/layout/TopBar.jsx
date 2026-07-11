@@ -4,6 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getLatestBriefing } from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
+import { useAuth } from "@/hooks/useAuth";
+import { LogOut, User } from "lucide-react";
 
 const MONO = "var(--font-mono)";
 
@@ -32,6 +35,8 @@ function useNightDate() {
 export default function TopBar() {
   const pathname = usePathname();
   const nightDate = useNightDate();
+  const { user } = useAuthStore();
+  const { logout } = useAuth();
 
   const is = (prefix) =>
     Array.isArray(prefix)
@@ -90,8 +95,8 @@ export default function TopBar() {
         <Link href="/overview" style={navLink(is(["/overview", "/dashboard"]))}>
           Overview
         </Link>
-        <Link href="/investigate" style={navLink(is(["/investigate", "/incident"]))}>
-          Investigate
+        <Link href="/incidents" style={navLink(is(["/incidents", "/incident"]))}>
+          Incidents
         </Link>
         <Link href="/briefing" style={{ ...navLink(is("/briefing")), position: "relative" }}>
           Briefing
@@ -111,6 +116,53 @@ export default function TopBar() {
           Docs
         </Link>
       </nav>
+
+      {/* User Session Info & Logout */}
+      {user && (
+        <div style={{ display: "flex", alignItems: "center", gap: "16px", marginLeft: "auto" }}>
+          <Link
+            href="/profile"
+            style={{
+              fontFamily: MONO,
+              fontSize: "11px",
+              color: "var(--fg-3)",
+              textDecoration: "none",
+              textTransform: "uppercase",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = "var(--fg-1)"}
+            onMouseLeave={(e) => e.currentTarget.style.color = "var(--fg-3)"}
+          >
+            <User size={12} style={{ color: "var(--fg-4)" }} />
+            <span>{user.username}</span>
+          </Link>
+          <button
+            onClick={() => logout()}
+            style={{
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              padding: "4px 8px",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              fontFamily: MONO,
+              fontSize: "11px",
+              color: "var(--fg-4)",
+              textTransform: "uppercase",
+              transition: "color 120ms ease",
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = "var(--sev-serious)"}
+            onMouseLeave={(e) => e.currentTarget.style.color = "var(--fg-4)"}
+            title="Log out"
+          >
+            <LogOut size={12} />
+            <span className="hidden sm:inline">Logout</span>
+          </button>
+        </div>
+      )}
     </header>
   );
 }

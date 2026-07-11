@@ -157,7 +157,7 @@ export default function OverviewPage() {
     mutationFn: () => startInvestigation(nightDate),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["briefing", nightDate] });
-      router.replace("/investigate");
+      router.replace("/incidents");
     },
   });
 

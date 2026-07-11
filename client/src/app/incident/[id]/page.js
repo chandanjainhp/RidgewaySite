@@ -128,7 +128,7 @@ export default function IncidentDetailView({ params }) {
           fontFamily: "var(--font-mono)", fontSize: "10px",
           letterSpacing: "0.12em", textTransform: "uppercase",
         }}>
-          <span style={{ color: "var(--fg-3)" }}>Investigate</span>
+          <span style={{ color: "var(--fg-3)" }}>Incidents</span>
           <span style={{ color: "var(--fg-4)" }}>/</span>
           <span style={{ color: "var(--fg-1)" }}>Incident</span>
           {orgName && (
@@ -140,7 +140,7 @@ export default function IncidentDetailView({ params }) {
         </div>
 
         <Link
-          href="/investigate"
+          href="/incidents"
           style={{
             display: "inline-flex", alignItems: "center", gap: "6px",
             fontFamily: "var(--font-mono)", fontSize: "10px",
@@ -153,7 +153,7 @@ export default function IncidentDetailView({ params }) {
           onMouseLeave={e => e.currentTarget.style.color = "var(--fg-4)"}
         >
           <ArrowLeft size={12} />
-          Back to Investigation
+          Back to Incidents
         </Link>
 
         <h1 style={{

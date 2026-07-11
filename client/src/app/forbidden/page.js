@@ -20,7 +20,7 @@ export default function ForbiddenPage() {
 
         <div className="flex flex-col gap-3">
           <Link 
-            href="/investigate"
+            href="/incidents"
             className="w-full text-center bg-accent text-white py-2 px-4 rounded font-medium text-sm transition-colors hover:bg-accent-hover"
           >
             Return to Dashboard

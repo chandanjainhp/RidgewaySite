@@ -77,7 +77,7 @@ function InviteContent() {
         }
       }
       document.cookie = 'ridgeway_setup=1; path=/; max-age=86400; SameSite=Lax';
-      router.replace('/investigate');
+      router.replace('/incidents');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to accept invite. Please try again.');
       setIsSubmitting(false);

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   Key,
@@ -28,7 +29,6 @@ const MONO = "var(--font-mono)";
 
 export default function AdminSetupPage() {
   const [gateStatus, setGateStatus] = useState("checking");
-  const [activeTab, setActiveTab] = useState("api-keys"); // 'api-keys' | 'site-config' | 'argus-config'
 
   // Verification session gate
   useEffect(() => {
@@ -83,14 +83,24 @@ export default function AdminSetupPage() {
         background: "var(--bg-base)",
         color: "var(--fg-1)",
         fontFamily: MONO,
+        width: "100%",
       }}
     >
-      <AdminSetupContainer activeTab={activeTab} setActiveTab={setActiveTab} />
+      <Suspense fallback={
+        <div style={{ padding: "40px", color: "var(--fg-3)", fontSize: "12px" }}>
+          Loading setup settings…
+        </div>
+      }>
+        <AdminSetupContainer />
+      </Suspense>
     </div>
   );
 }
 
-function AdminSetupContainer({ activeTab, setActiveTab }) {
+function AdminSetupContainer() {
+  const searchParams = useSearchParams();
+  const activeTab = searchParams.get("tab") || "api-keys";
+
   const [orgData, setOrgData] = useState(null);
   const [isLoadingOrg, setIsLoadingOrg] = useState(true);
 
@@ -152,84 +162,10 @@ function AdminSetupContainer({ activeTab, setActiveTab }) {
     };
   }, [ingestStatus.active]);
 
-  const tabs = [
-    { id: "api-keys", label: "API Keys", icon: Key },
-    { id: "site-config", label: "Site Config", icon: Settings },
-    { id: "argus-config", label: "Argus Config", icon: Sliders },
-  ];
-
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "220px 1fr",
-        width: "100%",
-        borderTop: "1px solid var(--border-default)",
-      }}
-    >
-      {/* Sub Sidebar Nav */}
-      <aside
-        style={{
-          background: "var(--bg-surface-1)",
-          borderRight: "1px solid var(--border-default)",
-          padding: "24px 16px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "8px",
-        }}
-      >
-        <div
-          style={{
-            fontSize: "10px",
-            color: "var(--fg-3)",
-            textTransform: "uppercase",
-            letterSpacing: "0.14em",
-            fontWeight: 600,
-            marginBottom: "12px",
-            paddingLeft: "8px",
-          }}
-        >
-          Setup Sections
-        </div>
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                width: "100%",
-                padding: "10px 12px",
-                background: isActive ? "var(--bg-surface-2)" : "transparent",
-                border: "none",
-                borderRadius: 0,
-                color: isActive ? "var(--accent)" : "var(--fg-2)",
-                fontFamily: MONO,
-                fontSize: "12px",
-                textAlign: "left",
-                cursor: "pointer",
-                borderLeft: isActive ? "2px solid var(--accent)" : "2px solid transparent",
-              }}
-              onMouseEnter={(e) => {
-                if (!isActive) e.currentTarget.style.color = "var(--fg-1)";
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) e.currentTarget.style.color = "var(--fg-2)";
-              }}
-            >
-              <Icon size={14} style={{ color: isActive ? "var(--accent)" : "var(--fg-3)" }} />
-              {tab.label}
-            </button>
-          );
-        })}
-      </aside>
-
+    <div style={{ width: "100%" }}>
       {/* Content Area */}
-      <main style={{ padding: "40px", overflowY: "auto", position: "relative" }}>
+      <main style={{ padding: "0 0 40px", overflowY: "auto", position: "relative" }}>
         {isLoadingOrg ? (
           <div style={{ color: "var(--fg-3)", fontSize: "12px" }}>Loading config settings…</div>
         ) : (

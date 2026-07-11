@@ -394,6 +394,12 @@ export default function SetupPage() {
       display: "flex", alignItems: "center", justifyContent: "center",
       padding: "24px",
     }}>
+      {/* ponytail: Hides layout elements during static rendering. Ceiling: breaks if layout structure/ids change. Upgrade path: use a Next.js Router Group/Layout structure (e.g. (app-shell)) to omit TopBar. */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        header { display: none !important; }
+        a.skip-to-content { display: none !important; }
+        #main { padding-top: 0 !important; }
+      ` }} />
       <div style={{
         background: "var(--bg-surface-1)",
         border: "1px solid var(--border-default)",

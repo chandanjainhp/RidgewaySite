@@ -90,7 +90,7 @@ function OtpPageInner() {
       } else {
         await verifyEmail(code);
         setSuccess(true);
-        setTimeout(() => router.push('/investigate'), 1500);
+        setTimeout(() => router.push('/incidents'), 1500);
       }
     } catch (err) {
       setError(err?.message || 'Invalid code. Please try again.');
