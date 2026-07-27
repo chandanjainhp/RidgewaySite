@@ -14,7 +14,12 @@ const truncate = (text) => {
   return trimmed.length > MAX_CHARS ? trimmed.slice(0, MAX_CHARS) : trimmed;
 };
 
+const getMockVector = () => Array.from({ length: 1536 }, () => Math.random());
+
 export const generateEmbedding = async (text) => {
+  if (process.env.MOCK_AI === 'true') {
+    return getMockVector();
+  }
   try {
     const response = await openai.embeddings.create({
       model: process.env.EMBEDDING_MODEL || 'text-embedding-3-small',
@@ -28,6 +33,9 @@ export const generateEmbedding = async (text) => {
 };
 
 export const generateEmbeddings = async (texts) => {
+  if (process.env.MOCK_AI === 'true') {
+    return texts.map(() => getMockVector());
+  }
   try {
     const truncated = texts.map(truncate);
 

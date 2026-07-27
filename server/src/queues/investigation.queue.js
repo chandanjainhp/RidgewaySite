@@ -114,7 +114,7 @@ export const getJobStatus = async (jobId) => {
     }
 
     const state = await job.getState();
-    const progress = job.progress();
+    const progress = job.progress;
     const result = job.returnvalue;
     const failedReason = job.failedReason;
 

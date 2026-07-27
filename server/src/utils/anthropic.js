@@ -11,6 +11,7 @@
 */
 
 import Anthropic from '@anthropic-ai/sdk';
+import mongoose from 'mongoose';
 
 let clientInstance = null;
 let aiProvider = null;
@@ -256,11 +257,91 @@ const createLMStudioClient = ({ baseURL, apiKey }) => {
   };
 };
 
+const createMockAIClient = () => {
+  return {
+    messages: {
+      create: async ({ messages }) => {
+        const assistantMsgs = messages.filter(m => m.role === 'assistant');
+        const count = assistantMsgs.length;
+
+        if (count === 0) {
+          return {
+            id: `msg_mock_${Date.now()}`,
+            type: 'message',
+            role: 'assistant',
+            stop_reason: 'tool_use',
+            content: [
+              {
+                type: 'text',
+                text: 'Starting investigation. I will gather the overnight alerts first.'
+              },
+              {
+                type: 'tool_use',
+                id: `toolu_mock_alerts_${Date.now()}`,
+                name: 'get_overnight_alerts',
+                input: {}
+              }
+            ],
+            usage: { input_tokens: 100, output_tokens: 50 }
+          };
+        } else if (count === 1) {
+          const Incident = mongoose.model('Incident');
+          const incident = await Incident.findOne({ nightDate: '2026-07-11' }).lean();
+          const realIncidentId = incident ? incident._id.toString() : '6a4a05b5955079335b85f5f6';
+
+          return {
+            id: `msg_mock_${Date.now()}`,
+            type: 'message',
+            role: 'assistant',
+            stop_reason: 'tool_use',
+            content: [
+              {
+                type: 'text',
+                text: 'Based on the alerts, the activity is harmless. I will submit the classification.'
+              },
+              {
+                type: 'tool_use',
+                id: `toolu_mock_submit_${Date.now()}`,
+                name: 'submit_classification',
+                input: {
+                  incidentId: realIncidentId,
+                  severity: 'harmless',
+                  confidence: 0.95,
+                  reasoning: 'Sensor alert was investigated and found to be normal baseline activity.',
+                  uncertainties: []
+                }
+              }
+            ],
+            usage: { input_tokens: 200, output_tokens: 80 }
+          };
+        } else {
+          return {
+            id: `msg_mock_${Date.now()}`,
+            type: 'message',
+            role: 'assistant',
+            stop_reason: 'end_turn',
+            content: [
+              {
+                type: 'text',
+                text: 'Investigation is complete.\n\n```json\n{\n  "severity": "harmless",\n  "confidence": 0.95,\n  "reasoning": "Sensor alert was investigated and found to be normal baseline activity.",\n  "uncertainties": []\n}\n```'
+              }
+            ],
+            usage: { input_tokens: 300, output_tokens: 100 }
+          };
+        }
+      }
+    }
+  };
+};
+
 /**
  * Determine which AI provider to use based on environment variables
- * @returns {'openrouter' | 'anthropic' | 'lmstudio'} The configured AI provider
+ * @returns {'openrouter' | 'anthropic' | 'lmstudio' | 'mock'} The configured AI provider
  */
 const getAIProvider = () => {
+  if (process.env.MOCK_AI === 'true') {
+    return 'mock';
+  }
   if (process.env.OPENROUTER_API_KEY) {
     return 'openrouter';
   }
@@ -284,7 +365,10 @@ export const getAIClient = () => {
   if (!clientInstance) {
     aiProvider = getAIProvider();
 
-    if (aiProvider === 'openrouter') {
+    if (aiProvider === 'mock') {
+      console.log('[AI] Initializing Mock AI Client...');
+      clientInstance = createMockAIClient();
+    } else if (aiProvider === 'openrouter') {
       console.log('[AI] Initializing OpenRouter client...');
       const baseURL = normalizeOpenRouterBaseURL(process.env.OPENROUTER_BASE_URL);
       clientInstance = createOpenRouterCompatClient({

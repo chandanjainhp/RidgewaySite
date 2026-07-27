@@ -12,6 +12,7 @@ import Investigation from '../models/investigation.model.js';
 import { ApiError } from '../utils/api-error.js';
 import { getEventsNearLocation } from '../tools/map.tool.js';
 import { dispatchInvestigation } from '../queues/investigation.queue.js';
+import { addEventNode, SITE_LOCATIONS } from '../db/graph.js';
 
 // Clustering constants
 const SPATIAL_DISTANCE_M = 200;          // 200m proximity threshold
@@ -41,14 +42,27 @@ export const correlateNightEvents = async (orgId, nightDate) => {
     const { start, end } = getDayRange(nightDate);
 
     // Fetch all events for the night
+    const dateStr = typeof nightDate === 'string' ? nightDate : nightDate.toISOString().split('T')[0];
     const events = await Event.find({
       orgId,
-      nightDate: { $gte: start, $lte: end },
+      nightDate: dateStr,
     }).lean();
 
     if (events.length === 0) {
       console.log(`[CorrelationService] No events found for ${nightDate}`);
       return [];
+    }
+
+    // Populate in-memory graph with these events
+    for (const evt of events) {
+      const locNode = SITE_LOCATIONS.find(
+        (loc) => loc.name.toLowerCase() === evt.location?.name?.toLowerCase()
+      );
+      addEventNode({
+        id: evt._id.toString(),
+        locationId: locNode ? locNode.id : null,
+        ...evt,
+      });
     }
 
     console.log(`[CorrelationService] Processing ${events.length} events`);
@@ -81,7 +95,7 @@ export const correlateNightEvents = async (orgId, nightDate) => {
       const incident = await Incident.create({
         orgId,
         incidentId: `INC-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        nightDate: typeof start === 'string' ? start : start.toISOString().split('T')[0],
+        nightDate: dateStr,
         title: generateIncidentTitle(cluster),
         description: generateIncidentDescription(cluster),
         eventIds: cluster.eventIds,
@@ -106,18 +120,22 @@ export const correlateNightEvents = async (orgId, nightDate) => {
       const investigation = await Investigation.create({
         orgId,
         incidentId: incident._id,
-        nightDate: typeof start === 'string' ? start : start.toISOString().split('T')[0],
+        nightDate: dateStr,
         status: 'queued',
         classification: { severity: 'uncertain' },
       });
 
+      const jobId = `inv-${investigation._id.toString()}`;
+      investigation.jobId = jobId;
+      await investigation.save();
+
       await dispatchInvestigation(
         incident._id.toString(),
         incident.priority || 3,
-        `inv:${investigation._id.toString()}`,
+        jobId,
         {
           orgId,
-          nightDate: start.toISOString(),
+          nightDate: dateStr,
           investigationId: investigation._id.toString()
         }
       );
@@ -172,11 +190,11 @@ export const spatialClustering = async (events) => {
         // Check spatial proximity
         try {
           const nearby = await getEventsNearLocation(
-            otherEvent.location,
+            otherEvent.location.name,
             SPATIAL_DISTANCE_M
           );
 
-          if (nearby.some((e) => e._id.toString() === event._id.toString())) {
+          if (nearby.eventsNearby && nearby.eventsNearby.some((e) => (e.id || e._id || '').toString() === event._id.toString())) {
             cluster.push(otherEvent);
             processed.add(otherEvent._id.toString());
           }
@@ -419,11 +437,11 @@ export const getEventsByLocation = async (locationName, radiusMeters = 200, nigh
       .sort({ timestamp: -1 });
 
     const sourceTypeFromEventType = (type) => {
-      if (type === 'vehicle_detected') return 'vehicle';
-      if (type === 'badge_fail') return 'badge';
+      if (type === 'vehicle_detected' || type === 'vehicle_entry') return 'vehicle';
+      if (type === 'badge_fail' || type === 'badge_swipe_fail') return 'badge';
       if (type === 'fence_alert') return 'fence';
       if (type === 'drone_observation') return 'drone';
-      if (type === 'motion_sensor') return 'motion';
+      if (type === 'motion_sensor' || type === 'motion_detected') return 'motion';
       if (type === 'light_anomaly') return 'light';
       return 'unknown';
     };

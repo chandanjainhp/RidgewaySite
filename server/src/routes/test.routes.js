@@ -23,7 +23,7 @@ router.use(scopeToOrg);
 
 /* ── helpers ──────────────────────────────────────────── */
 
-const EVENT_TYPES = ['fence_alert', 'vehicle_detected', 'badge_fail', 'motion_sensor'];
+const EVENT_TYPES = ['fence_alert', 'vehicle_entry', 'badge_swipe_fail', 'motion_detected'];
 const ZONES = ['perimeter', 'yard', 'block', 'access_point'];
 
 /**
@@ -45,14 +45,14 @@ function randomNightTs(baseDate, startHour, endHour) {
 }
 
 function pickSeverity(severities) {
-  // Default realistic distribution: 60% harmless, 30% minor/monitor, 10% serious/escalate
+  // Default realistic distribution: 60% harmless, 30% minor, 10% serious
   if (severities) {
     return severities[Math.floor(Math.random() * severities.length)];
   }
   const roll = Math.random();
   if (roll < 0.60) return 'harmless';
-  if (roll < 0.90) return 'monitor';
-  return 'escalate';
+  if (roll < 0.90) return 'minor';
+  return 'serious';
 }
 
 function getNightDate(date) {
@@ -73,7 +73,10 @@ function parseNightDate(raw) {
 }
 
 function toISODate(d) {
-  return d.toISOString().split('T')[0];
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 /* ── POST /test/seed-events ───────────────────────────── */
@@ -90,28 +93,34 @@ router.post('/seed-events', asyncHandler(async (req, res) => {
   if (!orgId && req.user.role === 'super_admin' && req.body.orgId) {
     orgId = req.body.orgId;
   }
-  if (!orgId) throw new ApiError(400, 'No orgId — pass orgId in body (super_admin) or use an org-scoped account');
+  
+  if (!orgId) {
+    throw new ApiError(400, 'orgId is required for super_admin');
+  }
+
+  const org = await Organisation.findById(orgId).select('config').lean();
+  if (!org) {
+    throw new ApiError(400, `Organisation with ID ${orgId} not found`);
+  }
 
   if (typeof count !== 'number' || count < 1 || count > 50) {
     throw new ApiError(400, 'count must be a number between 1 and 50');
   }
 
-  const nightDate = todayNightDate();
+  const nightDate = parseNightDate(req.body.nightDate);
   const dateStr = toISODate(nightDate).replace(/-/g, '');
 
-  // Resolve location zones from org config or fallback list
-  const org = await Organisation.findById(orgId).select('config').lean();
   const orgCoords = org?.config?.coordinates;
   const centerLat = orgCoords?.lat ?? 51.5074;
   const centerLng = orgCoords?.lng ?? -0.1278;
 
   const zoneNames = Array.isArray(reqZones) && reqZones.length > 0
     ? reqZones
-    : ['North Gate', 'South Perimeter', 'Loading Bay', 'Yard A', 'Block C'];
+    : ['North Gate', 'South Gate', 'East Yard', 'West Yard', 'Storage Block A', 'Storage Block B', 'Office Building', 'Warehouse'];
 
   // Build events
   const events = [];
-  const existingCount = await Event.countDocuments({ ...req.orgFilter, nightDate });
+  const existingCount = await Event.countDocuments({ ...req.orgFilter, nightDate: toISODate(nightDate) });
 
   for (let i = 0; i < count; i++) {
     const idx = existingCount + i + 1;
@@ -123,6 +132,21 @@ router.post('/seed-events', asyncHandler(async (req, res) => {
     const severity = pickSeverity(reqSeverities);
     const ts = randomNightTs(nightDate, startHour, endHour);
 
+    // Validate type and severity values before insertion
+    const allowedTypes = ['motion_detected', 'badge_swipe_fail', 'vehicle_entry', 'fence_alert', 'environmental'];
+    if (!allowedTypes.includes(type)) {
+      throw new ApiError(400, `Generated event type '${type}' is not allowed by schema`);
+    }
+
+    const allowedSeverities = ['serious', 'minor', 'harmless', 'uncertain'];
+    if (!allowedSeverities.includes(severity)) {
+      throw new ApiError(400, `Generated severity '${severity}' is not allowed by schema`);
+    }
+
+    if (!ts || isNaN(new Date(ts).getTime())) {
+      throw new ApiError(400, 'Valid timestamp is required');
+    }
+
     // Jitter coords slightly around org center
     const lat = centerLat + (Math.random() - 0.5) * 0.005;
     const lng = centerLng + (Math.random() - 0.5) * 0.005;
@@ -130,7 +154,7 @@ router.post('/seed-events', asyncHandler(async (req, res) => {
     const evt = await Event.create({
       eventId,
       orgId,
-      nightDate,
+      nightDate: toISODate(nightDate),
       type,
       location: {
         name: zoneName,
@@ -217,12 +241,9 @@ router.get('/investigation-status/:jobId', asyncHandler(async (req, res) => {
 
   // Get today's briefing status
   const nightDate = todayNightDate();
-  const start = new Date(nightDate); start.setHours(0, 0, 0, 0);
-  const end = new Date(nightDate); end.setHours(23, 59, 59, 999);
-
   const briefing = await Briefing.findOne({
     ...req.orgFilter,
-    nightDate: { $gte: start, $lte: end },
+    nightDate: toISODate(nightDate),
   }).select('status').lean();
 
   const toolCallsExecuted = inv?.toolCallSequence?.length ?? 0;
@@ -242,12 +263,9 @@ router.get('/investigation-status/:jobId', asyncHandler(async (req, res) => {
 /* ── GET /test/briefing ───────────────────────────────── */
 router.get('/briefing', asyncHandler(async (req, res) => {
   const nightDate = todayNightDate();
-  const start = new Date(nightDate); start.setHours(0, 0, 0, 0);
-  const end = new Date(nightDate); end.setHours(23, 59, 59, 999);
-
   const briefing = await Briefing.findOne({
     ...req.orgFilter,
-    nightDate: { $gte: start, $lte: end },
+    nightDate: toISODate(nightDate),
   }).lean();
 
   if (!briefing) throw new ApiError(404, 'No briefing found for today. Run an investigation first.');
@@ -261,10 +279,7 @@ router.post('/cleanup', asyncHandler(async (req, res) => {
   if (!rawDate) throw new ApiError(400, 'nightDate is required to prevent accidental wipes');
 
   const nightDate = parseNightDate(rawDate);
-  const start = new Date(nightDate); start.setHours(0, 0, 0, 0);
-  const end = new Date(nightDate); end.setHours(23, 59, 59, 999);
-
-  const filter = { ...req.orgFilter, nightDate: { $gte: start, $lte: end } };
+  const filter = { ...req.orgFilter, nightDate: toISODate(nightDate) };
 
   const [evtResult, incResult, invResult, brfResult] = await Promise.all([
     Event.deleteMany(filter),

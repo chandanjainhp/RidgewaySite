@@ -7,6 +7,7 @@
 ## Table of Contents
 
 1. [What Sentinel Does — The Core Loop](#1-what-sentinel-does--the-core-loop)
+1.5. [Release & Feature Roadmap](#15-release--feature-roadmap)
 2. [Architecture Overview](#2-architecture-overview)
 3. [Tech Stack](#3-tech-stack)
 4. [Project Structure](#4-project-structure)
@@ -53,6 +54,46 @@ MORNING (operator-triggered)
 ```
 
 Every UI decision, every route, every feature serves this loop. The single test of "done": can an operator understand what happened last night in under 5 minutes?
+
+---
+
+## 1.5. Release & Feature Roadmap
+
+To ensure a production-quality release with mitigated operational and engineering risk, the features of Sentinel are structured into four progressive versions:
+
+### Version 1: The Core MVP (6-Week Release Plan)
+* **Goal:** A stable, single-tenant incident clearinghouse buildable by a single developer in 6 weeks.
+* **Features:**
+  * **User Authentication & Basic RBAC:** Secure JWT-based registration, login, and basic operator/admin segregation.
+  * **Event Ingestion API:** High-throughput `POST /api/v1/events` endpoint for physical drones/sensors using API key verification.
+  * **Time/Location Event Correlation Engine:** BullMQ background worker to group raw events (motion, badges, fence alerts) into incidents by proximity.
+  * **Operator Workspace:** Dashboard featuring incidents filter (priority, severity), incident table, events timeline, map, and review controls.
+  * **Manual Review & Override:** Allows operators to review raw alerts, leave comments, adjust incident severity, and close or escalate cases.
+  * **Static Morning Briefing Generator:** Automated compile of the morning summary using clean text templates, managed via a state machine (`draft`, `generating`, `approved`).
+
+### Version 2: Collaboration & Integrations
+* **Goal:** Expand Sentinel into a multi-tenant platform for collaborative security teams.
+* **Features:**
+  * **Multi-Tenant Org Scoping:** Organization model, signup setup wizard, and database queries scoped strictly by `orgId`.
+  * **Org Membership & Invite Flow:** Simple email-based member invitation (`inviteToken`) with roles (`operator`, `org_admin`).
+  * **Outbound Notification Webhooks:** Outgoing webhooks to Slack, Teams, or log systems upon briefing approval, signed with HMAC-SHA256.
+  * **Collaborative Notes:** Incident comments, annotations, and operator shift handover logs.
+
+### Version 3: AI-Powered Autonomous Investigation
+* **Goal:** Introduce deep automation with the autonomous investigation agent (**Argus**) and contextual site grounding.
+* **Features:**
+  * **Argus Autonomous Agent:** Claude-powered ReAct loop querying badge logs, drone routes, vehicle databases, and environment statuses.
+  * **Qdrant Vector RAG Pipeline:** PDF document chunking, indexing, and injection of site guidelines into the agent's prompts.
+  * **Real-Time Agent reasoning trace (SSE):** Streaming agent thought process and tool execution history directly to the UI.
+  * **Overnight Automation Scheduler:** Cron-scheduled background workers executing correlation and AI investigation overnight.
+
+### Version 4: Enterprise Compliance & Scale
+* **Goal:** Meet security compliance certifications, scale database operations, and enable developer tooling.
+* **Features:**
+  * **Model Context Protocol (MCP) Server:** Standard SSE MCP server to link external developer agents to site tools.
+  * **Super-Admin Portal:** Centralized dashboard for managing orgs, users, platform API keys, and BullMQ jobs.
+  * **SSO & Immutable Audit Logging:** SAML/OIDC enterprise integration and tamper-proof security audit log persistence.
+  * **Advanced 3D Map Visualizations:** React Three Fiber 3D drone routes and site zone boundaries on the dashboard.
 
 ---
 

@@ -313,9 +313,12 @@ const generateBoundaries = (locations) => {
 const formatEventType = (type) => {
   const typeNames = {
     badge_fail: 'Badge Failure',
+    badge_swipe_fail: 'Badge Failure',
     fence_alert: 'Fence Alert',
     motion_sensor: 'Motion Detected',
+    motion_detected: 'Motion Detected',
     vehicle_detected: 'Vehicle Detected',
+    vehicle_entry: 'Vehicle Detected',
     light_anomaly: 'Light Anomaly',
     drone_observation: 'Drone Observation',
   };

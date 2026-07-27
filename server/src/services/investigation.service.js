@@ -18,10 +18,11 @@ const getNightRange = (nightDate) => {
 
 export const startNightInvestigation = async (nightDate, orgFilter = {}) => {
   try {
+    const dateStr = typeof nightDate === 'string' ? nightDate : nightDate.toISOString().split('T')[0];
     const { start, end } = getNightRange(nightDate);
 
     const existingJobs = await Investigation.find({
-      nightDate: { $gte: start, $lte: end },
+      nightDate: dateStr,
       ...orgFilter
     }).lean();
 
@@ -39,8 +40,8 @@ export const startNightInvestigation = async (nightDate, orgFilter = {}) => {
     }
 
     const incidents = await Incident.find({
-      nightDate: { $gte: start, $lte: end },
-      status: "pending",
+      nightDate: dateStr,
+      status: "open",
       ...orgFilter
     }).lean();
 

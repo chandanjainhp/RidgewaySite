@@ -35,6 +35,7 @@ const BASE_SCORES = {
   unidentified_entity: 10,
   fence_alert: 5,
   motion_sensor: 2,
+  motion_detected: 2,
   light_anomaly: 1,
 };
 
@@ -61,7 +62,7 @@ const scoreIncident = async (incident) => {
     if (firstEventType.includes('fence') || firstEventType.includes('perimeter')) {
       score = BASE_SCORES.fence_alert;
     } else if (firstEventType.includes('motion') || firstEventType.includes('canteen')) {
-      score = BASE_SCORES.motion_sensor;
+      score = BASE_SCORES.motion_detected || BASE_SCORES.motion_sensor;
     } else if (firstEventType.includes('light')) {
       score = BASE_SCORES.light_anomaly;
     } else {
@@ -110,9 +111,9 @@ export const planInvestigations = async (nightDate) => {
 
   try {
     // 1. Load all incidents for the night in pending or investigating status
-    const { start, end } = getDayRange(nightDate);
+    const dateStr = typeof nightDate === 'string' ? nightDate : new Date(nightDate).toISOString().split('T')[0];
     const incidents = await Incident.find({
-      nightDate: { $gte: start, $lte: end },
+      nightDate: dateStr,
       status: { $in: ['pending', 'investigating'] },
     });
 

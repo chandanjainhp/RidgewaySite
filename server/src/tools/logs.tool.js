@@ -51,6 +51,7 @@ export const getOvernightAlerts = async (nightDate) => {
       let rawSummary = '';
       switch (event.type) {
         case 'badge_fail':
+        case 'badge_swipe_fail':
           rawSummary = `Badge access attempt failed at ${event.location.name}`;
           if (event.rawData?.employeeId) {
             rawSummary += ` by ${event.rawData.employeeId}`;
@@ -63,9 +64,11 @@ export const getOvernightAlerts = async (nightDate) => {
           }
           break;
         case 'motion_sensor':
+        case 'motion_detected':
           rawSummary = `Motion detected at ${event.location.name}`;
           break;
         case 'vehicle_detected':
+        case 'vehicle_entry':
           rawSummary = `Vehicle detected at ${event.location.name}`;
           if (event.rawData?.vehicleId) {
             rawSummary += `: ${event.rawData.vehicleId}`;
@@ -113,7 +116,7 @@ export const getVehiclePaths = async (vehicleId = null, nightDate) => {
 
     // Query vehicle events
     const query = {
-      type: 'vehicle_detected',
+      type: { $in: ['vehicle_detected', 'vehicle_entry'] },
       timestamp: { $gte: start, $lte: end },
     };
 
@@ -199,7 +202,7 @@ export const getBadgeSwipeHistory = async (filters = {}, nightDate) => {
 
     // Query badge events
     const query = {
-      type: 'badge_fail',
+      type: { $in: ['badge_fail', 'badge_swipe_fail'] },
       timestamp: { $gte: start, $lte: end },
     };
 

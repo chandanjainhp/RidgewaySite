@@ -162,10 +162,10 @@ afterAll(async () => {
 // ── GROUP 1: Event ingestion ──────────────────────────────────────────────────
 
 describe('Group 1 — Event ingestion', () => {
-  test('POST /events accepts a valid motion_sensor event', async () => {
+  test('POST /events accepts a valid motion_detected event', async () => {
     const payload = {
       eventId: 'evt_' + Date.now(),
-      type: 'motion_sensor',
+      type: 'motion_detected',
       timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
       location: {
         name: 'North Gate',
@@ -197,7 +197,7 @@ describe('Group 1 — Event ingestion', () => {
     const res = await fetch(`${baseUrl}/events`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ eventId: 'evt_noauth', type: 'motion_sensor', timestamp: new Date().toISOString() }),
+      body: JSON.stringify({ eventId: 'evt_noauth', type: 'motion_detected', timestamp: new Date().toISOString() }),
     });
 
     expect(res.status).toBe(401);
@@ -210,7 +210,7 @@ describe('Group 1 — Event ingestion', () => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${testApiKey}`,
       },
-      body: JSON.stringify({ eventId: 'evt_bad', type: 'motion_sensor' }), // missing timestamp + location
+      body: JSON.stringify({ eventId: 'evt_bad', type: 'motion_detected' }), // missing timestamp + location
     });
 
     expect(res.status).toBe(400);
@@ -226,7 +226,7 @@ describe('Group 1 — Event ingestion', () => {
       rawData: {},
     };
 
-    for (const [type, sev] of [['badge_fail', 'minor'], ['motion_sensor', 'serious']]) {
+    for (const [type, sev] of [['badge_swipe_fail', 'minor'], ['motion_detected', 'serious']]) {
       const res = await fetch(`${baseUrl}/events`, {
         method: 'POST',
         headers: {

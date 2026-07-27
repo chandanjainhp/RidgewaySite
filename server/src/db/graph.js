@@ -171,6 +171,16 @@ const getEventsNearLocation = (locationId, radiusMeters = 300) => {
         events.push(node);
       }
 
+      // Add events directly connected to this location
+      graph.edges.forEach((edge) => {
+        if (edge.to === currentId && edge.type === 'OCCURRED_AT') {
+          const eventNode = graph.nodes.get(edge.from);
+          if (eventNode && eventNode.type === 'event') {
+            events.push(eventNode);
+          }
+        }
+      });
+
       // Follow NEAR edges within radius
       graph.edges.forEach((edge) => {
         if (
@@ -300,9 +310,9 @@ const addEventNode = (event) => {
   try {
     // Add event node
     addNode({
+      ...event,
       id: event.id,
       type: 'event',
-      ...event,
     });
 
     // Add OCCURRED_AT edge if location is specified

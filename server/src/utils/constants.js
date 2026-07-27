@@ -1,9 +1,9 @@
 // ========== EVENT TYPES ==========
 export const EVENT_TYPES = {
   FENCE_ALERT: 'fence_alert',
-  VEHICLE_DETECTED: 'vehicle_detected',
-  BADGE_FAIL: 'badge_fail',
-  MOTION_SENSOR: 'motion_sensor',
+  VEHICLE_DETECTED: 'vehicle_entry',
+  BADGE_FAIL: 'badge_swipe_fail',
+  MOTION_SENSOR: 'motion_detected',
   LIGHT_ANOMALY: 'light_anomaly',
   DRONE_OBSERVATION: 'drone_observation',
 };
