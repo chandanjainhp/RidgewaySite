@@ -2,13 +2,17 @@
 
 import React, { useEffect, useRef } from "react";
 import { useInvestigationStore } from "@/store/investigationStore";
+import { useInvestigationData } from "@/hooks/useInvestigation";
 import AgentFeedItem from "./AgentFeedItem";
 
 export default function AgentFeed() {
-  const feedItems  = useInvestigationStore((s) => s.feedItems);
+  const jobId = useInvestigationStore((s) => s.jobId);
   const jobStatus  = useInvestigationStore((s) => s.jobStatus);
   const stats      = useInvestigationStore((s) => s.investigationStats);
   const errorMsg   = useInvestigationStore((s) => s.error);
+
+  // Fetch investigation data for final results display
+  const { data: investigation, isLoading } = useInvestigationData(jobId);
 
   const scrollRef = useRef(null);
   const bottomRef = useRef(null);
@@ -19,7 +23,79 @@ export default function AgentFeed() {
     if (el.scrollHeight - el.scrollTop - el.clientHeight <= 50) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
     }
-  }, [feedItems.length]);
+  }, [investigation?.toolCallSequence?.length, investigation?.evidenceChain?.length]);
+
+  // Convert toolCallSequence and evidenceChain to feed items for display
+  const feedItems = React.useMemo(() => {
+    if (!investigation) return [];
+    
+    const items = [];
+    
+    // Add tool calls as feed items
+    if (investigation.toolCallSequence) {
+      investigation.toolCallSequence.forEach((call, index) => {
+        items.push({
+          id: `tool-${index}`,
+          type: "tool_called",
+          timestamp: call.timestamp || new Date().toISOString(),
+          summary: call.toolName || `Tool call ${index + 1}`,
+          data: {
+            toolName: call.toolName,
+            toolInput: call.toolInput,
+            durationMs: call.durationMs,
+          },
+          isNew: false,
+        });
+        
+        if (call.toolResult) {
+          items.push({
+            id: `result-${index}`,
+            type: "tool_result",
+            timestamp: call.timestamp || new Date().toISOString(),
+            summary: `Result for ${call.toolName}`,
+            data: call.toolResult,
+            isNew: false,
+          });
+        }
+      });
+    }
+    
+    // Add evidence chain items
+    if (investigation.evidenceChain) {
+      investigation.evidenceChain.forEach((evidence, index) => {
+        items.push({
+          id: `evidence-${index}`,
+          type: "reasoning",
+          timestamp: investigation.createdAt || new Date().toISOString(),
+          summary: evidence.finding || `Evidence ${index + 1}`,
+          data: {
+            finding: evidence.finding,
+            source: evidence.source,
+            confidence: evidence.confidence,
+          },
+          isNew: false,
+        });
+      });
+    }
+    
+    // Add classification if present
+    if (investigation.classification) {
+      items.push({
+        id: "classification",
+        type: "classification",
+        timestamp: investigation.updatedAt || new Date().toISOString(),
+        summary: investigation.classification.reasoning || "Final classification",
+        data: {
+          severity: investigation.classification.severity,
+          confidence: investigation.classification.confidence,
+          reasoning: investigation.classification.reasoning,
+        },
+        isNew: false,
+      });
+    }
+    
+    return items;
+  }, [investigation]);
 
   return (
     <div style={{
@@ -45,25 +121,23 @@ export default function AgentFeed() {
           </div>
         )}
 
-        {jobStatus === "connecting" && (
-          <div style={{
-            marginTop: "40px", textAlign: "center",
-            fontFamily: "var(--font-mono)", fontSize: "10px",
-            color: "var(--term-dim)", letterSpacing: "0.12em", textTransform: "uppercase",
-          }}>
-            Connecting<span className="dot-pulse"> .</span>
-            <span className="dot-pulse [animation-delay:0.2s]"> .</span>
-            <span className="dot-pulse [animation-delay:0.4s]"> .</span>
-          </div>
-        )}
-
         {jobStatus === "running" && feedItems.length === 0 && (
           <div style={{
             marginTop: "40px", textAlign: "center",
             fontFamily: "var(--font-mono)", fontSize: "10px",
             color: "var(--term-dim)", letterSpacing: "0.12em", textTransform: "uppercase",
           }}>
-            Argus is gathering context
+            Polling for results
+          </div>
+        )}
+
+        {isLoading && jobStatus === "running" && (
+          <div style={{
+            marginTop: "40px", textAlign: "center",
+            fontFamily: "var(--font-mono)", fontSize: "10px",
+            color: "var(--term-dim)", letterSpacing: "0.12em", textTransform: "uppercase",
+          }}>
+            Loading investigation data…
           </div>
         )}
 

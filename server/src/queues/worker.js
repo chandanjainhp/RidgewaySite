@@ -5,7 +5,6 @@ import { checkNightComplete } from '../services/investigation.service.js';
 import Investigation from '../models/investigation.model.js';
 import WebhookDelivery from '../models/webhookDelivery.model.js';
 import Organisation from '../models/organisation.model.js';
-import { emitToStream } from '../lib/streamRegistry.js';
 import OutboxEvent from '../models/outboxEvent.model.js';
 import { startOutboxPoller, stopOutboxPoller } from '../workers/outbox-poller.js';
 
@@ -96,51 +95,12 @@ export const startWorker = async () => {
           await investigation.save();
           console.log(`[Worker] Investigation status updated to running: ${incidentId}`);
 
-          // ========== DEFINE EMIT PROGRESS CALLBACK ==========
-          const emitProgress = async (progressEvent) => {
-            try {
-              // Update BullMQ job progress
-              await job.updateProgress(progressEvent);
-
-              const streamEvent = {
-                type: progressEvent.type,
-                jobId,
-                timestamp: new Date().toISOString(),
-                data: progressEvent.data,
-              };
-
-              await emitToStream(jobId, streamEvent);
-
-              console.log(
-                `[Worker] Progress emitted to stream for job ${jobId}: ${progressEvent.type}`
-              );
-            } catch (error) {
-              console.error(
-                `[Worker] Error emitting progress for job ${jobId}:`,
-                error.message
-              );
-              // Don't throw — allow investigation to continue even if progress emit fails
-            }
-          };
-
-          await emitProgress({
-            type: 'started',
-            data: {
-              incidentId,
-              investigationId,
-              summary: 'Investigation started',
-            },
-          });
-
           // ========== RUN INVESTIGATION ==========
-          console.log('[Worker] Waiting 3s for SSE stream to register...');
-          await new Promise(resolve => setTimeout(resolve, 3000));
           console.log('[Worker] Starting investigation now:', incidentId);
 
           const investigationResult = await runInvestigation(
             investigation.incidentId,
             jobId,
-            emitProgress,
             investigation
           );
 
@@ -184,15 +144,6 @@ export const startWorker = async () => {
             nightCheckResult
           );
 
-          await emitProgress({
-            type: 'complete',
-            data: {
-              investigationId,
-              summary: 'Investigation complete',
-              classification: investigationResult.classification,
-            },
-          });
-
           // ========== RETURN RESULT ==========
           return {
             jobId,
@@ -214,13 +165,6 @@ export const startWorker = async () => {
               failedInvestigation.status = 'failed';
               failedInvestigation.failureReason = error.message;
               await failedInvestigation.save();
-
-              await emitToStream(jobId, {
-                type: 'failed',
-                jobId,
-                timestamp: new Date().toISOString(),
-                data: { message: error.message },
-              });
 
               console.log(
                 `[Worker] Investigation status updated to failed: ${incidentId}`

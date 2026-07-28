@@ -3,7 +3,6 @@ import Investigation from '../models/investigation.model.js';
 import '../models/incident.model.js';
 import { ApiError } from '../utils/api-error.js';
 import { getClaudeClient, getModelName } from '../utils/anthropic.js';
-import { emitToStream } from '../lib/streamRegistry.js';
 
 const BRIEFING_PROSE_INSTRUCTION =
   'Write the following briefing section as clear plain English prose. Do not use JSON format. Do not use markdown. Write natural paragraphs that an operator can read aloud to the site head.';
@@ -161,13 +160,7 @@ export const buildBriefing = async (orgId, nightDate, existingBriefingId = null)
 
     const briefingId = briefing._id.toString();
 
-    await emitToStream(briefingId, {
-      type: 'briefing:start',
-      briefingId,
-      data: { nightDate, investigationCount: investigations.length },
-    });
-
-    // Draft each section sequentially, emitting progress
+    // Draft each section sequentially
     const sections = [];
     for (let i = 0; i < SECTION_NAMES.length; i++) {
       const name = SECTION_NAMES[i];
@@ -175,15 +168,6 @@ export const buildBriefing = async (orgId, nightDate, existingBriefingId = null)
         await draftSection(name, investigations, severityBuckets)
       );
       sections.push({ name, content, lastEditedAt: new Date() });
-
-      await emitToStream(briefingId, {
-        type: 'briefing:section',
-        briefingId,
-        data: {
-          sectionName: name,
-          progress: Math.round(((i + 1) / SECTION_NAMES.length) * 100),
-        },
-      });
     }
 
     const metadata = {
@@ -201,23 +185,12 @@ export const buildBriefing = async (orgId, nightDate, existingBriefingId = null)
     briefing.generatedAt = new Date();
     await briefing.save();
 
-    await emitToStream(briefingId, {
-      type: 'briefing:complete',
-      briefingId,
-      data: { status: 'draft' },
-    });
-
     return briefing;
   } catch (error) {
     if (briefing) {
       briefing.status = 'failed';
       briefing.failureReason = error.message;
       try { await briefing.save(); } catch {}
-      await emitToStream(briefing._id.toString(), {
-        type: 'briefing:failed',
-        briefingId: briefing._id.toString(),
-        data: { reason: error.message },
-      });
     }
     throw new ApiError(500, 'Failed to generate briefing', [error.message]);
   }

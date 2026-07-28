@@ -4,7 +4,6 @@ import {
   updateBriefingSection,
   approveBriefing,
   retryBriefing,
-  streamBriefingProgress,
 } from '../controllers/briefing.controller.js';
 import { authenticateRequest, requireRole, scopeToOrg } from '../middlewares/auth.middleware.js';
 import validate from '../middlewares/validation.middleware.js';
@@ -29,8 +28,5 @@ router.post('/:id/approve', asyncHandler(approveBriefing));
 
 // POST /briefings/:id/retry  (org_admin+)
 router.post('/:id/retry', requireRole('super_admin', 'org_admin'), asyncHandler(retryBriefing));
-
-// GET /briefings/:id/stream  — SSE
-router.get('/:id/stream', streamBriefingProgress);
 
 export default router;

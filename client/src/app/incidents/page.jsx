@@ -4,8 +4,7 @@ import { useMemo, useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useIncidents } from "@/hooks/useIncidents";
-import { useStartInvestigation } from "@/hooks/useInvestigation";
-import { useAgentStream } from "@/hooks/useAgentStream";
+import { useStartInvestigation, usePollInvestigationStatus } from "@/hooks/useInvestigation";
 import { useInvestigationStore } from "@/store/investigationStore";
 import AgentFeed from "@/components/agent/AgentFeed";
 import EventPanel from "@/components/events/EventPanel";
@@ -61,13 +60,14 @@ function IncidentsWorkspace({ nightDate }) {
     return incidents.find((i) => i._id === selectedIncidentId);
   }, [incidents, selectedIncidentId]);
 
-  // Connect to investigation store and SSE stream
+  // Connect to investigation store and polling
   const jobId = useInvestigationStore((s) => s.jobId);
   const jobStatus = useInvestigationStore((s) => s.jobStatus);
   const stats = useInvestigationStore((s) => s.investigationStats);
   const { mutate: startInvestigation, isPending: isStarting } = useStartInvestigation();
-
-  useAgentStream(jobId);
+  
+  // Poll investigation status when job is active
+  usePollInvestigationStatus(jobId);
 
   // If selectedIncidentId is not set, select the first matching incident if available
   useEffect(() => {

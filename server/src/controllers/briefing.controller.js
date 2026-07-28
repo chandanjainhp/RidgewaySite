@@ -9,8 +9,6 @@ import {
   buildBriefing,
 } from '../services/briefing.service.js';
 import { logAudit } from '../utils/audit.js';
-import { registerStream, unregisterStream } from '../lib/streamRegistry.js';
-import { getAgentEvents } from '../db/redis.js';
 import OutboxEvent from '../models/outboxEvent.model.js';
 
 const OUTBOX_ENABLED = process.env.OUTBOX_ENABLED === 'true';
@@ -152,53 +150,4 @@ export const retryBriefing = async (req, res) => {
     .catch((err) => console.error('[BriefingController] Retry build failed:', err.message));
 
   res.status(202).json(new ApiResponse(202, { id: briefing._id, status: 'generating' }, 'Briefing retry queued'));
-};
-
-export const streamBriefingProgress = async (req, res) => {
-  const briefing = await Briefing.findOne({ _id: req.params.id, ...req.orgFilter }).lean();
-  if (!briefing) throw new ApiError(404, 'Briefing not found');
-
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no');
-  res.flushHeaders();
-
-  const briefingId = briefing._id.toString();
-
-  const write = (event) => {
-    if (!res.writableEnded) {
-      res.write(`data: ${JSON.stringify(event)}\n\n`);
-    }
-  };
-
-  // Replay history
-  try {
-    const history = await getAgentEvents(briefingId);
-    history.forEach((event) => write(event));
-  } catch {}
-
-  // If already done, send final event and close
-  if (briefing.status === 'draft' || briefing.status === 'approved') {
-    write({ type: 'briefing:complete', briefingId, data: { status: briefing.status } });
-    res.end();
-    return;
-  }
-  if (briefing.status === 'failed') {
-    write({ type: 'briefing:failed', briefingId, data: { reason: briefing.failureReason } });
-    res.end();
-    return;
-  }
-
-  registerStream(briefingId, write);
-  write({ type: 'briefing:connected', briefingId, data: { briefingId } });
-
-  const heartbeat = setInterval(() => {
-    if (!res.writableEnded) res.write(`: heartbeat ${Date.now()}\n\n`);
-  }, 15000);
-
-  req.on('close', () => {
-    unregisterStream(briefingId);
-    clearInterval(heartbeat);
-  });
 };

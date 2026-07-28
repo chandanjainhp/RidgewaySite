@@ -5,7 +5,7 @@ import Link from "next/link";
 import AppShell from "@/components/layout/AppShell";
 import BriefingDocument from "@/components/briefing/BriefingDocument";
 import ApproveButton from "@/components/briefing/ApproveButton";
-import { useBriefing, useBriefingStream } from "@/hooks/useBriefing";
+import { useBriefing } from "@/hooks/useBriefing";
 import { formatNightLabel } from "@/lib/formatters";
 import api from "@/lib/api";
 import { toast } from "sonner";
@@ -62,34 +62,7 @@ export default function BriefingPage() {
   const isApproved = data?.isApproved || false;
   const canApprove = data?.canApprove || false;
 
-  // Generation progress state (driven by SSE)
-  const [genProgress, setGenProgress] = useState(0);
-  const [genCompletedSections, setGenCompletedSections] = useState([]);
-
   const isGenerating = briefing?.status === "generating";
-
-  useBriefingStream(isGenerating ? briefing?.id : null, {
-    onSection: (name, progress) => {
-      setGenProgress(progress);
-      setGenCompletedSections((prev) => [...new Set([...prev, name])]);
-    },
-    onComplete: () => {
-      setGenProgress(100);
-      refetch();
-    },
-    onFailed: (reason) => {
-      toast.error(`Briefing generation failed: ${reason || "unknown error"}`);
-      refetch();
-    },
-  });
-
-  // Reset progress counters when briefing changes
-  useEffect(() => {
-    if (!isGenerating) {
-      setGenProgress(0);
-      setGenCompletedSections([]);
-    }
-  }, [isGenerating]);
 
   const urgencyColor = {
     normal: "var(--fg-3)",
@@ -207,10 +180,6 @@ export default function BriefingPage() {
 
   // ── STATE 2: Generating ───────────────────────────────────────
   if (briefing.status === "generating") {
-    const progressPct = Math.max(
-      genProgress,
-      briefing.generationStartedAt ? 5 : 0,
-    );
     return (
       <AppShell variant="briefing">
         <div
@@ -264,7 +233,7 @@ export default function BriefingPage() {
             </div>
           </div>
 
-          {/* Progress bar */}
+          {/* Progress indicator - simplified for polling */}
           <div style={{ width: "100%", maxWidth: "480px" }}>
             <div
               style={{
@@ -279,75 +248,23 @@ export default function BriefingPage() {
                 style={{
                   height: "100%",
                   background: "var(--accent)",
-                  width: `${progressPct}%`,
-                  transition: "width 400ms var(--ease-out)",
+                  width: "100%",
+                  animation: "shimmer 1.5s ease-in-out infinite",
                 }}
               />
             </div>
             <div
               style={{
                 display: "flex",
-                justifyContent: "space-between",
+                justifyContent: "center",
                 marginTop: "8px",
                 fontFamily: "var(--font-mono)",
                 fontSize: "11px",
                 color: "var(--fg-3)",
               }}
             >
-              <span>{progressPct}% complete</span>
-              <span>
-                {genCompletedSections.length} / {SECTION_ORDER.length} sections
-              </span>
+              <span>Polling for completion…</span>
             </div>
-          </div>
-
-          {/* Section checklist */}
-          <div
-            style={{
-              width: "100%",
-              maxWidth: "480px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "6px",
-            }}
-          >
-            {SECTION_ORDER.map((name) => {
-              const done = genCompletedSections.includes(name);
-              return (
-                <div
-                  key={name}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "11px",
-                    color: done ? "var(--fg-2)" : "var(--fg-4)",
-                  }}
-                >
-                  <span
-                    style={{
-                      width: "14px",
-                      height: "14px",
-                      borderRadius: "2px",
-                      background: done
-                        ? "var(--accent)"
-                        : "var(--bg-surface-2)",
-                      border: `1px solid ${done ? "var(--accent)" : "var(--border-default)"}`,
-                      flexShrink: 0,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "9px",
-                      color: "var(--bg-base)",
-                    }}
-                  >
-                    {done ? "✓" : ""}
-                  </span>
-                  {name.replace(/_/g, " ").toUpperCase()}
-                </div>
-              );
-            })}
           </div>
         </div>
       </AppShell>

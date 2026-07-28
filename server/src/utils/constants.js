@@ -91,7 +91,6 @@ export const REDIS_KEY_PREFIXES = {
   AGENT_STATE_PREFIX: 'agent:state:',
   AGENT_CONV_PREFIX: 'agent:conv:',
   SITE_FACTS_PREFIX: 'site:facts:',
-  SSE_SUBSCRIBERS_PREFIX: 'sse:subscribers:',
 };
 
 // ========== SITE CONFIGURATION ==========

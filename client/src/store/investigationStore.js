@@ -2,29 +2,12 @@
 
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-import { formatAgentFeedSummary } from "@/lib/formatters"; // Extrapolating the dependency from standard structure
-
-/**
- * Utility for generating lightweight IDs for the feed.
- */
-const generateId = () => {
-  if (
-    typeof crypto !== "undefined" &&
-    typeof crypto.randomUUID === "function"
-  ) {
-    return crypto.randomUUID();
-  }
-  return Math.random().toString(36).substring(2) + Date.now().toString(36);
-};
 
 // Initial state object for reset capability
 const initialState = {
   jobId: null,
   jobIds: [],
-  jobStatus: "idle", // 'idle' | 'connecting' | 'running' | 'complete' | 'failed'
-
-  feedItems: [],
-  classifiedIncidents: {},
+  jobStatus: "idle", // 'idle' | 'running' | 'complete' | 'failed'
 
   investigationStats: {
     totalIncidents: 0,
@@ -34,7 +17,6 @@ const initialState = {
   },
 
   error: null,
-  connectedAt: null,
 };
 
 export const useInvestigationStore = create(
@@ -49,82 +31,9 @@ export const useInvestigationStore = create(
         set(
           {
             jobStatus: status,
-            connectedAt:
-              status === "connecting" || status === "running"
-                ? new Date()
-                : get().connectedAt,
           },
           false,
           "setJobStatus",
-        ),
-
-      addFeedItem: (progressEvent) =>
-        set(
-          (state) => {
-            const newItem = {
-              id: generateId(),
-              type: progressEvent.type,
-              timestamp: progressEvent.timestamp || new Date().toISOString(),
-              // Summary parsing hook defined previously, can be applied here or at the component level.
-              summary:
-                formatAgentFeedSummary(progressEvent) || progressEvent.summary,
-              data:
-                progressEvent.payload || progressEvent.data || progressEvent,
-              isNew: true,
-            };
-
-            const newFeedItems = [...state.feedItems, newItem];
-
-            // Memory Management -> trim up to 150 items remaining after passing 200 elements.
-            if (newFeedItems.length > 200) {
-              newFeedItems.splice(0, 50);
-            }
-
-            return { feedItems: newFeedItems };
-          },
-          false,
-          "addFeedItem",
-        ),
-
-      markFeedItemRead: (itemId) =>
-        set(
-          (state) => ({
-            feedItems: state.feedItems.map((item) =>
-              item.id === itemId ? { ...item, isNew: false } : item,
-            ),
-          }),
-          false,
-          "markFeedItemRead",
-        ),
-
-      addClassification: (incidentId, classificationData) =>
-        set(
-          (state) => {
-            const { severity, confidence, reasoning } = classificationData;
-            const isEscalation = severity === "serious";
-
-            return {
-              classifiedIncidents: {
-                ...state.classifiedIncidents,
-                [incidentId]: {
-                  severity,
-                  confidence,
-                  reasoning,
-                  classifiedAt: new Date().toISOString(),
-                },
-              },
-              investigationStats: {
-                ...state.investigationStats,
-                resolvedIncidents:
-                  state.investigationStats.resolvedIncidents + 1,
-                escalationCount:
-                  state.investigationStats.escalationCount +
-                  (isEscalation ? 1 : 0),
-              },
-            };
-          },
-          false,
-          "addClassification",
         ),
 
       setInvestigationStats: (stats) =>
@@ -161,7 +70,7 @@ export const useInvestigationStore = create(
 export const useIsInvestigating = () =>
   useInvestigationStore(
     (state) =>
-      state.jobStatus === "running" || state.jobStatus === "connecting",
+      state.jobStatus === "running",
   );
 
 export const useProgressPercent = () =>
@@ -173,8 +82,3 @@ export const useProgressPercent = () =>
 
 export const useEscalationCount = () =>
   useInvestigationStore((state) => state.investigationStats.escalationCount);
-
-export const useNewFeedCount = () =>
-  useInvestigationStore(
-    (state) => state.feedItems.filter((i) => i.isNew).length,
-  );

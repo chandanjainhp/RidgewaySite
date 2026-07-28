@@ -301,30 +301,7 @@ describe('Group 3 — Investigation', () => {
     }
   });
 
-  test('Investigation SSE stream endpoint exists', async () => {
-    if (!createdJobId) {
-      console.log('[skip] No jobId — investigation not started (no incidents)');
-      return;
-    }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-    try {
-      const res = await fetch(`${baseUrl}/investigations/${createdJobId}/stream`, {
-        headers: { 'Authorization': `Bearer ${testJwt}` },
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      // SSE endpoint should return 200 and text/event-stream content-type
-      expect(res.status).toBe(200);
-      expect(res.headers.get('content-type')).toContain('text/event-stream');
-    } catch (err) {
-      clearTimeout(timeoutId);
-      // AbortError is fine — it means we connected but timed out reading, which is OK for a stream
-      if (err.name !== 'AbortError') throw err;
-    }
-  });
 });
 
 // ── GROUP 4: Briefing ─────────────────────────────────────────────────────────

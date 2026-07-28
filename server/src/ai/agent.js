@@ -43,14 +43,13 @@ const extractTokenUsage = (response) => {
 /**
  * Main investigation orchestrator
  * @param {string} incidentId - MongoDB incident ID
- * @param {string} jobId - BullMQ job ID for SSE channel
- * @param {function} emitProgress - callback(progressEvent) for real-time streaming
+ * @param {string} jobId - BullMQ job ID
+ * @param {object} investigationRecord - the investigation record to update
  * @returns {Promise<object>} investigation record
  */
 export const runInvestigation = async (
   incidentId,
   jobId,
-  emitProgress,
   investigationRecord = null,
 ) => {
   const startTime = Date.now();
@@ -71,12 +70,6 @@ export const runInvestigation = async (
     if (!incident) {
       const error = `Incident not found: ${incidentId}`;
       console.error(`[Agent] ${error}`);
-      await emitProgress({
-        type: "error",
-        jobId,
-        timestamp: new Date(),
-        data: { summary: error },
-      });
       throw new Error(error);
     }
 
@@ -210,24 +203,6 @@ Begin by gathering all available data for this location and these event types. O
 
             console.log(`[Agent] Tool call ${toolCallCount}: ${toolName}`);
 
-            // Emit tool called event
-            try {
-              await emitProgress({
-                type: "tool_called",
-                jobId,
-                timestamp: new Date(),
-                data: {
-                  toolName,
-                  summary: `Calling ${toolName}...`,
-                },
-              });
-            } catch (err) {
-              console.error(
-                `[Agent] Error emitting tool_called progress:`,
-                err.message,
-              );
-            }
-
             // Execute tool and capture result
             const toolStartTime = Date.now();
             let toolResult;
@@ -256,26 +231,6 @@ Begin by gathering all available data for this location and these event types. O
               durationMs: toolDuration,
               timestamp: new Date(),
             });
-
-            // Emit tool result event
-            try {
-              await emitProgress({
-                type: "tool_result",
-                jobId,
-                timestamp: new Date(),
-                data: {
-                  toolName,
-                  result: toolResult,
-                  success: toolResult.success !== false,
-                  summary: toolResult.message || `${toolName} completed`,
-                },
-              });
-            } catch (err) {
-              console.error(
-                `[Agent] Error emitting tool_result progress:`,
-                err.message,
-              );
-            }
 
             // Add tool result to conversation history for next Claude call
             toolResults.push({
@@ -351,24 +306,6 @@ Begin by gathering all available data for this location and these event types. O
               uncertainties: ["Classification not in expected JSON format"],
             };
           }
-
-          // Emit classification event
-          try {
-            await emitProgress({
-              type: "classification",
-              jobId,
-              timestamp: new Date(),
-              data: {
-                classification: classification,
-                summary: `Incident classified as: ${classification.severity}`,
-              },
-            });
-          } catch (err) {
-            console.error(
-              `[Agent] Error emitting classification progress:`,
-              err.message,
-            );
-          }
         }
         // ===== CASE 3: Unexpected stop reason =====
         else {
@@ -385,18 +322,6 @@ Begin by gathering all available data for this location and these event types. O
           JSON.stringify(loopError, null, 2),
         );
         console.error(`[Agent] Error in loop iteration:`, loopError.message);
-
-        // Emit error progress
-        try {
-          await emitProgress({
-            type: "error",
-            jobId,
-            timestamp: new Date(),
-            data: { summary: `Loop error: ${loopError.message}` },
-          });
-        } catch (err) {
-          console.error(`[Agent] Error emitting error progress:`, err.message);
-        }
 
         throw loopError;
       }
@@ -453,25 +378,6 @@ Begin by gathering all available data for this location and these event types. O
       agentSummary: classification?.reasoning?.substring(0, 500),
     });
 
-    // Emit completion event if not already sent
-    try {
-      if (loopComplete && classification) {
-        // Classification already emitted in the loop
-        await emitProgress({
-          type: "complete",
-          jobId,
-          timestamp: new Date(),
-          data: {
-            summary: `Investigation complete`,
-            investigationId: investigation._id,
-            duration,
-          },
-        });
-      }
-    } catch (err) {
-      console.error(`[Agent] Error emitting completion progress:`, err.message);
-    }
-
     console.log(`[Agent] Investigation complete in ${duration}ms`);
     return investigation;
   } catch (fatalError) {
@@ -495,21 +401,6 @@ Begin by gathering all available data for this location and these event types. O
           saveError.message,
         );
       }
-    }
-
-    // Emit final error
-    try {
-      await emitProgress({
-        type: "error",
-        jobId,
-        timestamp: new Date(),
-        data: { summary: `Investigation failed: ${fatalError.message}` },
-      });
-    } catch (emitError) {
-      console.error(
-        `[Agent] Error emitting fatal error progress:`,
-        emitError.message,
-      );
     }
 
     throw fatalError;

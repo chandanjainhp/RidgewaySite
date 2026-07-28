@@ -1,5 +1,4 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
 import { getLatestBriefing, updateBriefingSection, approveBriefing } from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -29,49 +28,6 @@ export function useBriefing(nightDate, options = {}) {
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     ...options,
   });
-}
-
-/**
- * Subscribe to briefing generation SSE when status === 'generating'.
- * Calls onSection(name, progress), onComplete(), onFailed(reason) as events arrive.
- * Returns unsubscribe function.
- */
-export function useBriefingStream(briefingId, { onSection, onComplete, onFailed } = {}) {
-  const queryClient = useQueryClient();
-  const esRef = useRef(null);
-
-  useEffect(() => {
-    if (!briefingId) return;
-
-    const es = new EventSource(`/api/v1/briefings/${briefingId}/stream`, { withCredentials: true });
-    esRef.current = es;
-
-    es.onmessage = (e) => {
-      try {
-        const event = JSON.parse(e.data);
-        if (event.type === 'briefing:section') {
-          onSection?.(event.data.sectionName, event.data.progress);
-        } else if (event.type === 'briefing:complete') {
-          onComplete?.();
-          queryClient.invalidateQueries({ queryKey: ['briefing'] });
-          es.close();
-        } else if (event.type === 'briefing:failed') {
-          onFailed?.(event.data?.reason);
-          queryClient.invalidateQueries({ queryKey: ['briefing'] });
-          es.close();
-        }
-      } catch {}
-    };
-
-    es.onerror = () => {
-      es.close();
-    };
-
-    return () => {
-      es.close();
-      esRef.current = null;
-    };
-  }, [briefingId]);
 }
 
 export function useUpdateBriefingSection(options = {}) {

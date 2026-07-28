@@ -1,7 +1,8 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { startInvestigation, getInvestigation, getIncidents } from "@/lib/api";
 import { useInvestigationStore } from "@/store/investigationStore";
 import { toast } from "sonner";
+import { useEffect } from "react";
 
 export function useStartInvestigation(options = {}) {
   const setJobId = useInvestigationStore((state) => state.setJobId);
@@ -54,9 +55,14 @@ export function useStartInvestigation(options = {}) {
         setInvestigationStats({ totalIncidents: result.totalJobs });
       }
 
+      // Start polling for investigation status
+      if (result.jobIds && result.jobIds.length > 0) {
+        setJobStatus("running");
+      }
+
       const toastMessages = {
         already_running:
-          "Investigation already running — connecting to stream.",
+          "Investigation already running — polling for status.",
         already_complete: "Night already investigated — loading results.",
       };
       toast.success(
@@ -80,6 +86,39 @@ export function useStartInvestigation(options = {}) {
     },
     ...options,
   });
+}
+
+export function usePollInvestigationStatus(jobId, options = {}) {
+  const queryClient = useQueryClient();
+  const setJobStatus = useInvestigationStore((state) => state.setJobStatus);
+  const setInvestigationStats = useInvestigationStore((state) => state.setInvestigationStats);
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["investigation-poll", jobId],
+    queryFn: () => getInvestigation(jobId),
+    enabled: !!jobId,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (!data) return 2000; // Initial poll
+      if (data.status === 'running' || data.status === 'queued') return 2000; // Poll every 2s while running
+      return false; // Stop polling when complete or failed
+    },
+    onSuccess: (data) => {
+      if (data) {
+        setJobStatus(data.status);
+        // Update stats from investigation data
+        if (data.toolCallSequence) {
+          setInvestigationStats({
+            resolvedIncidents: data.toolCallSequence.length,
+            totalIncidents: data.totalToolCalls || data.toolCallSequence.length,
+          });
+        }
+      }
+    },
+    ...options,
+  });
+
+  return { data, isLoading, error };
 }
 
 export function useInvestigationData(id, options = {}) {
