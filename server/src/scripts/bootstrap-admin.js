@@ -1,15 +1,9 @@
 /**
  * bootstrap-admin.js
- * Wipes all collections and creates a fresh super_admin.
+ * Wipes all collections, creates Site singleton + first super_admin.
  *
- * Usage:
- *   MONGODB_URL=<url> ADMIN_EMAIL=<email> ADMIN_PASSWORD=<pass> bun run src/scripts/bootstrap-admin.js
- *
- * Env vars (falls back to .env):
- *   MONGODB_URL       — MongoDB connection string
- *   ADMIN_EMAIL       — super_admin email (required)
- *   ADMIN_PASSWORD    — super_admin password (required, min 8 chars)
- *   WIPE_ALL=true     — required safety flag to prevent accidental runs
+ *   MONGODB_URL=<url> ADMIN_EMAIL=<email> ADMIN_PASSWORD=<pass> WIPE_ALL=true \
+ *     bun run src/scripts/bootstrap-admin.js
  */
 
 import 'dotenv/config';
@@ -20,6 +14,7 @@ const MONGODB_URI = process.env.MONGODB_URL || process.env.MONGODB_URI;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const WIPE_ALL = process.env.WIPE_ALL;
+const SITE_NAME = process.env.SITE_NAME || 'Sentinel Site';
 
 if (!MONGODB_URI) {
   console.error('[bootstrap] MONGODB_URL not set');
@@ -43,8 +38,6 @@ async function run() {
   console.log('[bootstrap] Connected:', MONGODB_URI.replace(/:\/\/[^@]+@/, '://***@'));
 
   const db = mongoose.connection.db;
-
-  // List and drop all collections
   const collections = await db.listCollections().toArray();
   for (const col of collections) {
     await db.collection(col.name).drop();
@@ -52,30 +45,43 @@ async function run() {
   }
   console.log(`[bootstrap] Wiped ${collections.length} collections`);
 
-  // Define minimal inline schema so we don't need the full model chain
   const userSchema = new mongoose.Schema({
     email: String,
     username: String,
     password: String,
     role: String,
-    orgId: { type: mongoose.Schema.Types.ObjectId, default: null },
     isActive: { type: Boolean, default: true },
     isEmailVerified: { type: Boolean, default: true },
     tokenVersion: { type: Number, default: 0 },
     firstLogin: { type: Boolean, default: false },
   });
+  const siteSchema = new mongoose.Schema({
+    name: String,
+    timezone: { type: String, default: 'UTC' },
+    locationLabel: String,
+    coordinates: { lat: Number, lng: Number },
+    webhookUrl: String,
+    webhookSecret: String,
+    webhookEnabled: { type: Boolean, default: true },
+    siteGeometry: mongoose.Schema.Types.Mixed,
+  }, { timestamps: true });
 
-  const User = mongoose.model('User', userSchema);
+  const User = mongoose.models.User || mongoose.model('User', userSchema);
+  const Site = mongoose.models.Site || mongoose.model('Site', siteSchema);
+
+  const site = await Site.create({
+    name: SITE_NAME,
+    timezone: process.env.SITE_TIMEZONE || 'UTC',
+  });
+  console.log('[bootstrap] Site created:', site._id.toString(), site.name);
 
   const hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
   const username = ADMIN_EMAIL.split('@')[0];
-
   const admin = await User.create({
     email: ADMIN_EMAIL,
     username,
     password: hash,
     role: 'super_admin',
-    orgId: null,
     isActive: true,
     isEmailVerified: true,
     tokenVersion: 0,
@@ -88,7 +94,7 @@ async function run() {
   console.log(`  role:  ${admin.role}`);
 
   await mongoose.disconnect();
-  console.log('[bootstrap] Done — ready to log in at /admin/login');
+  console.log('[bootstrap] Done — ready to log in');
 }
 
 run().catch((err) => {

@@ -22,12 +22,6 @@ const apiKeySchema = new mongoose.Schema(
       type: [String],
       default: ['events:read', 'events:write'],
     },
-    orgId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Organisation',
-      required: true,
-      index: true,
-    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -59,8 +53,5 @@ const apiKeySchema = new mongoose.Schema(
     timestamps: true,
   }
 );
-
-// Indexes for common queries
-apiKeySchema.index({ orgId: 1, isActive: 1 });
 
 export default mongoose.model('ApiKey', apiKeySchema);

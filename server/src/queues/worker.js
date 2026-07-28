@@ -4,7 +4,6 @@ import { runInvestigation } from '../ai/agent.js';
 import { checkNightComplete } from '../services/investigation.service.js';
 import Investigation from '../models/investigation.model.js';
 import WebhookDelivery from '../models/webhookDelivery.model.js';
-import Organisation from '../models/organisation.model.js';
 import OutboxEvent from '../models/outboxEvent.model.js';
 import { startOutboxPoller, stopOutboxPoller } from '../workers/outbox-poller.js';
 
@@ -74,7 +73,7 @@ export const startWorker = async () => {
     investigationWorker = new Worker(
       'investigations',
       async (job) => {
-        const { investigationId, incidentId, nightDate, orgId } = job.data;
+        const { investigationId, incidentId, nightDate } = job.data;
         const jobId = job.id;
 
         console.log(
@@ -131,14 +130,14 @@ export const startWorker = async () => {
             timestamp: new Date(),
           };
           if (OUTBOX_ENABLED) {
-            await OutboxEvent.create({ orgId, eventType: 'investigation.completed', payload: webhookPayload, status: 'pending' });
+            await OutboxEvent.create({ eventType: 'investigation.completed', payload: webhookPayload, status: 'pending' });
           } else {
             const { triggerWebhook } = await import('../services/webhook.service.js');
-            triggerWebhook(orgId, 'investigation.completed', webhookPayload);
+            triggerWebhook('investigation.completed', webhookPayload);
           }
 
           // ========== CHECK IF NIGHT IS COMPLETE ==========
-          const nightCheckResult = await checkNightComplete(nightDate, { orgId });
+          const nightCheckResult = await checkNightComplete(nightDate);
           console.log(
             `[Worker] Night completion check:`,
             nightCheckResult
@@ -229,8 +228,9 @@ export const startWorker = async () => {
           return { status: 'already_delivered' };
         }
 
-        const org = await Organisation.findById(delivery.orgId).lean();
-        if (!org || !org.config?.webhookUrl || !org.config?.webhookEnabled) {
+        const { getSite } = await import('../models/site.model.js');
+        const site = await getSite();
+        if (!site.webhookUrl || !site.webhookEnabled) {
           delivery.status = 'failed';
           delivery.responseBody = 'Webhook URL not configured or disabled';
           await delivery.save();
@@ -243,9 +243,9 @@ export const startWorker = async () => {
           // Generate HMAC signature
           const payloadString = JSON.stringify(delivery.payload);
           let signature = '';
-          if (org.config.webhookSecret) {
+          if (site.webhookSecret) {
             signature = crypto
-              .createHmac('sha256', org.config.webhookSecret)
+              .createHmac('sha256', site.webhookSecret)
               .update(payloadString)
               .digest('hex');
           }
@@ -253,7 +253,7 @@ export const startWorker = async () => {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-          const response = await fetch(org.config.webhookUrl, {
+          const response = await fetch(site.webhookUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -328,11 +328,11 @@ export const startWorker = async () => {
     correlationWorker = new Worker(
       'correlation',
       async (job) => {
-        const { orgId, nightDate } = job.data;
-        console.log(`[CorrelationWorker] Running correlation for ${orgId} on ${nightDate}`);
+        const { nightDate } = job.data;
+        console.log(`[CorrelationWorker] Running correlation for ${nightDate}`);
         const { correlateNightEvents } = await import('../services/correlation.service.js');
-        const incidentIds = await correlateNightEvents(orgId, nightDate);
-        return { status: 'correlated', orgId, nightDate, incidentsCreated: incidentIds.length };
+        const incidentIds = await correlateNightEvents(nightDate);
+        return { status: 'correlated', nightDate, incidentsCreated: incidentIds.length };
       },
       {
         connection: workerRedisConnection,
@@ -356,12 +356,11 @@ export const startWorker = async () => {
     briefingWorker = new Worker(
       'briefings',
       async (job) => {
-        const { orgId } = job.data;
         const nightDate = new Date();
         nightDate.setDate(nightDate.getDate() - 1);
         const nightDateString = nightDate.toISOString().split("T")[0];
 
-        console.log(`[BriefingWorker] Finalizing briefing for ${orgId} on ${nightDateString}`);
+        console.log(`[BriefingWorker] Finalizing briefing for ${nightDateString}`);
 
         const { correlateNightEvents } = await import('../services/correlation.service.js');
         const { buildBriefing } = await import('../services/briefing.service.js');
@@ -369,12 +368,11 @@ export const startWorker = async () => {
         const Briefing = (await import('../models/briefing.model.js')).default;
 
         // 1. One final correlation
-        await correlateNightEvents(orgId, nightDateString);
+        await correlateNightEvents(nightDateString);
 
         // 2. Pre-create generating briefing
         let briefing = await Briefing.create({
           briefingId: `BR-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-          orgId,
           nightDate: nightDateString,
           status: 'generating',
         });
@@ -385,7 +383,6 @@ export const startWorker = async () => {
 
         while (Date.now() - startTime < maxWaitMs) {
           const inFlight = await Investigation.countDocuments({
-            orgId,
             nightDate: nightDateString,
             status: { $in: ['queued', 'running'] },
           });
@@ -394,7 +391,6 @@ export const startWorker = async () => {
         }
 
         const remaining = await Investigation.countDocuments({
-          orgId,
           nightDate: nightDateString,
           status: { $in: ['queued', 'running'] },
         });
@@ -407,12 +403,11 @@ export const startWorker = async () => {
 
         try {
           await Briefing.deleteOne({ _id: briefing._id });
-          await buildBriefing(orgId, nightDateString);
-          return { status: 'draft', orgId, nightDateString };
+          await buildBriefing(nightDateString);
+          return { status: 'draft', nightDateString };
         } catch (e) {
           briefing = await Briefing.create({
             briefingId: `BR-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-            orgId,
             nightDate: nightDateString,
             status: 'failed',
           });

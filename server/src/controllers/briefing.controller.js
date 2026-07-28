@@ -70,7 +70,7 @@ const briefingToClientFormat = (briefing) => {
 
 export const getLatestBriefing = async (req, res) => {
   const nightDate = req.query.nightDate || new Date().toISOString().split('T')[0];
-  const briefing = await getLatestBriefingService(nightDate, req.orgFilter);
+  const briefing = await getLatestBriefingService(nightDate);
 
   if (!briefing) {
     return res.status(200).json(new ApiResponse(200, null, 'No briefing available yet'));
@@ -90,7 +90,7 @@ export const updateBriefingSection = async (req, res) => {
     throw new ApiError(400, `Invalid section name: ${sectionName}`);
   }
 
-  const briefing = await Briefing.findOne({ _id: id, ...req.orgFilter });
+  const briefing = await Briefing.findOne({ _id: id });
   if (!briefing) throw new ApiError(404, 'Briefing not found');
   if (briefing.status !== 'draft') throw new ApiError(400, 'Only draft briefings can be edited');
 
@@ -111,13 +111,12 @@ export const updateBriefingSection = async (req, res) => {
 };
 
 export const approveBriefing = async (req, res) => {
-  const updated = await approveBriefingService(req.params.id, req.user?._id, req.orgFilter);
+  const updated = await approveBriefingService(req.params.id, req.user?._id);
 
   logAudit(req, 'briefing.approved', { type: 'Briefing', id: updated._id });
 
   if (OUTBOX_ENABLED) {
     await OutboxEvent.create({
-      orgId: req.user.orgId,
       eventType: 'briefing.ready',
       payload: {
         briefingId: updated._id,
@@ -129,7 +128,7 @@ export const approveBriefing = async (req, res) => {
     });
   } else {
     const { triggerWebhook } = await import('../services/webhook.service.js');
-    triggerWebhook(req.user.orgId, 'briefing.ready', {
+    triggerWebhook('briefing.ready', {
       briefingId: updated._id,
       nightDate: updated.nightDate,
       status: updated.status,
@@ -141,12 +140,12 @@ export const approveBriefing = async (req, res) => {
 };
 
 export const retryBriefing = async (req, res) => {
-  const briefing = await retryBriefingService(req.params.id, req.orgFilter);
+  const briefing = await retryBriefingService(req.params.id);
 
   logAudit(req, 'briefing.retry', { type: 'Briefing', id: briefing._id });
 
   // Kick off rebuild async — don't await so response returns immediately
-  buildBriefing(briefing.orgId?.toString() || req.user?.orgId?.toString(), briefing.nightDate, briefing._id?.toString())
+  buildBriefing(briefing.nightDate, briefing._id?.toString())
     .catch((err) => console.error('[BriefingController] Retry build failed:', err.message));
 
   res.status(202).json(new ApiResponse(202, { id: briefing._id, status: 'generating' }, 'Briefing retry queued'));

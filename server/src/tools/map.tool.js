@@ -136,13 +136,8 @@ export const getSiteMapData = async (orgConfig = null) => {
  * @param {Date|string} nightDate - optional night date
  * @returns {Promise<array>} ordered waypoints for route playback
  */
-export const getDroneRouteGeometry = async (patrolId, nightDate = new Date(), orgFilter = null) => {
+export const getDroneRouteGeometry = async (patrolId, nightDate = new Date()) => {
   try {
-    if (orgFilter === null || orgFilter === undefined) {
-      console.warn('[MapTool] getDroneRouteGeometry called without orgFilter — refusing');
-      return [];
-    }
-
     // Query drone observations sorted by time
     const startOfDay = new Date(nightDate);
     startOfDay.setHours(0, 0, 0, 0);
@@ -151,7 +146,6 @@ export const getDroneRouteGeometry = async (patrolId, nightDate = new Date(), or
     endOfDay.setHours(23, 59, 59, 999);
 
     const droneEvents = await Event.find({
-      ...orgFilter,
       type: 'drone_observation',
       timestamp: { $gte: startOfDay, $lte: endOfDay },
     }).sort({ timestamp: 1 });
@@ -180,13 +174,8 @@ export const getDroneRouteGeometry = async (patrolId, nightDate = new Date(), or
  * @param {Date|string} nightDate - the night to retrieve
  * @returns {Promise<array>} event pins for map
  */
-export const getEventPins = async (nightDate = new Date(), orgFilter = null) => {
+export const getEventPins = async (nightDate = new Date()) => {
   try {
-    if (orgFilter === null || orgFilter === undefined) {
-      console.warn('[MapTool] getEventPins called without orgFilter — refusing');
-      return [];
-    }
-
     const startOfDay = new Date(nightDate);
     startOfDay.setHours(0, 0, 0, 0);
 
@@ -194,7 +183,6 @@ export const getEventPins = async (nightDate = new Date(), orgFilter = null) => 
     endOfDay.setHours(23, 59, 59, 999);
 
     const events = await Event.find({
-      ...orgFilter,
       timestamp: { $gte: startOfDay, $lte: endOfDay },
     }).sort({ timestamp: 1 });
 

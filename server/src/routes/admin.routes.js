@@ -3,11 +3,11 @@ import { authenticateRequest, requireRole } from '../middlewares/auth.middleware
 import { requireAdminGateSession } from '../controllers/adminGate.controllers.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import {
-  listOrgs, createOrg, getOrgDetail, updateOrgStatus, updateOrgConfig,
+  getAdminSite, updateAdminSite,
   listUsers, setUserRole, forceLogout, updateUserStatus,
   listApiKeys, revokeApiKey,
   getQueueStats, getFailedJobs, retryJob, deleteJob,
-  getAuditLogs
+  getAuditLogs,
 } from '../controllers/admin.controller.js';
 import OutboxEvent from '../models/outboxEvent.model.js';
 import { ApiResponse } from '../utils/api-response.js';
@@ -15,16 +15,12 @@ import { ApiError } from '../utils/api-error.js';
 
 const router = express.Router();
 
-// ALL admin routes strictly require super_admin role
 router.use(authenticateRequest);
 router.use(requireRole('super_admin'));
 
-// Org Management
-router.get('/orgs', asyncHandler(listOrgs));
-router.post('/orgs', asyncHandler(createOrg));
-router.get('/orgs/:orgId', requireAdminGateSession, asyncHandler(getOrgDetail));
-router.patch('/orgs/:orgId/status', asyncHandler(updateOrgStatus));
-router.patch('/orgs/:orgId/config', requireAdminGateSession, asyncHandler(updateOrgConfig));
+// Site singleton
+router.get('/site', requireAdminGateSession, asyncHandler(getAdminSite));
+router.patch('/site', requireAdminGateSession, asyncHandler(updateAdminSite));
 
 // User Management
 router.get('/users', asyncHandler(listUsers));
@@ -45,7 +41,6 @@ router.delete('/jobs/:queueName/:jobId', asyncHandler(deleteJob));
 // Audit Logs
 router.get('/audit', asyncHandler(getAuditLogs));
 
-// Outbox (cross-org diagnostics)
 router.get('/outbox', asyncHandler(async (req, res) => {
   const { status, limit = 50, skip = 0 } = req.query;
   const filter = status ? { status } : { status: { $in: ['pending', 'failed'] } };

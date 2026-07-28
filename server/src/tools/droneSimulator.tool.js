@@ -92,14 +92,8 @@ const formatHHMM = (dateValue, offsetMinutes = 0) => {
   return d.toISOString().substring(11, 16);
 };
 
-const getPatrolWaypoints = async (patrolId, nightDate = new Date(), orgFilter = null) => {
-  if (orgFilter === null || orgFilter === undefined) {
-    console.warn('[DroneSim] getPatrolWaypoints called without orgFilter — refusing');
-    return { patrolId, waypoints: [] };
-  }
-
+const getPatrolWaypoints = async (patrolId, nightDate = new Date()) => {
   const patrolEvent = await Event.findOne({
-    ...orgFilter,
     type: 'drone_observation',
     $or: [
       { 'rawData.patrolId': patrolId },
@@ -133,7 +127,6 @@ const getPatrolWaypoints = async (patrolId, nightDate = new Date(), orgFilter = 
   endOfDay.setHours(23, 59, 59, 999);
 
   const droneEvents = await Event.find({
-    ...orgFilter,
     type: 'drone_observation',
     timestamp: { $gte: startOfDay, $lte: endOfDay },
   }).sort({ timestamp: 1 });
@@ -161,7 +154,7 @@ const getPatrolWaypoints = async (patrolId, nightDate = new Date(), orgFilter = 
  * @param {Date|string} nightDate - the night of the patrol
  * @returns {Promise<object>} drone state at target time
  */
-export const getDroneStateAtTime = async (patrolId, targetTime, orgFilter = null, nightDate = new Date()) => {
+export const getDroneStateAtTime = async (patrolId, targetTime, nightDate = new Date()) => {
   try {
     const normalizedTime =
       typeof targetTime === 'string' && targetTime.includes(':')
@@ -182,7 +175,7 @@ export const getDroneStateAtTime = async (patrolId, targetTime, orgFilter = null
       };
     }
 
-    const patrol = await getPatrolWaypoints(patrolId, nightDate, orgFilter);
+    const patrol = await getPatrolWaypoints(patrolId, nightDate);
     const waypoints = (patrol?.waypoints || [])
       .map((wp) => ({ ...wp, minutes: timeToMinutes(wp.time) }))
       .filter((wp) => !Number.isNaN(wp.minutes))
@@ -285,7 +278,7 @@ export const getDroneStateAtTime = async (patrolId, targetTime, orgFilter = null
  * @param {array} flaggedLocations - [{name, coordinates, priority}]
  * @returns {Promise<object>} simulated mission plan
  */
-export const simulateFollowUpMission = async (flaggedLocations, orgFilter = null) => {
+export const simulateFollowUpMission = async (flaggedLocations) => {
   try {
     if (!flaggedLocations || flaggedLocations.length === 0) {
       return {

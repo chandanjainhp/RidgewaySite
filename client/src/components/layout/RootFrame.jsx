@@ -22,7 +22,7 @@ export default function RootFrame({ children }) {
     PUBLIC_ROUTES.has(path) ||
     path.startsWith("/reset-password");
 
-  const suppressTopBar = isPublicRoute || path.startsWith("/admin") || path.startsWith("/setup");
+  const suppressTopBar = isPublicRoute || path.startsWith("/admin");
 
   return (
     <>

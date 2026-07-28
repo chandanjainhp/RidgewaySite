@@ -1,24 +1,19 @@
-import crypto from 'crypto';
-import Organisation from '../models/organisation.model.js';
+import { getSite } from '../models/site.model.js';
 import WebhookDelivery from '../models/webhookDelivery.model.js';
 import { dispatchWebhook } from '../queues/webhook.queue.js';
 
 /**
- * Triggers a webhook delivery asynchronously if the organisation has a webhook configured.
- * @param {string|mongoose.Types.ObjectId} orgId 
- * @param {string} eventType 
- * @param {Object} payload 
+ * Queue a webhook delivery if Site has a webhook configured.
  */
-export const triggerWebhook = async (orgId, eventType, payload) => {
+export const triggerWebhook = async (eventType, payload) => {
   try {
-    const org = await Organisation.findById(orgId).lean();
-    
-    if (!org || !org.config?.webhookUrl || !org.config?.webhookEnabled) {
-      return; // No work to do
+    const site = await getSite();
+
+    if (!site.webhookUrl || !site.webhookEnabled) {
+      return;
     }
 
     const delivery = await WebhookDelivery.create({
-      orgId,
       eventType,
       payload,
       status: 'pending',
@@ -30,11 +25,6 @@ export const triggerWebhook = async (orgId, eventType, payload) => {
   }
 };
 
-/**
- * Validates a webhook URL
- * @param {string} url 
- * @returns {boolean}
- */
 export const isValidWebhookUrl = (url) => {
   try {
     const parsed = new URL(url);

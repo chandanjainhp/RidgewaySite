@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
-import { loginUser, getOrgMe } from '@/lib/api';
+import { loginUser } from '@/lib/api';
 import { initTheme } from '@/lib/theme';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -57,19 +57,9 @@ function LoginPageInner() {
       }
 
       if (role === 'super_admin') {
-        document.cookie = 'ridgeway_setup=1; path=/; max-age=86400; SameSite=Lax';
-        router.replace('/admin/orgs');
+        router.replace('/admin/users');
       } else {
-        try {
-          const orgData = await getOrgMe();
-          const setupDone = orgData?.setupComplete;
-          document.cookie = `ridgeway_setup=${setupDone ? '1' : '0'}; path=/; max-age=86400; SameSite=Lax`;
-          router.replace(setupDone ? '/overview' : '/setup');
-        } catch {
-          // Non-critical — don't block login
-          document.cookie = 'ridgeway_setup=1; path=/; max-age=86400; SameSite=Lax';
-          router.replace('/overview');
-        }
+        router.replace('/overview');
       }
     },
     onError: (error) => {
@@ -242,7 +232,7 @@ function LoginPageInner() {
             }}>
               <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--sev-serious)', flexShrink: 0, marginTop: '4px' }} />
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--sev-serious)' }}>
-                This organisation has been suspended. Contact support at support@sentinel.io.
+                This site has been suspended. Contact support at support@sentinel.io.
               </span>
             </div>
           )}

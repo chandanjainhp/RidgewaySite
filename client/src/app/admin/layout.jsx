@@ -25,7 +25,7 @@ function SetupSubItems({ isActive }) {
         return (
           <Link
             key={sub.tab}
-            href={`/admin/setup?tab=${sub.tab}`}
+            href={sub.path || '/admin/users'}
             className="text-xs py-1.5 px-3 rounded transition-all font-medium"
             style={{
               color: isSubActive ? 'var(--accent)' : 'var(--fg-3)',
@@ -71,17 +71,14 @@ export default function AdminLayout({ children }) {
     clearStoredToken();
     document.cookie = 'ridgeway_auth=; path=/; max-age=0; SameSite=Lax';
     document.cookie = 'ridgeway_role=; path=/; max-age=0; SameSite=Lax';
-    document.cookie = 'ridgeway_setup=; path=/; max-age=0; SameSite=Lax';
     router.replace('/');
   };
 
   const navItems = [
-    { name: 'Organisations', path: '/admin/orgs', icon: Building2 },
     { name: 'Users', path: '/admin/users', icon: Users },
     { name: 'API Keys', path: '/admin/apikeys', icon: Key },
     { name: 'Jobs', path: '/admin/jobs', icon: Activity },
     { name: 'Audit Log', path: '/admin/audit', icon: ShieldCheck },
-    { name: 'Setup / Ingest', path: '/admin/setup', icon: Sliders },
   ];
 
   return (

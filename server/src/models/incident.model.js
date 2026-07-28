@@ -2,11 +2,6 @@ import mongoose from 'mongoose';
 
 const incidentSchema = new mongoose.Schema(
   {
-    orgId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Organisation',
-      index: true,
-    },
     nightDate: {
       type: String,
       required: true,

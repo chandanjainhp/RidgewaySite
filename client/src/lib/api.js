@@ -99,13 +99,6 @@ api.interceptors.request.use((config) => {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Attach org ID for server-side logging (not used for security)
-    try {
-      const { useAuthStore } = require("@/store/authStore");
-      const orgId = useAuthStore.getState().orgId;
-      if (orgId) config.headers["X-Org-ID"] = orgId;
-    } catch (_) {}
-
     if (SHOULD_LOG_API) {
       const method = (config.method || "GET").toUpperCase();
       console.info("[API] request", method, config.baseURL + config.url);
@@ -366,13 +359,9 @@ export const getDroneStateAtTime = async (patrolId, targetTime) =>
 export const simulateFollowUpMission = async (flaggedLocations) =>
   api.post("/map/drones/simulate-mission", { locations: flaggedLocations });
 
-// Admin — Orgs
-export const listAdminOrgs = (params) => api.get("/admin/orgs", { params });
-export const createAdminOrg = (data) => api.post("/admin/orgs", data);
-export const updateAdminOrgStatus = (orgId, status) => api.patch(`/admin/orgs/${orgId}/status`, { status });
-export const getAdminOrg = (orgId) => api.get(`/admin/orgs/${orgId}`);
-export const updateAdminOrg = (orgId, data) => api.patch(`/admin/orgs/${orgId}`, data);
-export const updateAdminOrgConfig = (orgId, data) => api.patch(`/admin/orgs/${orgId}/config`, data);
+// Admin — Site
+export const getAdminSite = () => api.get("/admin/site");
+export const updateAdminSite = (data) => api.patch("/admin/site", data);
 
 // Admin — Users
 export const listAdminUsers = (params) => api.get("/admin/users", { params });
@@ -395,22 +384,26 @@ export const getAuditLog = (params) => api.get("/admin/audit", { params });
 export const exportAuditLog = (params) =>
   api.get("/admin/audit", { params: { ...params, format: "csv" }, responseType: "blob" });
 
-// Org Settings
-export const getOrgMe = () => api.get("/org/me");
-export const updateOrgConfig = (data) => api.patch("/org/me/config", data);
-export const completeSetup = () => api.post("/org/setup/complete");
+// Site Settings
+export const getOrgMe = () => api.get("/site/me");
+export const getSite = () => api.get("/site/me");
+export const updateOrgConfig = (data) => api.patch("/site/me", data);
+export const updateSiteConfig = (data) => api.patch("/site/me", data);
+export const completeSetup = async () => ({ ok: true });
 
-// Org API Keys
-export const listOrgApiKeys = () => api.get("/org/api-keys");
-export const createOrgApiKey = (data) => api.post("/org/api-keys", data);
-export const revokeOrgApiKey = (keyId) => api.delete(`/org/api-keys/${keyId}`);
-export const getIngestionStatus = () => api.get("/org/ingestion-status");
+// Site API Keys
+export const listOrgApiKeys = () => api.get("/site/api-keys");
+export const createOrgApiKey = (data) => api.post("/site/api-keys", data);
+export const revokeOrgApiKey = (keyId) => api.delete(`/site/api-keys/${keyId}`);
+export const getIngestionStatus = () => api.get("/site/ingestion-status");
 
-// Org Webhooks
-export const getOrgWebhooks = () => api.get("/org/webhooks");
-export const getWebhookDeliveries = (params) => api.get("/org/webhooks/deliveries", { params });
-export const testWebhook = () => api.post("/org/webhooks/test");
-export const rotateWebhookSecret = () => api.post("/org/webhooks/rotate-secret");
-export const retryWebhookDelivery = (id) => api.post(`/org/webhooks/deliveries/${id}/retry`);
+// Site Webhooks
+export const getOrgWebhooks = () => api.get("/site/webhooks/config");
+export const getWebhookConfig = () => api.get("/site/webhooks/config");
+export const updateWebhookConfig = (data) => api.put("/site/webhooks/config", data);
+export const getWebhookDeliveries = (params) => api.get("/site/webhooks/deliveries", { params });
+export const testWebhook = () => api.post("/site/webhooks/test");
+export const rotateWebhookSecret = () => api.post("/site/webhooks/rotate-secret");
+export const retryWebhookDelivery = (id) => api.post(`/site/webhooks/deliveries/${id}/retry`);
 
 export default api;

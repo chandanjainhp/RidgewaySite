@@ -25,7 +25,7 @@ export default function AdminLoginPage() {
   // Redirect already-authenticated super_admin
   useEffect(() => {
     if (user?.role === 'super_admin') {
-      router.replace('/admin/orgs');
+      router.replace('/admin/users');
     }
   }, [user, router]);
 
@@ -50,8 +50,7 @@ export default function AdminLoginPage() {
       }
       document.cookie = 'ridgeway_auth=1; path=/; max-age=86400; SameSite=Lax';
       document.cookie = `ridgeway_role=${role}; path=/; max-age=86400; SameSite=Lax`;
-      document.cookie = 'ridgeway_setup=1; path=/; max-age=86400; SameSite=Lax';
-      router.replace('/admin/orgs');
+      router.replace('/admin/users');
     },
     onError: (error) => {
       setLoginSuccess(false);
@@ -153,7 +152,7 @@ export default function AdminLoginPage() {
             fontFamily: 'var(--font-sans)', fontSize: '12px',
             color: 'var(--fg-3)', lineHeight: 1.5,
           }}>
-            Manage all customer organisations, monitor system health, and access audit logs.
+            Manage site users, monitor system health, and access audit logs.
           </p>
 
           <div style={{

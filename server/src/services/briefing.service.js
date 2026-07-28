@@ -115,11 +115,11 @@ const draftSection = async (sectionName, investigations, severityBuckets) => {
   }
 };
 
-export const buildBriefing = async (orgId, nightDate, existingBriefingId = null) => {
+export const buildBriefing = async (nightDate, existingBriefingId = null) => {
   let briefing = null;
 
   try {
-    const investigations = await Investigation.find({ orgId, nightDate, status: 'complete' })
+    const investigations = await Investigation.find({ nightDate, status: 'complete' })
       .populate('incidentId')
       .lean();
 
@@ -137,7 +137,7 @@ export const buildBriefing = async (orgId, nightDate, existingBriefingId = null)
     }
 
     if (!briefing) {
-      briefing = await Briefing.findOne({ orgId, nightDate }).sort({ generatedAt: -1 });
+      briefing = await Briefing.findOne({ nightDate }).sort({ generatedAt: -1 });
     }
 
     if (briefing) {
@@ -149,7 +149,6 @@ export const buildBriefing = async (orgId, nightDate, existingBriefingId = null)
     } else {
       briefing = await Briefing.create({
         briefingId: `BR-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-        orgId,
         nightDate,
         status: 'generating',
         generationStartedAt: new Date(),
@@ -196,19 +195,19 @@ export const buildBriefing = async (orgId, nightDate, existingBriefingId = null)
   }
 };
 
-export const getLatestBriefing = async (nightDate, orgFilter = {}) => {
+export const getLatestBriefing = async (nightDate) => {
   try {
     return (
-      (await Briefing.findOne({ ...orgFilter, nightDate }).sort({ generatedAt: -1 }).lean()) || null
+      (await Briefing.findOne({ nightDate }).sort({ generatedAt: -1 }).lean()) || null
     );
   } catch (error) {
     throw new ApiError(500, 'Failed to retrieve latest briefing', [error.message]);
   }
 };
 
-export const approveBriefing = async (briefingId, approverId, orgFilter = {}) => {
+export const approveBriefing = async (briefingId, approverId) => {
   try {
-    const briefing = await Briefing.findOne({ _id: briefingId, ...orgFilter });
+    const briefing = await Briefing.findOne({ _id: briefingId });
     if (!briefing) throw new ApiError(404, `Briefing not found: ${briefingId}`);
     if (briefing.status !== 'draft') throw new ApiError(400, 'Only draft briefings can be approved');
     briefing.status = 'approved';
@@ -222,8 +221,8 @@ export const approveBriefing = async (briefingId, approverId, orgFilter = {}) =>
   }
 };
 
-export const retryBriefing = async (briefingId, orgFilter = {}) => {
-  const briefing = await Briefing.findOne({ _id: briefingId, ...orgFilter });
+export const retryBriefing = async (briefingId) => {
+  const briefing = await Briefing.findOne({ _id: briefingId });
   if (!briefing) throw new ApiError(404, `Briefing not found: ${briefingId}`);
   if (briefing.status !== 'failed') throw new ApiError(400, 'Only failed briefings can be retried');
 

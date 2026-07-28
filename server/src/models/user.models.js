@@ -1,5 +1,4 @@
 import mongoose, { Schema } from "mongoose";
-import { Types } from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
@@ -16,17 +15,11 @@ const userSchema = new Schema(
         localPath: "",
       },
     },
-    // RBAC
+    // RBAC — org_admin ≈ site admin on singleton deployment
     role: {
       type: String,
       enum: ['super_admin', 'org_admin', 'operator'],
       default: 'operator',
-      index: true,
-    },
-    orgId: {
-      type: Types.ObjectId,
-      ref: 'Organisation',
-      default: null,
       index: true,
     },
     isActive: {
@@ -111,8 +104,6 @@ userSchema.methods.generateAccessToken = function () {
       email: this.email,
       username: this.username,
       role: this.role,
-      orgId: this.orgId,
-      orgName: this.populated('orgId') ? this.orgId.name : undefined,
       tokenVersion: this.tokenVersion,
     },
     process.env.ACCESS_TOKEN_SECRET || "default-secret-key",

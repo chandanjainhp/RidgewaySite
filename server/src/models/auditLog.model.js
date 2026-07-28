@@ -10,11 +10,6 @@ const auditLogSchema = new mongoose.Schema(
     actorRole: {
       type: String,
     },
-    orgId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Organisation',
-      index: true,
-    },
     action: {
       type: String,
       required: true,
@@ -45,8 +40,7 @@ const auditLogSchema = new mongoose.Schema(
   }
 );
 
-// Indexes for common queries
-auditLogSchema.index({ orgId: 1, action: 1, createdAt: -1 });
+auditLogSchema.index({ action: 1, createdAt: -1 });
 auditLogSchema.index({ actor: 1, createdAt: -1 });
 
 // TTL index to automatically delete logs older than 365 days

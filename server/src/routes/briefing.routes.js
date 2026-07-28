@@ -1,20 +1,14 @@
 import express from 'express';
-import {
-  getLatestBriefing,
-  updateBriefingSection,
-  approveBriefing,
-  retryBriefing,
-} from '../controllers/briefing.controller.js';
-import { authenticateRequest, requireRole, scopeToOrg } from '../middlewares/auth.middleware.js';
+import {getLatestBriefing, updateBriefingSection, approveBriefing, retryBriefing} from '../controllers/briefing.controller.js';
+import {authenticateRequest, requireRole} from '../middlewares/auth.middleware.js';
 import validate from '../middlewares/validation.middleware.js';
-import { briefingValidator } from '../validators/index.js';
-import { asyncHandler } from '../utils/async-handler.js';
+import {briefingValidator} from '../validators/index.js';
+import {asyncHandler} from '../utils/async-handler.js';
 
 const router = express.Router();
 
 router.use(authenticateRequest);
 router.use(requireRole('super_admin', 'org_admin', 'operator'));
-router.use(scopeToOrg);
 
 // GET /briefings/latest?nightDate=YYYY-MM-DD
 router.get('/latest', asyncHandler(getLatestBriefing));

@@ -1337,7 +1337,7 @@ export default function LandingPage() {
               labelColor="var(--sev-serious)"
               label="Platform Admin"
               title="Platform Admin"
-              desc="Sentinel platform team. Manages all customer organisations, monitors system health, handles support and audits."
+              desc="Sentinel platform team. Manages site users, monitors system health, handles support and audits."
               ctaLabel="Admin sign in →"
               ctaHref="/admin/login"
               ctaColor="var(--sev-serious)"

@@ -2,12 +2,6 @@ import mongoose from 'mongoose';
 
 const outboxEventSchema = new mongoose.Schema(
   {
-    orgId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Organisation',
-      required: true,
-      index: true,
-    },
     eventType: {
       type: String,
       required: true,
@@ -29,6 +23,5 @@ const outboxEventSchema = new mongoose.Schema(
 );
 
 outboxEventSchema.index({ status: 1, createdAt: 1 });
-outboxEventSchema.index({ orgId: 1, createdAt: -1 });
 
 export default mongoose.model('OutboxEvent', outboxEventSchema);

@@ -9,11 +9,6 @@ const eventSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    orgId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Organisation',
-      index: true,
-    },
     nightDate: {
       type: String,
       required: true,

@@ -17,7 +17,7 @@ import investigationRouter from './routes/investigation.routes.js';
 import briefingRouter from './routes/briefing.routes.js';
 import mapRouter from './routes/map.routes.js';
 import adminRouter from './routes/admin.routes.js';
-import orgRouter from './routes/org.routes.js';
+import siteRouter from './routes/site.routes.js';
 import testRouter from './routes/test.routes.js';
 
 const app = express();
@@ -59,7 +59,9 @@ app.use('/api/v1/investigations', investigationRouter);
 app.use('/api/v1/briefings', briefingRouter);
 app.use('/api/v1/map', mapRouter);
 app.use('/api/v1/admin', adminRouter);
-app.use('/api/v1/org', orgRouter);
+app.use('/api/v1/site', siteRouter);
+// Back-compat alias while clients migrate off /org
+app.use('/api/v1/org', siteRouter);
 
 // DEVELOPMENT ONLY — test routes for seeding events and manual investigation trigger
 if (process.env.NODE_ENV !== 'production') {

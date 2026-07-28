@@ -1,31 +1,10 @@
-import { Router } from "express";
-import {
-  changeCurrentPassword,
-  forgotPasswordRequest,
-  getCurrentUser,
-  login,
-  logoutUser,
-  refreshAccessToken,
-  registerUser,
-  resendEmailVerification,
-  resetForgotPassword,
-  verifyEmail,
-} from "../controllers/auth.controllers.js";
-import {
-  loginAdminGate,
-  getAdminGateStatus,
-  logoutAdminGate,
-} from "../controllers/adminGate.controllers.js";
-import { validate } from "../middlewares/validator.middleware.js";
-import { authLimiter } from "../middlewares/rateLimit.middleware.js";
-import {
-  userChangeCurrentPasswordValidator,
-  userForgotPasswordValidator,
-  userLoginValidator,
-  userRegisterValidator,
-  userResetForgotPasswordValidator,
-} from "../validators/index.js";
-import { verifyJWT } from "../middlewares/auth.middleware.js";
+import {Router} from "express";
+import {changeCurrentPassword, forgotPasswordRequest, getCurrentUser, login, logoutUser, refreshAccessToken, registerUser, resendEmailVerification, resetForgotPassword, verifyEmail} from "../controllers/auth.controllers.js";
+import {loginAdminGate, getAdminGateStatus, logoutAdminGate} from "../controllers/adminGate.controllers.js";
+import {validate} from "../middlewares/validator.middleware.js";
+import {authLimiter} from "../middlewares/rateLimit.middleware.js";
+import {userChangeCurrentPasswordValidator, userForgotPasswordValidator, userLoginValidator, userRegisterValidator, userResetForgotPasswordValidator} from "../validators/index.js";
+import {verifyJWT} from "../middlewares/auth.middleware.js";
 
 const router = Router();
 

@@ -1,6 +1,6 @@
 import { ApiResponse } from "../utils/api-response.js";
 import Event from "../models/event.model.js";
-import Organisation from "../models/organisation.model.js";
+import { getSite } from "../models/site.model.js";
 import {
   getSiteMapData,
   getEventPins,
@@ -17,12 +17,14 @@ const toHHMM = (dateValue, offsetMinutes = 0) => {
 };
 
 export const getMapGeometry = async (req, res) => {
-  let orgConfig = null;
-  if (req.user?.orgId) {
-    const org = await Organisation.findById(req.user.orgId).select('config').lean();
-    orgConfig = org?.config || null;
-  }
-  const data = await getSiteMapData(orgConfig);
+  const site = await getSite();
+  const siteConfig = {
+    siteName: site.name,
+    timezone: site.timezone,
+    coordinates: site.coordinates,
+    siteGeometry: site.siteGeometry,
+  };
+  const data = await getSiteMapData(siteConfig);
   res.status(200).json(new ApiResponse(200, data, "Map geometry fetched successfully"));
 };
 
@@ -31,7 +33,6 @@ export const getDroneRoute = async (req, res) => {
 
   const patrolEvent = await Event.findOne({
     type: "drone_observation",
-    ...req.orgFilter,
     $or: [
       { "rawData.patrolId": patrolId },
       { "rawData.droneId": patrolId },
@@ -68,18 +69,18 @@ export const getDroneRoute = async (req, res) => {
 };
 
 export const getMapEventPins = async (req, res) => {
-  const data = await getEventPins(req.query.nightDate, req.orgFilter);
+  const data = await getEventPins(req.query.nightDate);
   res.status(200).json(new ApiResponse(200, data, "Event pins fetched successfully"));
 };
 
 export const getDroneState = async (req, res) => {
   const { patrolId } = req.params;
   const { time } = req.query;
-  const data = await getDroneStateAtTime(patrolId, time, req.orgFilter);
+  const data = await getDroneStateAtTime(patrolId, time);
   res.status(200).json(new ApiResponse(200, data, "Drone state fetched successfully"));
 };
 
 export const simulateMission = async (req, res) => {
-  const data = await simulateFollowUpMission(req.body.locations || [], req.orgFilter);
+  const data = await simulateFollowUpMission(req.body.locations || []);
   res.status(200).json(new ApiResponse(200, data, "Mission simulated successfully"));
 };

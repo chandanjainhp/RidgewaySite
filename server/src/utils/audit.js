@@ -11,11 +11,10 @@ export const logAudit = async (req, action, target, metadata = {}) => {
     await AuditLog.create({
       actor: req.user._id,
       actorRole: req.user.role,
-      orgId: req.user.orgId,
       action,
       target,
       metadata,
-      ip: req.ip || req.connection.remoteAddress,
+      ip: req.ip || req.connection?.remoteAddress,
       userAgent: req.headers['user-agent'],
     });
   } catch (error) {

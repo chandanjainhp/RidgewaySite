@@ -1,16 +1,14 @@
 import Event from "../models/event.model.js";
-import Incident from "../models/incident.model.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
 import {
   getEventsForNight as getEventsForNightService,
 } from "../services/event.service.js";
-import { logAudit } from "../utils/audit.js";
 import { getCorrelationQueue } from "../queues/event.queue.js";
 
 export const getEventsForNight = async (req, res) => {
   const nightDate = req.query.nightDate || new Date().toISOString().split("T")[0];
-  const grouped = await getEventsForNightService(nightDate, req.orgFilter);
+  const grouped = await getEventsForNightService(nightDate);
   const events = [...Object.values(grouped.byIncident).flat(), ...grouped.unincorporated];
 
   res
@@ -24,7 +22,6 @@ export const ingestEvents = async (req, res) => {
 
   const eventsToInsert = eventsData.map((e) => ({
     ...e,
-    orgId: req.user.orgId,
     nightDate: nightDateString,
     timestamp: e.timestamp ? new Date(e.timestamp) : new Date(),
     eventId: e.eventId || `EVT-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -33,8 +30,8 @@ export const ingestEvents = async (req, res) => {
   const inserted = await Event.insertMany(eventsToInsert, { ordered: false });
 
   const correlationQueue = getCorrelationQueue();
-  await correlationQueue.add('correlate', { orgId: req.user.orgId, nightDate: nightDateString }, {
-    jobId: `correlate:${req.user.orgId}:${nightDateString}`,
+  await correlationQueue.add('correlate', { nightDate: nightDateString }, {
+    jobId: `correlate-${nightDateString}`,
     delay: 60_000,
     removeOnComplete: true,
   });
@@ -43,7 +40,7 @@ export const ingestEvents = async (req, res) => {
 };
 
 export const getEventById = async (req, res) => {
-  const event = await Event.findOne({ _id: req.params.id, ...req.orgFilter }).lean();
+  const event = await Event.findOne({ _id: req.params.id }).lean();
 
   if (!event) {
     throw new ApiError(404, "Event not found");

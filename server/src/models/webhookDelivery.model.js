@@ -2,12 +2,6 @@ import mongoose from "mongoose";
 
 const webhookDeliverySchema = new mongoose.Schema(
   {
-    orgId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Organisation",
-      required: true,
-      index: true,
-    },
     eventType: {
       type: String,
       required: true,

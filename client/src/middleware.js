@@ -12,7 +12,7 @@ const PUBLIC_PATHS = new Set([
   '/settings-access',
 ]);
 
-const ORG_ADMIN_PATHS = [
+const ADMIN_SETTINGS_PATHS = [
   '/settings/general',
   '/settings/api-keys',
   '/settings/webhooks',
@@ -32,13 +32,9 @@ export function middleware(request) {
   const role = request.cookies.get('ridgeway_role')?.value;
   const isSuperAdmin = role === 'super_admin';
 
-  if (!isSuperAdmin && request.cookies.get('ridgeway_setup')?.value === '0' && !matchesPath(pathname, '/setup')) {
-    return NextResponse.redirect(new URL('/setup', request.url));
-  }
-
   const requiresSuperAdmin = matchesPath(pathname, '/admin');
-  const requiresOrgAdmin = ORG_ADMIN_PATHS.some((path) => matchesPath(pathname, path));
-  if ((requiresSuperAdmin && !isSuperAdmin) || (requiresOrgAdmin && !['org_admin', 'super_admin'].includes(role))) {
+  const requiresAdmin = ADMIN_SETTINGS_PATHS.some((path) => matchesPath(pathname, path));
+  if ((requiresSuperAdmin && !isSuperAdmin) || (requiresAdmin && !['org_admin', 'super_admin'].includes(role))) {
     return NextResponse.redirect(new URL('/forbidden', request.url));
   }
 

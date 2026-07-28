@@ -5,21 +5,21 @@
  */
 
 import express from 'express';
-import { authenticateRequest, scopeToOrg } from '../middlewares/auth.middleware.js';
-import { asyncHandler } from '../utils/async-handler.js';
-import { ApiError } from '../utils/api-error.js';
-import { ApiResponse } from '../utils/api-response.js';
+import {authenticateRequest} from '../middlewares/auth.middleware.js';
+import {asyncHandler} from '../utils/async-handler.js';
+import {ApiError} from '../utils/api-error.js';
+import {ApiResponse} from '../utils/api-response.js';
 import Event from '../models/event.model.js';
 import Incident from '../models/incident.model.js';
 import Investigation from '../models/investigation.model.js';
 import Briefing from '../models/briefing.model.js';
-import Organisation from '../models/organisation.model.js';
-import { startNightInvestigation } from '../services/investigation.service.js';
-import { getJobStatus } from '../queues/investigation.queue.js';
+import { getSite } from '../models/site.model.js';
+import {startNightInvestigation} from '../services/investigation.service.js';
+import {getJobStatus} from '../queues/investigation.queue.js';
+import { correlateNightEvents } from '../services/correlation.service.js';
 
 const router = express.Router();
 router.use(authenticateRequest);
-router.use(scopeToOrg);
 
 /* ── helpers ──────────────────────────────────────────── */
 
@@ -30,89 +30,57 @@ const ZONES = ['perimeter', 'yard', 'block', 'access_point'];
  * Generate a random night timestamp between startHour and endHour,
  * spanning midnight (e.g. 22:00 → 06:00 next day).
  */
-function randomNightTs(baseDate, startHour, endHour) {
-  const start = new Date(baseDate);
+function randomNightTs(baseDate, startHour, endHour) {const start = new Date(baseDate);
   start.setHours(startHour, 0, 0, 0);
 
   const end = new Date(baseDate);
   if (endHour <= startHour) {
-    end.setDate(end.getDate() + 1);
-  }
+    end.setDate(end.getDate() + 1);}
   end.setHours(endHour, 59, 59, 0);
 
   const rangeMs = end.getTime() - start.getTime();
   return new Date(start.getTime() + Math.random() * rangeMs);
 }
 
-function pickSeverity(severities) {
-  // Default realistic distribution: 60% harmless, 30% minor, 10% serious
+function pickSeverity(severities) {// Default realistic distribution: 60% harmless, 30% minor, 10% serious
   if (severities) {
-    return severities[Math.floor(Math.random() * severities.length)];
-  }
+    return severities[Math.floor(Math.random() * severities.length)];}
   const roll = Math.random();
   if (roll < 0.60) return 'harmless';
   if (roll < 0.90) return 'minor';
   return 'serious';
 }
 
-function getNightDate(date) {
-  const d = new Date(date);
+function getNightDate(date) {const d = new Date(date);
   d.setHours(0, 0, 0, 0);
-  return d;
-}
+  return d;}
 
-function todayNightDate() {
-  return getNightDate(new Date());
-}
+function todayNightDate() {return getNightDate(new Date());}
 
-function parseNightDate(raw) {
-  if (!raw) return todayNightDate();
+function parseNightDate(raw) {if (!raw) return todayNightDate();
   const d = new Date(raw);
   if (isNaN(d)) throw new ApiError(400, `Invalid nightDate: "${raw}"`);
   return getNightDate(d);
 }
 
-function toISODate(d) {
-  const year = d.getFullYear();
+function toISODate(d) {const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
 /* ── POST /test/seed-events ───────────────────────────── */
-router.post('/seed-events', asyncHandler(async (req, res) => {
-  const {
-    count = 5,
-    startHour = 22,
-    endHour = 6,
-    zones: reqZones,
-    severities: reqSeverities,
-  } = req.body;
+router.post('/seed-events', asyncHandler(async (req, res) => {const {
+    count = 5, startHour = 22, endHour = 6, zones: reqZones, severities: reqSeverities} = req.body;
 
-  let orgId = req.user.orgId;
-  if (!orgId && req.user.role === 'super_admin' && req.body.orgId) {
-    orgId = req.body.orgId;
-  }
-  
-  if (!orgId) {
-    throw new ApiError(400, 'orgId is required for super_admin');
-  }
+  if (typeof count !== 'number' || count < 1 || count > 50) {throw new ApiError(400, 'count must be a number between 1 and 50');}
 
-  const org = await Organisation.findById(orgId).select('config').lean();
-  if (!org) {
-    throw new ApiError(400, `Organisation with ID ${orgId} not found`);
-  }
-
-  if (typeof count !== 'number' || count < 1 || count > 50) {
-    throw new ApiError(400, 'count must be a number between 1 and 50');
-  }
-
+  const site = await getSite();
   const nightDate = parseNightDate(req.body.nightDate);
   const dateStr = toISODate(nightDate).replace(/-/g, '');
 
-  const orgCoords = org?.config?.coordinates;
-  const centerLat = orgCoords?.lat ?? 51.5074;
-  const centerLng = orgCoords?.lng ?? -0.1278;
+  const centerLat = site.coordinates?.lat ?? 51.5074;
+  const centerLng = site.coordinates?.lng ?? -0.1278;
 
   const zoneNames = Array.isArray(reqZones) && reqZones.length > 0
     ? reqZones
@@ -120,10 +88,9 @@ router.post('/seed-events', asyncHandler(async (req, res) => {
 
   // Build events
   const events = [];
-  const existingCount = await Event.countDocuments({ ...req.orgFilter, nightDate: toISODate(nightDate) });
+  const existingCount = await Event.countDocuments({nightDate: toISODate(nightDate)});
 
-  for (let i = 0; i < count; i++) {
-    const idx = existingCount + i + 1;
+  for (let i = 0; i < count; i++) {const idx = existingCount + i + 1;
     const eventId = `TEST-${dateStr}-${String(idx).padStart(3, '0')}`;
 
     const zoneName = zoneNames[Math.floor(Math.random() * zoneNames.length)];
@@ -134,52 +101,37 @@ router.post('/seed-events', asyncHandler(async (req, res) => {
 
     // Validate type and severity values before insertion
     const allowedTypes = ['motion_detected', 'badge_swipe_fail', 'vehicle_entry', 'fence_alert', 'environmental'];
-    if (!allowedTypes.includes(type)) {
-      throw new ApiError(400, `Generated event type '${type}' is not allowed by schema`);
+    if (!allowedTypes.includes(type)) {throw new ApiError(400, `Generated event type '${type}' is not allowed by schema`);
     }
 
     const allowedSeverities = ['serious', 'minor', 'harmless', 'uncertain'];
-    if (!allowedSeverities.includes(severity)) {
-      throw new ApiError(400, `Generated severity '${severity}' is not allowed by schema`);
+    if (!allowedSeverities.includes(severity)) {throw new ApiError(400, `Generated severity '${severity}' is not allowed by schema`);
     }
 
-    if (!ts || isNaN(new Date(ts).getTime())) {
-      throw new ApiError(400, 'Valid timestamp is required');
-    }
+    if (!ts || isNaN(new Date(ts).getTime())) {throw new ApiError(400, 'Valid timestamp is required');}
 
-    // Jitter coords slightly around org center
+    // Jitter coords slightly around site center
     const lat = centerLat + (Math.random() - 0.5) * 0.005;
     const lng = centerLng + (Math.random() - 0.5) * 0.005;
 
-    const evt = await Event.create({
-      eventId,
-      orgId,
-      nightDate: toISODate(nightDate),
-      type,
-      location: {
-        name: zoneName,
-        coordinates: { lat: parseFloat(lat.toFixed(6)), lng: parseFloat(lng.toFixed(6)) },
+    const evt = await Event.create({eventId, nightDate: toISODate(nightDate), type, location: {
+        name: zoneName, coordinates: { lat: parseFloat(lat.toFixed(6)), lng: parseFloat(lng.toFixed(6))},
         zone,
       },
       timestamp: ts,
       severity,
-      rawData: { source: 'test-api', generated: true },
+      rawData: {source: 'test-api', generated: true},
     });
 
-    events.push({
-      id: evt._id,
-      eventId: evt.eventId,
-      type: evt.type,
-      location: evt.location.name,
-      severity: evt.severity,
-      timestamp: evt.timestamp,
-    });
+    events.push({id: evt._id, eventId: evt.eventId, type: evt.type, location: evt.location.name, severity: evt.severity, timestamp: evt.timestamp});
 
-    console.log('[TEST API] seed-events created', orgId, eventId);
+    console.log('[TEST API] seed-events created', eventId);
   }
 
-  res.status(201).json(new ApiResponse(201, {
-    message: `Generated ${count} events for ${toISODate(nightDate)}`,
+  // Correlate immediately so investigation has incidents to work on
+  await correlateNightEvents(toISODate(nightDate));
+
+  res.status(201).json(new ApiResponse(201, {message: `Generated ${count} events for ${toISODate(nightDate)}`,
     count: events.length,
     events,
     nightDate: toISODate(nightDate),
@@ -187,38 +139,24 @@ router.post('/seed-events', asyncHandler(async (req, res) => {
 }));
 
 /* ── POST /test/trigger-investigation ────────────────── */
-router.post('/trigger-investigation', asyncHandler(async (req, res) => {
-  const nightDate = parseNightDate(req.body?.nightDate);
+router.post('/trigger-investigation', asyncHandler(async (req, res) => {const nightDate = parseNightDate(req.body?.nightDate);
 
-  console.log('[TEST API] trigger-investigation', req.user.orgId, toISODate(nightDate));
+  console.log('[TEST API] trigger-investigation', toISODate(nightDate));
 
-  const result = await startNightInvestigation(toISODate(nightDate), req.orgFilter);
+  const result = await startNightInvestigation(toISODate(nightDate));
 
   if (result.status === 'already_running') {
     return res.status(200).json(new ApiResponse(200, {
-      message: 'Investigation already running',
-      jobIds: result.jobIds,
-      status: 'already_running',
-    }, 'Already running'));
+      message: 'Investigation already running', jobIds: result.jobIds, status: 'already_running'}, 'Already running'));
   }
 
-  if (result.status === 'no_incidents') {
-    return res.status(400).json(new ApiResponse(400, {
-      message: 'No incidents found. POST /test/seed-events first.',
-      status: 'no_incidents',
-    }, 'No incidents'));
+  if (result.status === 'no_incidents') {return res.status(400).json(new ApiResponse(400, {
+      message: 'No incidents found. POST /test/seed-events first.', status: 'no_incidents'}, 'No incidents'));
   }
 
   const firstJobId = result.jobIds?.[0] ?? null;
 
-  res.status(201).json(new ApiResponse(201, {
-    message: 'Investigation started',
-    jobIds: result.jobIds,
-    jobId: firstJobId,
-    totalJobs: result.totalJobs,
-    status: result.status ?? 'queued',
-    estimatedDuration: '30–60 seconds with LM Studio, 10–20 seconds with Claude API',
-    streamUrl: firstJobId ? `/api/v1/investigations/${firstJobId}/stream` : null,
+  res.status(201).json(new ApiResponse(201, {message: 'Investigation started', jobIds: result.jobIds, jobId: firstJobId, totalJobs: result.totalJobs, status: result.status ?? 'queued', estimatedDuration: '30–60 seconds with LM Studio, 10–20 seconds with Claude API', streamUrl: firstJobId ? `/api/v1/investigations/${firstJobId}/stream` : null,
   }, 'Investigation triggered'));
 }));
 
@@ -233,18 +171,9 @@ router.get('/investigation-status/:jobId', asyncHandler(async (req, res) => {
     // Queue may not have the job if it completed and was removed
   }
 
-  // Also check Investigation collection for persistent state
-  const inv = await Investigation.findOne({
-    ...req.orgFilter,
-    jobId,
-  }).select('status toolCallSequence classification').lean();
-
-  // Get today's briefing status
+  const inv = await Investigation.findOne({ jobId }).select('status toolCallSequence classification').lean();
   const nightDate = todayNightDate();
-  const briefing = await Briefing.findOne({
-    ...req.orgFilter,
-    nightDate: toISODate(nightDate),
-  }).select('status').lean();
+  const briefing = await Briefing.findOne({ nightDate: toISODate(nightDate) }).select('status').lean();
 
   const toolCallsExecuted = inv?.toolCallSequence?.length ?? 0;
   const status = inv?.status ?? jobState?.state ?? 'unknown';
@@ -252,34 +181,27 @@ router.get('/investigation-status/:jobId', asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, {
     jobId,
     status,
-    progress: {
-      toolCallsExecuted,
-      averageConfidence: null,
-    },
+    progress: { toolCallsExecuted, averageConfidence: null },
     briefingStatus: briefing?.status ?? 'not_started',
   }, 'Status fetched'));
 }));
 
 /* ── GET /test/briefing ───────────────────────────────── */
-router.get('/briefing', asyncHandler(async (req, res) => {
-  const nightDate = todayNightDate();
+router.get('/briefing', asyncHandler(async (req, res) => {const nightDate = todayNightDate();
   const briefing = await Briefing.findOne({
-    ...req.orgFilter,
-    nightDate: toISODate(nightDate),
-  }).lean();
+    nightDate: toISODate(nightDate)}).lean();
 
   if (!briefing) throw new ApiError(404, 'No briefing found for today. Run an investigation first.');
 
-  res.status(200).json(new ApiResponse(200, { briefing }, 'Briefing fetched'));
+  res.status(200).json(new ApiResponse(200, {briefing}, 'Briefing fetched'));
 }));
 
 /* ── POST /test/cleanup ───────────────────────────────── */
-router.post('/cleanup', asyncHandler(async (req, res) => {
-  const { nightDate: rawDate } = req.body;
+router.post('/cleanup', asyncHandler(async (req, res) => {const { nightDate: rawDate} = req.body;
   if (!rawDate) throw new ApiError(400, 'nightDate is required to prevent accidental wipes');
 
   const nightDate = parseNightDate(rawDate);
-  const filter = { ...req.orgFilter, nightDate: toISODate(nightDate) };
+  const filter = {nightDate: toISODate(nightDate)};
 
   const [evtResult, incResult, invResult, brfResult] = await Promise.all([
     Event.deleteMany(filter),
@@ -288,21 +210,10 @@ router.post('/cleanup', asyncHandler(async (req, res) => {
     Briefing.deleteMany(filter),
   ]);
 
-  console.log('[TEST API] cleanup', req.user.orgId, toISODate(nightDate), {
-    events: evtResult.deletedCount,
-    incidents: incResult.deletedCount,
-    investigations: invResult.deletedCount,
-    briefings: brfResult.deletedCount,
-  });
+  console.log('[TEST API] cleanup', toISODate(nightDate), {events: evtResult.deletedCount, incidents: incResult.deletedCount, investigations: invResult.deletedCount, briefings: brfResult.deletedCount});
 
-  res.status(200).json(new ApiResponse(200, {
-    message: `Cleaned up test data for ${toISODate(nightDate)}`,
-    deleted: {
-      events: evtResult.deletedCount,
-      incidents: incResult.deletedCount,
-      investigations: invResult.deletedCount,
-      briefings: brfResult.deletedCount,
-    },
+  res.status(200).json(new ApiResponse(200, {message: `Cleaned up test data for ${toISODate(nightDate)}`,
+    deleted: {events: evtResult.deletedCount, incidents: incResult.deletedCount, investigations: invResult.deletedCount, briefings: brfResult.deletedCount},
   }, 'Cleanup complete'));
 }));
 

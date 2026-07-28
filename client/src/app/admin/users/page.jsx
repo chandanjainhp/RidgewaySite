@@ -215,7 +215,7 @@ export default function UsersPage() {
 
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [orgFilter, setOrgFilter] = useState('');
+  const [listFilter, setListFilter] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -235,11 +235,11 @@ export default function UsersPage() {
   const orgs = orgsData?.orgs ?? orgsData?.data ?? [];
 
   const { data: usersData, isLoading, isError } = useQuery({
-    queryKey: ['admin-users', debouncedSearch, orgFilter, roleFilter, statusFilter],
+    queryKey: ['admin-users', debouncedSearch, listFilter, roleFilter, statusFilter],
     queryFn: () =>
       listAdminUsers({
         search: debouncedSearch || undefined,
-        orgId: orgFilter || undefined,
+        
         role: roleFilter || undefined,
         isActive: statusFilter === '' ? undefined : statusFilter === 'active',
         limit: 50,
@@ -252,7 +252,7 @@ export default function UsersPage() {
   async function handleRoleChange(userId, newRole) {
     setLoadingRole(userId);
     queryClient.setQueryData(
-      ['admin-users', debouncedSearch, orgFilter, roleFilter, statusFilter],
+      ['admin-users', debouncedSearch, listFilter, roleFilter, statusFilter],
       (old) => {
         if (!old) return old;
         const list = old?.users ?? old?.data ?? [];
@@ -264,7 +264,7 @@ export default function UsersPage() {
       await updateUserRole(userId, newRole);
     } catch (err) {
       toast.error(err?.message ?? 'Failed to update role');
-      queryClient.invalidateQueries({ queryKey: ['admin-users', debouncedSearch, orgFilter, roleFilter, statusFilter] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users', debouncedSearch, listFilter, roleFilter, statusFilter] });
     } finally {
       setLoadingRole(null);
     }
@@ -273,7 +273,7 @@ export default function UsersPage() {
   async function handleStatusChange(userId, isActive) {
     setLoadingStatus(userId);
     queryClient.setQueryData(
-      ['admin-users', debouncedSearch, orgFilter, roleFilter, statusFilter],
+      ['admin-users', debouncedSearch, listFilter, roleFilter, statusFilter],
       (old) => {
         if (!old) return old;
         const list = old?.users ?? old?.data ?? [];
@@ -286,7 +286,7 @@ export default function UsersPage() {
       toast.success(isActive ? 'User activated' : 'User deactivated');
     } catch (err) {
       toast.error(err?.message ?? 'Failed to update status');
-      queryClient.invalidateQueries({ queryKey: ['admin-users', debouncedSearch, orgFilter, roleFilter, statusFilter] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users', debouncedSearch, listFilter, roleFilter, statusFilter] });
     } finally {
       setLoadingStatus(null);
     }
@@ -339,8 +339,8 @@ export default function UsersPage() {
           />
         </div>
 
-        <select style={selectStyle} value={orgFilter} onChange={(e) => setOrgFilter(e.target.value)}>
-          <option value="">All Organisations</option>
+        <select style={selectStyle} value={listFilter} onChange={(e) => setListFilter(e.target.value)}>
+          <option value="">All Sites</option>
           {orgs.map((o) => <option key={o._id} value={o._id}>{o.name}</option>)}
         </select>
 
@@ -367,7 +367,7 @@ export default function UsersPage() {
           <table className="w-full text-sm text-left">
             <thead>
               <tr style={{ background: 'var(--bg-surface-2)', borderBottom: '1px solid var(--border-default)' }}>
-                {['User', 'Organisation', 'Role', 'Last Login', 'Status', 'Actions'].map((h, i) => (
+                {['User', 'Site', 'Role', 'Last Login', 'Status', 'Actions'].map((h, i) => (
                   <th
                     key={h}
                     className={`px-5 py-3 text-xs font-semibold uppercase tracking-wider ${i === 5 ? 'text-right' : ''}`}
@@ -428,7 +428,7 @@ export default function UsersPage() {
                       </td>
 
                       <td className="px-5 py-3 text-sm" style={{ color: 'var(--fg-2)' }}>
-                        {u.orgId?.name ?? <span style={{ color: 'var(--fg-4)', fontStyle: 'italic' }}>None</span>}
+                        {null ?? <span style={{ color: 'var(--fg-4)', fontStyle: 'italic' }}>None</span>}
                       </td>
 
                       <td className="px-5 py-3">

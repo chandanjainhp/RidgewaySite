@@ -16,14 +16,13 @@ const getNightRange = (nightDate) => {
   return { start, end };
 };
 
-export const startNightInvestigation = async (nightDate, orgFilter = {}) => {
+export const startNightInvestigation = async (nightDate) => {
   try {
     const dateStr = typeof nightDate === 'string' ? nightDate : nightDate.toISOString().split('T')[0];
     const { start, end } = getNightRange(nightDate);
 
     const existingJobs = await Investigation.find({
       nightDate: dateStr,
-      ...orgFilter
     }).lean();
 
     const activeJobs = existingJobs.filter(
@@ -42,7 +41,6 @@ export const startNightInvestigation = async (nightDate, orgFilter = {}) => {
     const incidents = await Incident.find({
       nightDate: dateStr,
       status: "open",
-      ...orgFilter
     }).lean();
 
     if (incidents.length === 0) {
@@ -90,7 +88,6 @@ export const startNightInvestigation = async (nightDate, orgFilter = {}) => {
           reasoning: "Investigation queued; classification pending.",
           uncertainties: [],
         },
-        orgId: orgFilter.orgId || undefined,
       });
 
       const job = await dispatchInvestigation(
@@ -100,8 +97,7 @@ export const startNightInvestigation = async (nightDate, orgFilter = {}) => {
         {
           investigationId: investigation._id.toString(),
           nightDate,
-          orgId: orgFilter.orgId || undefined,
-        }
+          }
       );
 
       investigation.jobId = job.id;
@@ -187,36 +183,34 @@ export const getInvestigationWithEvidence = async (investigationId) => {
   }
 };
 
-export const checkNightComplete = async (nightDate, orgFilter = {}) => {
+export const checkNightComplete = async (nightDate) => {
   try {
-    const { start, end } = getNightRange(nightDate);
-    const incidents = await Incident.find({
-      nightDate: { $gte: start, $lte: end },
-      ...orgFilter
-    }).lean();
+    const dateStr = typeof nightDate === 'string' ? nightDate : nightDate.toISOString().split('T')[0];
+    // Incidents use open|investigating|reviewed|… — night readiness is investigation status.
+    const investigations = await Investigation.find({ nightDate: dateStr }).lean();
 
-    if (incidents.length === 0) {
-      return { isComplete: true, incidentCount: 0, completedCount: 0 };
+    if (investigations.length === 0) {
+      return { isComplete: false, incidentCount: 0, completedCount: 0 };
     }
 
-    const completedCount = incidents.filter(
-      (incident) => incident.status === "complete"
+    const inFlight = investigations.filter(
+      (job) => job.status === 'queued' || job.status === 'running'
     ).length;
-    const isComplete = completedCount === incidents.length;
+    const completedCount = investigations.filter((job) => job.status === 'complete').length;
 
-    if (!isComplete) {
+    if (inFlight > 0) {
       return {
         isComplete: false,
-        incidentCount: incidents.length,
+        incidentCount: investigations.length,
         completedCount,
-        remaining: incidents.length - completedCount,
+        remaining: inFlight,
       };
     }
 
-    const briefing = await briefingService.generateBriefing(nightDate);
+    const briefing = await briefingService.generateBriefing(dateStr);
     return {
       isComplete: true,
-      incidentCount: incidents.length,
+      incidentCount: investigations.length,
       completedCount,
       briefingId: briefing?._id || null,
       briefingStatus: briefing ? briefing.status : null,

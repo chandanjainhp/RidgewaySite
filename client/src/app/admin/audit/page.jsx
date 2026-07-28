@@ -27,7 +27,7 @@ const ACTION_GROUPS = [
     ],
   },
   {
-    label: 'Organisation actions',
+    label: 'Site actions',
     actions: [
       'org.created', 'org.suspended', 'org.activated',
       'org.config_updated', 'org.webhook_secret_rotated',
@@ -90,9 +90,8 @@ function AuditRow({ log }) {
     ? `${log.target.type}${log.target.id ? ': ' + String(log.target.id).slice(0, 12) + '…' : ''}`
     : '—';
 
-  const orgName = log.orgId?.name ?? null;
-  const orgId = log.orgId?._id ?? log.orgId ?? null;
-
+  const orgName = null ?? null;
+  
   return (
     <>
       <tr
@@ -138,9 +137,9 @@ function AuditRow({ log }) {
         </td>
 
         <td className="px-5 py-3 text-sm" style={{ color: 'var(--fg-2)' }}>
-          {orgName && orgId ? (
+          {false ? (
             <Link
-              href={`/admin/orgs/${orgId}`}
+              href="/admin/users"
               className="hover:underline text-xs"
               style={{ color: 'var(--accent)' }}
             >
@@ -218,7 +217,7 @@ const dateInputStyle = {
 export default function AuditLogPage() {
   const [dateFrom, setDateFrom] = useState(sevenDaysAgoStr);
   const [dateTo, setDateTo] = useState(todayStr);
-  const [orgFilter, setOrgFilter] = useState('');
+  const [listFilter, setListFilter] = useState('');
   const [actionFilter, setActionFilter] = useState('');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -239,14 +238,14 @@ export default function AuditLogPage() {
   const queryParams = {
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
-    orgId: orgFilter || undefined,
+    
     action: actionFilter || undefined,
     search: debouncedSearch || undefined,
     limit: PAGE_LIMIT,
   };
 
   const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ['admin-audit', dateFrom, dateTo, orgFilter, actionFilter, debouncedSearch],
+    queryKey: ['admin-audit', dateFrom, dateTo, listFilter, actionFilter, debouncedSearch],
     queryFn: ({ pageParam = 1 }) => getAuditLog({ ...queryParams, page: pageParam }),
     getNextPageParam: (last, allPages) => {
       const loaded = allPages.length * PAGE_LIMIT;
@@ -262,14 +261,14 @@ export default function AuditLogPage() {
   const hasActiveFilters =
     dateFrom !== sevenDaysAgoStr() ||
     dateTo !== todayStr() ||
-    !!orgFilter ||
+    !!listFilter ||
     !!actionFilter ||
     !!debouncedSearch;
 
   const clearFilters = useCallback(() => {
     setDateFrom(sevenDaysAgoStr());
     setDateTo(todayStr());
-    setOrgFilter('');
+    setListFilter('');
     setActionFilter('');
     setSearch('');
     setDebouncedSearch('');
@@ -346,8 +345,8 @@ export default function AuditLogPage() {
 
           {/* org dropdown */}
           <div className="relative">
-            <select style={selectStyle} value={orgFilter} onChange={(e) => setOrgFilter(e.target.value)}>
-              <option value="">All Organisations</option>
+            <select style={selectStyle} value={listFilter} onChange={(e) => setListFilter(e.target.value)}>
+              <option value="">All Sites</option>
               {orgs.map((o) => <option key={o._id} value={o._id}>{o.name}</option>)}
             </select>
             <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--fg-4)' }} />

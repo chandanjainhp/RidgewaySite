@@ -35,16 +35,15 @@ function getDayRange(dateString) {
  * @param {Date|string} nightDate - night to correlate
  * @returns {Promise<array>} created Incident IDs
  */
-export const correlateNightEvents = async (orgId, nightDate) => {
+export const correlateNightEvents = async (nightDate) => {
   try {
-    console.log(`[CorrelationService] Correlating events for org ${orgId} on ${nightDate}`);
+    console.log(`[CorrelationService] Correlating events for ${nightDate}`);
 
     const { start, end } = getDayRange(nightDate);
 
     // Fetch all events for the night
     const dateStr = typeof nightDate === 'string' ? nightDate : nightDate.toISOString().split('T')[0];
     const events = await Event.find({
-      orgId,
       nightDate: dateStr,
     }).lean();
 
@@ -93,7 +92,6 @@ export const correlateNightEvents = async (orgId, nightDate) => {
     for (const cluster of deduplicatedClusters) {
       const primaryEvent = await Event.findById(cluster.eventIds[0]).lean();
       const incident = await Incident.create({
-        orgId,
         incidentId: `INC-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         nightDate: dateStr,
         title: generateIncidentTitle(cluster),
@@ -118,7 +116,6 @@ export const correlateNightEvents = async (orgId, nightDate) => {
 
       // Auto-dispatch investigation
       const investigation = await Investigation.create({
-        orgId,
         incidentId: incident._id,
         nightDate: dateStr,
         status: 'queued',
@@ -134,7 +131,6 @@ export const correlateNightEvents = async (orgId, nightDate) => {
         incident.priority || 3,
         jobId,
         {
-          orgId,
           nightDate: dateStr,
           investigationId: investigation._id.toString()
         }

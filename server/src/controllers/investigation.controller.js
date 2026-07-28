@@ -10,7 +10,7 @@ import { logAudit } from "../utils/audit.js";
 export const startInvestigation = async (req, res) => {
   const nightDate =
     req.body?.nightDate || new Date().toISOString().split("T")[0];
-  const result = await startNightInvestigation(nightDate, req.orgFilter);
+  const result = await startNightInvestigation(nightDate);
 
   logAudit(req, "investigation.started", { type: "Investigation", ...(result.investigationId ? { id: result.investigationId } : {}) }, { nightDate });
 
@@ -20,7 +20,7 @@ export const startInvestigation = async (req, res) => {
 };
 
 export const getInvestigation = async (req, res) => {
-  const owned = await Investigation.findOne({ _id: req.params.id, ...req.orgFilter }).lean();
+  const owned = await Investigation.findOne({ _id: req.params.id }).lean();
   if (!owned) throw new ApiError(404, 'Investigation not found');
 
   const investigation = await getInvestigationWithEvidence(req.params.id);

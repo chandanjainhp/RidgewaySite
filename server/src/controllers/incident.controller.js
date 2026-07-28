@@ -55,7 +55,7 @@ const summarizeToolResult = (toolName, toolResult) => {
 };
 
 export const createIncident = async (req, res) => {
-  const incident = new Incident({ ...req.body, orgId: req.user.orgId });
+  const incident = new Incident({ ...req.body });
   const savedIncident = await incident.save();
 
   const webhookPayload = {
@@ -65,10 +65,10 @@ export const createIncident = async (req, res) => {
     timestamp: savedIncident.createdAt,
   };
   if (OUTBOX_ENABLED) {
-    await OutboxEvent.create({ orgId: req.user.orgId, eventType: 'incident.created', payload: webhookPayload, status: 'pending' });
+    await OutboxEvent.create({ eventType: 'incident.created', payload: webhookPayload, status: 'pending' });
   } else {
     const { triggerWebhook } = await import('../services/webhook.service.js');
-    triggerWebhook(req.user.orgId, 'incident.created', webhookPayload);
+    triggerWebhook('incident.created', webhookPayload);
   }
 
   return res.status(201).json(new ApiResponse(201, savedIncident, "Incident reported successfully"));
@@ -79,8 +79,8 @@ export const getIncidents = async (req, res) => {
   const query = {};
 
   if (nightDate) {
-    const { start, end } = startAndEndOfNight(nightDate);
-    query.nightDate = { $gte: start, $lte: end };
+    // nightDate is stored as YYYY-MM-DD string
+    query.nightDate = String(nightDate).slice(0, 10);
   }
 
   if (status) {
@@ -90,8 +90,6 @@ export const getIncidents = async (req, res) => {
   if (severity) {
     query.severity = severity;
   }
-
-  Object.assign(query, req.orgFilter);
 
   const incidents = await Incident.find(query).sort({
     priority: 1,
@@ -108,7 +106,7 @@ export const getIncidents = async (req, res) => {
 };
 
 export const getIncidentById = async (req, res) => {
-  const incident = await Incident.findOne({ _id: req.params.id, ...req.orgFilter })
+  const incident = await Incident.findOne({ _id: req.params.id })
     .populate("investigationId")
     .lean();
 
@@ -117,10 +115,10 @@ export const getIncidentById = async (req, res) => {
   }
 
   const [events, fallbackInvestigation] = await Promise.all([
-    Event.find({ _id: { $in: incident.eventIds || [] }, ...req.orgFilter }).sort({ timestamp: 1 }).lean(),
+    Event.find({ _id: { $in: incident.eventIds || [] } }).sort({ timestamp: 1 }).lean(),
     incident.investigationId
       ? Promise.resolve(null)
-      : Investigation.findOne({ incidentId: incident._id, ...req.orgFilter }).sort({ createdAt: -1 }).lean(),
+      : Investigation.findOne({ incidentId: incident._id }).sort({ createdAt: -1 }).lean(),
   ]);
 
   const investigation = incident.investigationId || fallbackInvestigation || null;
@@ -151,7 +149,7 @@ export const getIncidentById = async (req, res) => {
 };
 
 export const getIncidentEvidenceGraph = async (req, res) => {
-  const incident = await Incident.findOne({ _id: req.params.id, ...req.orgFilter })
+  const incident = await Incident.findOne({ _id: req.params.id })
     .populate("investigationId")
     .lean();
 
@@ -161,7 +159,7 @@ export const getIncidentEvidenceGraph = async (req, res) => {
 
   const fallbackInvestigation = incident.investigationId
     ? null
-    : await Investigation.findOne({ incidentId: incident._id, ...req.orgFilter })
+    : await Investigation.findOne({ incidentId: incident._id })
         .sort({ createdAt: -1 })
         .lean();
 

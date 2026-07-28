@@ -111,14 +111,15 @@ export const getDronePatrolLog = async (nightDate) => {
  * @param {Date|string} nightDate - the night to retrieve
  * @returns {Promise<object>} { byIncident: {incidentId: [events]}, unincorporated: [events] }
  */
-export const getEventsForNight = async (nightDate, orgFilter = {}) => {
+export const getEventsForNight = async (nightDate) => {
   try {
-    const { start, end } = getDayRange(nightDate);
+    const dateStr = typeof nightDate === 'string'
+      ? nightDate.slice(0, 10)
+      : nightDate.toISOString().split('T')[0];
 
     // Query all events for the night
     const rawEvents = await Event.find({
-      ...orgFilter,
-      nightDate: { $gte: start, $lte: end },
+      nightDate: dateStr,
     })
       .populate("incidentId", "title status")
       .lean();

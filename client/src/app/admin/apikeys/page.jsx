@@ -187,7 +187,7 @@ const selectStyle = {
 
 export default function ApiKeysPage() {
   const queryClient = useQueryClient();
-  const [orgFilter, setOrgFilter] = useState('');
+  const [listFilter, setListFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [scopeFilter, setScopeFilter] = useState('');
 
@@ -199,10 +199,10 @@ export default function ApiKeysPage() {
   const orgs = Array.isArray(orgsData?.data) ? orgsData.data : Array.isArray(orgsData) ? orgsData : [];
 
   const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ['admin-apikeys', orgFilter, statusFilter, scopeFilter],
+    queryKey: ['admin-apikeys', listFilter, statusFilter, scopeFilter],
     queryFn: ({ pageParam = 1 }) =>
       listAdminApiKeys({
-        orgId: orgFilter || undefined,
+        
         status: statusFilter || undefined,
         scope: scopeFilter || undefined,
         page: pageParam,
@@ -220,10 +220,10 @@ export default function ApiKeysPage() {
   const keys = allKeys;
   const totalLoaded = allKeys.length;
   const totalAvailable = data?.pages?.[0]?.total ?? 0;
-  const hasActiveFilters = !!(orgFilter || statusFilter || scopeFilter);
+  const hasActiveFilters = !!(listFilter || statusFilter || scopeFilter);
 
   async function handleRevoke(keyId) {
-    queryClient.setQueryData(['admin-apikeys', orgFilter, statusFilter, scopeFilter], (old) => {
+    queryClient.setQueryData(['admin-apikeys', listFilter, statusFilter, scopeFilter], (old) => {
       if (!old) return old;
       return {
         ...old,
@@ -268,7 +268,7 @@ export default function ApiKeysPage() {
         <ShieldAlert className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#e89a2b' }} />
         <p className="text-sm" style={{ color: '#e89a2b' }}>
           Global oversight view. Monitor and emergency-revoke any API key in the system.
-          Keys are created by Org Admins within their organisation settings.
+          Keys are created by Org Admins within their site settings.
         </p>
       </div>
 
@@ -278,8 +278,8 @@ export default function ApiKeysPage() {
         style={{ background: 'var(--bg-surface-1)', border: '1px solid var(--border-default)' }}
       >
         <div className="relative">
-          <select style={selectStyle} value={orgFilter} onChange={(e) => setOrgFilter(e.target.value)}>
-            <option value="">All Organisations</option>
+          <select style={selectStyle} value={listFilter} onChange={(e) => setListFilter(e.target.value)}>
+            <option value="">All Sites</option>
             {orgs.map((o) => <option key={o._id} value={o._id}>{o.name}</option>)}
           </select>
           <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--fg-4)' }} />
@@ -304,7 +304,7 @@ export default function ApiKeysPage() {
 
         {hasActiveFilters && (
           <button
-            onClick={() => { setOrgFilter(''); setStatusFilter(''); setScopeFilter(''); }}
+            onClick={() => { setListFilter(''); setStatusFilter(''); setScopeFilter(''); }}
             className="text-xs underline"
             style={{ color: 'var(--fg-3)' }}
           >
@@ -322,7 +322,7 @@ export default function ApiKeysPage() {
           <table className="w-full text-sm text-left">
             <thead>
               <tr style={{ background: 'var(--bg-surface-2)', borderBottom: '1px solid var(--border-default)' }}>
-                {['Name', 'Prefix', 'Organisation', 'Scopes', 'Created by', 'Last used', 'Expires', 'Status', 'Actions'].map((h, i) => (
+                {['Name', 'Prefix', 'Site', 'Scopes', 'Created by', 'Last used', 'Expires', 'Status', 'Actions'].map((h, i) => (
                   <th
                     key={h}
                     className={`px-5 py-3 text-xs font-semibold uppercase tracking-wider ${i === 8 ? 'text-right' : ''}`}
@@ -355,7 +355,7 @@ export default function ApiKeysPage() {
                     </p>
                     {hasActiveFilters && (
                       <button
-                        onClick={() => { setOrgFilter(''); setStatusFilter(''); setScopeFilter(''); }}
+                        onClick={() => { setListFilter(''); setStatusFilter(''); setScopeFilter(''); }}
                         className="text-sm font-medium"
                         style={{ color: 'var(--accent)' }}
                       >
@@ -367,8 +367,7 @@ export default function ApiKeysPage() {
               ) : (
                 keys.map((k) => {
                   const isActive = k.isActive === true;
-                  const orgId = k.orgId?._id ?? k.orgId;
-                  const orgName = k.orgId?.name ?? null;
+                                    const orgName = null ?? null;
 
                   return (
                     <tr
@@ -393,9 +392,9 @@ export default function ApiKeysPage() {
                         </span>
                       </td>
                       <td className="px-5 py-3" style={{ color: 'var(--fg-2)' }}>
-                        {orgId && orgName ? (
+                        {false ? (
                           <Link
-                            href={`/admin/orgs/${orgId}`}
+                            href="/admin/users"
                             style={{ color: 'var(--accent)' }}
                             className="hover:underline"
                           >

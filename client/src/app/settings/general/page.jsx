@@ -180,7 +180,7 @@ export default function GeneralSettingsPage() {
         fontSize: '13px',
       }}>
         <Loader2 size={16} className="animate-spin" style={{ marginRight: '8px' }} />
-        Loading organisation settings…
+        Loading site settings…
       </div>
     );
   }
@@ -201,7 +201,7 @@ export default function GeneralSettingsPage() {
         fontSize: '13px',
       }}>
         <AlertTriangle size={14} style={{ flexShrink: 0 }} />
-        Failed to load organisation settings. Please refresh the page.
+        Failed to load site settings. Please refresh the page.
       </div>
     );
   }
@@ -231,14 +231,14 @@ export default function GeneralSettingsPage() {
           marginTop: '6px',
           margin: '6px 0 0 0',
         }}>
-          Organisation-level configuration for your Sentinel workspace.
+          Site configuration for your Sentinel workspace.
         </p>
       </div>
 
-      {/* ── organisation info (read-only) ── */}
+      {/* ── site info (read-only) ── */}
       <section style={CARD_STYLE}>
         <div style={SECTION_HEADER_STYLE}>
-          <h2 style={SECTION_TITLE_STYLE}>Organisation</h2>
+          <h2 style={SECTION_TITLE_STYLE}>Site</h2>
         </div>
         <dl style={{
           display: 'grid',
@@ -381,7 +381,7 @@ export default function GeneralSettingsPage() {
                 <textarea
                   id="promptOverride"
                   rows={5}
-                  placeholder="Custom instructions prepended to all AI investigation prompts for this organisation"
+                  placeholder="Custom instructions prepended to all AI investigation prompts for this site"
                   value={promptOverride}
                   onChange={(e) => setPromptOverride(e.target.value)}
                   style={{

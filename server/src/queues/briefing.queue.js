@@ -16,26 +16,26 @@ export const getBriefingQueue = () => {
   return briefingQueue;
 };
 
-export const scheduleBriefingFinalisation = async (orgId, timeString = '05:30', timezone = 'UTC') => {
+export const scheduleBriefingFinalisation = async (timeString = '05:30', timezone = 'UTC') => {
   const queue = getBriefingQueue();
   const [hour, minute] = timeString.split(':');
-  
+
   const repeatableJobs = await queue.getRepeatableJobs();
   for (const job of repeatableJobs) {
-    if (job.id === `briefing:${orgId}`) {
+    if (job.id === 'briefing-site') {
       await queue.removeRepeatableByKey(job.key);
     }
   }
 
   await queue.add(
     'finalizeBriefing',
-    { orgId },
+    {},
     {
       repeat: {
         pattern: `${minute} ${hour} * * *`,
         tz: timezone
       },
-      jobId: `briefing:${orgId}`
+      jobId: 'briefing-site'
     }
   );
 };

@@ -38,7 +38,6 @@ const processBatch = async () => {
     for (const row of claimed) {
       try {
         const delivery = await WebhookDelivery.create({
-          orgId: row.orgId,
           eventType: row.eventType,
           payload: row.payload,
           status: 'pending',
