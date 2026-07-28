@@ -220,36 +220,10 @@ const accountConfirmationMailgenContent = (username) => {
   };
 };
 
-/**
- * Generate invitation email content
- * @param {string} email - Invitee's email
- * @param {string} orgName - Organisation name
- * @param {string} inviteUrl - The URL to accept the invite
- * @returns {Object} Mailgen email content
- */
-const inviteMailgenContent = (email, orgName, inviteUrl) => {
-  return {
-    body: {
-      name: email,
-      intro: `You've been invited to join the ${orgName} organisation on Sentinel.`,
-      action: {
-        instructions: "Please click the button below to set up your account and password:",
-        button: {
-          color: "#4F46E5", // Indigo-600 to match platform
-          text: "Set up your account",
-          link: inviteUrl,
-        },
-      },
-      outro: `If the button doesn't work, you can copy and paste this link into your browser:\n${inviteUrl}\n\nThis invitation expires in 48 hours.`,
-    },
-  };
-};
-
 export {
   emailVerificationMailgenContent,
   forgotPasswordMailgenContent,
   accountConfirmationMailgenContent,
-  inviteMailgenContent,
   sendEmail,
   sendTestEmail,
   verifyEmailConnection,

@@ -7,61 +7,8 @@ import Event from '../models/event.model.js';
 import { ApiError } from '../utils/api-error.js';
 import { ApiResponse } from '../utils/api-response.js';
 import { logAudit } from '../utils/audit.js';
-import { sendEmail, inviteMailgenContent } from '../utils/mail.js';
 import { dispatchWebhook } from '../queues/webhook.queue.js';
 import crypto from 'crypto';
-
-export const inviteOperator = async (req, res) => {
-  const { email } = req.body;
-  if (!email) throw new ApiError(400, "Email is required");
-
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
-    throw new ApiError(400, "A user with this email already exists");
-  }
-
-  const newUser = await User.create({
-    username: email.split('@')[0] + '_' + Math.random().toString(36).substring(2, 6),
-    email,
-    password: require('crypto').randomBytes(32).toString('hex'), // Random impossible password
-    role: 'operator',
-    orgId: req.user.orgId,
-    isActive: false,
-    invitedBy: req.user._id
-  });
-
-  const { unHashedToken } = newUser.generateInviteToken();
-  await newUser.save();
-
-  logAudit(req, 'user.invited', { type: 'User', id: newUser._id }, { email, role: 'operator' });
-
-  const org = await Organisation.findById(req.user.orgId).lean();
-  const inviteUrl = `${process.env.APP_URL || 'http://localhost:3000'}/invite/accept?token=${unHashedToken}`;
-
-  try {
-    await sendEmail({
-      email,
-      subject: `You've been invited to Sentinel — ${org.name}`,
-      mailgenContent: inviteMailgenContent(email, org.name, inviteUrl),
-    });
-  } catch (error) {
-    console.error("Failed to send operator invite email:", error);
-  }
-
-  res.status(201).json(new ApiResponse(201, {
-    message: "Operator invited successfully",
-    inviteLink: process.env.NODE_ENV !== 'production' ? inviteUrl : undefined
-  }, "Invitation sent"));
-};
-
-export const listOrgMembers = async (req, res) => {
-  const users = await User.find(req.orgFilter)
-    .select('-password -refreshToken -inviteToken')
-    .sort({ createdAt: -1 })
-    .lean();
-
-  res.status(200).json(new ApiResponse(200, users, "Organisation members retrieved successfully"));
-};
 
 export const getWebhookConfig = async (req, res) => {
   const org = await Organisation.findById(req.user.orgId).lean();

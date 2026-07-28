@@ -45,10 +45,6 @@ const userSchema = new Schema(
       type: Boolean,
       default: true,
     },
-    invitedBy: {
-      type: Types.ObjectId,
-      ref: 'User',
-    },
     username: {
       type: String,
       required: true,
@@ -79,8 +75,6 @@ const userSchema = new Schema(
     refreshToken: {
       type: String,
     },
-    inviteToken: String,
-    inviteTokenExpiry: Date,
     forgotPasswordToken: {
       type: String,
     },
@@ -147,19 +141,6 @@ userSchema.methods.generateTemporaryToken = function () {
 
     const tokenExpiry = Date.now() + (20*60*1000) // 20 mins
     return {unHashedToken, hashedToken, tokenExpiry}
-};
-
-userSchema.methods.generateInviteToken = function () {
-  const unHashedToken = crypto.randomBytes(32).toString("hex");
-
-  this.inviteToken = crypto
-    .createHash("sha256")
-    .update(unHashedToken)
-    .digest("hex");
-
-  this.inviteTokenExpiry = Date.now() + 48 * 60 * 60 * 1000; // 48 hours
-
-  return { unHashedToken, hashedToken: this.inviteToken, tokenExpiry: this.inviteTokenExpiry };
 };
 
 export const User = mongoose.model("User", userSchema);

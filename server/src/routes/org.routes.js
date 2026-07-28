@@ -2,8 +2,6 @@ import express from 'express';
 import { authenticateRequest, requireRole, scopeToOrg } from '../middlewares/auth.middleware.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import {
-  inviteOperator,
-  listOrgMembers,
   getWebhookConfig,
   updateWebhookConfig,
   rotateWebhookSecret,
@@ -35,10 +33,6 @@ router.use(requireAdminGateSession);
 
 router.patch('/me/config', asyncHandler(updateOrgConfig));
 router.get('/ingestion-status', asyncHandler(getIngestionStatus));
-
-// Members
-router.post('/users/invite', asyncHandler(inviteOperator));
-router.get('/users', asyncHandler(listOrgMembers));
 
 // API keys
 router.get('/api-keys', asyncHandler(listOrgApiKeys));

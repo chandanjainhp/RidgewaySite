@@ -3,7 +3,7 @@ import { authenticateRequest, requireRole } from '../middlewares/auth.middleware
 import { requireAdminGateSession } from '../controllers/adminGate.controllers.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import {
-  listOrgs, createOrg, getOrgDetail, updateOrgStatus, updateOrgConfig, inviteOrgAdmin, resendInvite,
+  listOrgs, createOrg, getOrgDetail, updateOrgStatus, updateOrgConfig,
   listUsers, setUserRole, forceLogout, updateUserStatus,
   listApiKeys, revokeApiKey,
   getQueueStats, getFailedJobs, retryJob, deleteJob,
@@ -25,8 +25,6 @@ router.post('/orgs', asyncHandler(createOrg));
 router.get('/orgs/:orgId', requireAdminGateSession, asyncHandler(getOrgDetail));
 router.patch('/orgs/:orgId/status', asyncHandler(updateOrgStatus));
 router.patch('/orgs/:orgId/config', requireAdminGateSession, asyncHandler(updateOrgConfig));
-router.post('/orgs/:orgId/invite', asyncHandler(inviteOrgAdmin));
-router.post('/orgs/:orgId/resend-invite/:userId', asyncHandler(resendInvite));
 
 // User Management
 router.get('/users', asyncHandler(listUsers));

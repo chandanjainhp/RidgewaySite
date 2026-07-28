@@ -13,7 +13,6 @@ const PUBLIC_ROUTES = new Set([
   "/reset-password",
   "/suspended",
   "/forbidden",
-  "/invite/accept",
 ]);
 
 export default function RootFrame({ children }) {
@@ -21,8 +20,7 @@ export default function RootFrame({ children }) {
   const path = pathname || "";
   const isPublicRoute =
     PUBLIC_ROUTES.has(path) ||
-    path.startsWith("/reset-password") ||
-    path.startsWith("/invite/accept");
+    path.startsWith("/reset-password");
 
   const suppressTopBar = isPublicRoute || path.startsWith("/admin") || path.startsWith("/setup");
 

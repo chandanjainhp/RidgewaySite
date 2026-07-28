@@ -8,7 +8,6 @@ const PUBLIC_PATHS = new Set([
   '/forgot-password',
   '/opt',
   '/reset-password',
-  '/invite/accept',
   '/admin/login',
   '/settings-access',
 ]);
@@ -16,7 +15,6 @@ const PUBLIC_PATHS = new Set([
 const ORG_ADMIN_PATHS = [
   '/settings/general',
   '/settings/api-keys',
-  '/settings/members',
   '/settings/webhooks',
   '/settings/integrations',
 ];

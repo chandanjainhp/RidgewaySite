@@ -13,7 +13,6 @@ import {
   listAdminOrgs,
   createAdminOrg,
   updateAdminOrgStatus,
-  inviteToOrg,
 } from '@/lib/api';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -146,25 +145,18 @@ const inputStyle = {
 function CreateOrgDialog({ open, onOpenChange, onCreated }) {
   const [name, setName] = useState('');
   const [plan, setPlan] = useState('trial');
-  const [inviteEmail, setInviteEmail] = useState('');
   const [slugError, setSlugError] = useState('');
   const queryClient = useQueryClient();
 
   const reset = () => {
     setName('');
     setPlan('trial');
-    setInviteEmail('');
     setSlugError('');
   };
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const org = await createAdminOrg({ name: name.trim(), plan });
-      const orgId = org._id ?? org.id;
-      if (inviteEmail.trim()) {
-        await inviteToOrg(orgId, { email: inviteEmail.trim() });
-      }
-      return org;
+      return createAdminOrg({ name: name.trim(), plan });
     },
     onSuccess: () => {
       toast.success('Organisation created');
@@ -265,19 +257,6 @@ function CreateOrgDialog({ open, onOpenChange, onCreated }) {
                   </RadioGroup.Item>
                 ))}
               </RadioGroup.Root>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--fg-2)' }}>
-                Invite Email <span style={{ color: 'var(--fg-4)', fontWeight: 400 }}>(optional)</span>
-              </label>
-              <input
-                type="email"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                placeholder="admin@acme.com"
-                style={inputStyle}
-              />
             </div>
 
             <div className="flex justify-end gap-3 pt-1">

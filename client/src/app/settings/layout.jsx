@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Settings, Key, Users, Webhook, Lock, LogOut, Loader2 } from 'lucide-react';
+import { Settings, Key, Webhook, Lock, LogOut, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { getAdminGateStatus, logoutAdminGate } from '@/lib/api';
 import { useRouter } from 'next/navigation';
@@ -14,7 +14,6 @@ const SANS = 'var(--font-sans)';
 const ALL_NAV_ITEMS = [
   { name: 'General',      path: '/settings/general',      icon: Settings, adminOnly: false, helpAnchor: null },
   { name: 'API Keys',     path: '/settings/api-keys',     icon: Key,      adminOnly: false, helpAnchor: '#drones' },
-  { name: 'Members',      path: '/settings/members',      icon: Users,    adminOnly: true,  helpAnchor: null },
   { name: 'Webhooks',     path: '/settings/webhooks',     icon: Webhook,  adminOnly: true,  helpAnchor: '#webhooks' },
 ];
 

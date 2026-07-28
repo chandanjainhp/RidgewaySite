@@ -14,7 +14,6 @@ import {
   Key,
   Users,
   Save,
-  UserPlus,
   Loader2,
   ChevronDown,
   ChevronRight,
@@ -28,7 +27,6 @@ import {
   updateAdminOrg,
   updateAdminOrgStatus,
   updateAdminOrgConfig,
-  inviteToOrg,
   updateUserRole,
   updateUserStatus,
   deleteUserSessions,
@@ -214,84 +212,6 @@ function EditPlanDialog({ org, orgId }) {
           >
             {mutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
             Save
-          </button>
-        </div>
-      </DialogShell>
-    </>
-  );
-}
-
-// ─── Invite User Dialog ──────────────────────────────────────────────────────
-
-function InviteUserDialog({ orgId, orgName }) {
-  const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [email, setEmail] = useState('');
-  const [role, setRole] = useState('operator');
-
-  const reset = () => { setEmail(''); setRole('operator'); };
-
-  const mutation = useMutation({
-    mutationFn: () => inviteToOrg(orgId, { email: email.trim(), role }),
-    onSuccess: () => {
-      toast.success('Invite sent');
-      queryClient.invalidateQueries({ queryKey: ['admin-org', orgId] });
-      setOpen(false);
-      reset();
-    },
-    onError: (err) => toast.error(err?.message ?? 'Failed to send invite'),
-  });
-
-  return (
-    <>
-      <button
-        onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-md transition-colors"
-        style={{
-          border: '1px solid rgba(184,212,232,0.3)',
-          color: 'var(--accent)',
-          background: 'rgba(184,212,232,0.06)',
-        }}
-      >
-        <UserPlus className="w-4 h-4" />
-        Invite User
-      </button>
-      <DialogShell open={open} onOpenChange={(v) => { if (!v) reset(); setOpen(v); }} title={`Invite to ${orgName}`}>
-        <div>
-          <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--fg-2)' }}>Email</label>
-          <input
-            autoFocus
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="user@company.com"
-            style={inputStyle}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--fg-2)' }}>Role</label>
-          <select value={role} onChange={(e) => setRole(e.target.value)} style={selectStyle}>
-            <option value="org_admin">Org Admin</option>
-            <option value="operator">Operator</option>
-          </select>
-        </div>
-        <div className="flex justify-end gap-3 pt-1">
-          <Dialog.Close asChild>
-            <button
-              className="px-4 py-2 text-sm font-medium rounded-md"
-              style={{ border: '1px solid var(--border-default)', color: 'var(--fg-2)', background: 'transparent' }}
-            >
-              Cancel
-            </button>
-          </Dialog.Close>
-          <button
-            onClick={() => mutation.mutate()}
-            disabled={mutation.isPending || !email.trim()}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md disabled:opacity-40"
-            style={{ background: 'var(--accent-dim)', color: 'var(--fg-1)' }}
-          >
-            {mutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-            Send Invite
           </button>
         </div>
       </DialogShell>
@@ -541,7 +461,7 @@ function MembersTable({ org, orgId }) {
   });
 
   return (
-    <Section title="Members" icon={Users} action={<InviteUserDialog orgId={orgId} orgName={org.name} />}>
+    <Section title="Members" icon={Users}>
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
           <thead>

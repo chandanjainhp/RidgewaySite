@@ -10,8 +10,6 @@ import {
   resendEmailVerification,
   resetForgotPassword,
   verifyEmail,
-  validateInviteToken,
-  acceptInvite,
 } from "../controllers/auth.controllers.js";
 import {
   loginAdminGate,
@@ -43,8 +41,6 @@ router
   .route("/reset-password")
   .post(userResetForgotPasswordValidator(), validate, resetForgotPassword);
 
-router.route("/invite/:token").get(validateInviteToken);
-router.route("/accept-invite").post(acceptInvite);
 router.route("/admin-gate/login").post(authLimiter, loginAdminGate);
 router.route("/admin-gate/status").get(getAdminGateStatus);
 router.route("/admin-gate/logout").post(logoutAdminGate);

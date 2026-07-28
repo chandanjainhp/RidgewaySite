@@ -9,7 +9,6 @@ import {
   updateUserRole,
   updateUserStatus,
   deleteUserSessions,
-  resendOrgInvite,
 } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
@@ -20,7 +19,6 @@ import {
   UserX,
   UserCheck,
   Loader2,
-  MailIcon,
   ChevronDown,
 } from 'lucide-react';
 import * as Popover from '@radix-ui/react-popover';
@@ -224,7 +222,6 @@ export default function UsersPage() {
   const [loadingRole, setLoadingRole] = useState(null);
   const [loadingStatus, setLoadingStatus] = useState(null);
   const [loadingLogout, setLoadingLogout] = useState(null);
-  const [inviteSent, setInviteSent] = useState({});
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
@@ -306,23 +303,6 @@ export default function UsersPage() {
     } finally {
       setLoadingLogout(null);
     }
-  }
-
-  async function handleResendInvite(user) {
-    const orgId = user.orgId?._id ?? user.orgId;
-    if (!orgId) { toast.error('User has no organisation — cannot resend invite'); return; }
-    try {
-      await resendOrgInvite(orgId, user._id);
-      toast.success(`Invite resent to ${user.email}`);
-      setInviteSent((prev) => ({ ...prev, [user._id]: Date.now() }));
-    } catch (err) {
-      toast.error(err?.message ?? 'Failed to resend invite');
-    }
-  }
-
-  function isInviteCoolingDown(userId) {
-    const ts = inviteSent[userId];
-    return ts && Date.now() - ts < 300_000;
   }
 
   return (
@@ -423,7 +403,6 @@ export default function UsersPage() {
                   const isRoleLoading = loadingRole === u._id;
                   const isStatusLoading = loadingStatus === u._id;
                   const isLogoutLoading = loadingLogout === u._id;
-                  const inviteCooling = isInviteCoolingDown(u._id);
                   const isSelf = u._id === currentUserId;
                   const isLastAdmin = u.role === 'super_admin' && superAdminCount <= 1;
 
@@ -532,16 +511,6 @@ export default function UsersPage() {
                                   : <UserCheck className="w-3.5 h-3.5" />
                                 }
                                 Activate
-                              </button>
-                              <button
-                                disabled={inviteCooling}
-                                onClick={() => handleResendInvite(u)}
-                                className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded transition-colors disabled:opacity-40"
-                                style={{ color: 'var(--accent)' }}
-                                title={inviteCooling ? 'Invite sent — wait 5 min before resending' : 'Resend invite'}
-                              >
-                                <MailIcon className="w-3.5 h-3.5" />
-                                {inviteCooling ? 'Sent' : 'Resend Invite'}
                               </button>
                             </>
                           )}

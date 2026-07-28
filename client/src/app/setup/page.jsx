@@ -305,7 +305,6 @@ function StepDone() {
       </p>
       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
         {[
-          { label: "Invite your team", href: "/settings/members" },
           { label: "Configure webhooks", href: "/settings/webhooks" },
         ].map(({ label, href }) => (
           <button

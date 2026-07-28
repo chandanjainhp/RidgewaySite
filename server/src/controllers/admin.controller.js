@@ -10,8 +10,6 @@ import { logAudit } from '../utils/audit.js';
 import { ApiError } from '../utils/api-error.js';
 import { ApiResponse } from '../utils/api-response.js';
 import { getQueueStats as getBullMQStats, getFailedJobs as getBullMQFailed, retryJob as retryBullMQJob, deleteJob as deleteBullMQJob } from '../queues/investigation.queue.js';
-import { sendEmail, inviteMailgenContent } from '../utils/mail.js';
-import crypto from 'crypto';
 
 // --- Org Management ---
 
@@ -142,84 +140,6 @@ export const updateOrgConfig = async (req, res) => {
   logAudit(req, 'org.config_updated', { type: 'Organisation', id: org._id }, { updatedFields: Object.keys(config) });
 
   res.status(200).json(new ApiResponse(200, org, "Organisation config updated successfully"));
-};
-
-export const inviteOrgAdmin = async (req, res) => {
-  const { orgId } = req.params;
-  const { email } = req.body;
-
-  if (!email) throw new ApiError(400, "Email is required");
-
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
-    throw new ApiError(400, "A user with this email already exists");
-  }
-
-  const org = await Organisation.findById(orgId);
-  if (!org) throw new ApiError(404, "Organisation not found");
-
-  // Create a placeholder user
-  const newUser = await User.create({
-    username: email.split('@')[0] + '_' + Math.random().toString(36).substring(2, 6),
-    email,
-    password: crypto.randomBytes(32).toString('hex'), // Random impossible password
-    role: 'org_admin',
-    orgId,
-    isActive: false,
-    invitedBy: req.user._id
-  });
-
-  const { unHashedToken } = newUser.generateInviteToken();
-  await newUser.save();
-
-  const inviteUrl = `${process.env.APP_URL || 'http://localhost:3000'}/invite/accept?token=${unHashedToken}`;
-  const orgName = org.name;
-
-  try {
-    await sendEmail({
-      email,
-      subject: `You've been invited to Sentinel — ${orgName}`,
-      mailgenContent: inviteMailgenContent(email, orgName, inviteUrl),
-    });
-  } catch (error) {
-    console.error("Failed to send invite email:", error);
-    // Continue even if email fails in development, but we should log it
-  }
-
-  // Return the token in development so it can be tested
-  res.status(201).json(new ApiResponse(201, {
-    message: "User invited successfully",
-    inviteLink: process.env.NODE_ENV !== 'production' ? inviteUrl : undefined
-  }, "Invitation sent"));
-};
-
-export const resendInvite = async (req, res) => {
-  const { orgId, userId } = req.params;
-
-  const user = await User.findOne({ _id: userId, orgId });
-  if (!user) throw new ApiError(404, "User not found in this organisation");
-  if (user.isActive) throw new ApiError(400, "User is already active");
-
-  const { unHashedToken } = user.generateInviteToken();
-  await user.save();
-
-  const org = await Organisation.findById(orgId).lean();
-  const inviteUrl = `${process.env.APP_URL || 'http://localhost:3000'}/invite/accept?token=${unHashedToken}`;
-
-  try {
-    await sendEmail({
-      email: user.email,
-      subject: `You've been invited to Sentinel — ${org.name}`,
-      mailgenContent: inviteMailgenContent(user.email, org.name, inviteUrl),
-    });
-  } catch (error) {
-    console.error("Failed to resend invite email:", error);
-  }
-
-  res.status(200).json(new ApiResponse(200, {
-    message: "Invite resent successfully",
-    inviteLink: process.env.NODE_ENV !== 'production' ? inviteUrl : undefined
-  }, "Invitation resent"));
 };
 
 // --- User Management ---

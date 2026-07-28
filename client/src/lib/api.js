@@ -366,10 +366,6 @@ export const getDroneStateAtTime = async (patrolId, targetTime) =>
 export const simulateFollowUpMission = async (flaggedLocations) =>
   api.post("/map/drones/simulate-mission", { locations: flaggedLocations });
 
-// Auth / Invite
-export const getInviteDetails = (token) => api.get(`/auth/invite/${token}`);
-export const acceptInvite = (token, password) => api.post("/auth/accept-invite", { token, password });
-
 // Admin — Orgs
 export const listAdminOrgs = (params) => api.get("/admin/orgs", { params });
 export const createAdminOrg = (data) => api.post("/admin/orgs", data);
@@ -377,8 +373,6 @@ export const updateAdminOrgStatus = (orgId, status) => api.patch(`/admin/orgs/${
 export const getAdminOrg = (orgId) => api.get(`/admin/orgs/${orgId}`);
 export const updateAdminOrg = (orgId, data) => api.patch(`/admin/orgs/${orgId}`, data);
 export const updateAdminOrgConfig = (orgId, data) => api.patch(`/admin/orgs/${orgId}/config`, data);
-export const inviteToOrg = (orgId, data) => api.post(`/admin/orgs/${orgId}/invite`, data);
-export const resendOrgInvite = (orgId, userId) => api.post(`/admin/orgs/${orgId}/resend-invite/${userId}`);
 
 // Admin — Users
 export const listAdminUsers = (params) => api.get("/admin/users", { params });
@@ -405,10 +399,6 @@ export const exportAuditLog = (params) =>
 export const getOrgMe = () => api.get("/org/me");
 export const updateOrgConfig = (data) => api.patch("/org/me/config", data);
 export const completeSetup = () => api.post("/org/setup/complete");
-export const listOrgUsers = () => api.get("/org/users");
-export const inviteOrgUser = (data) => api.post("/org/users/invite", data);
-export const deactivateOrgUser = (userId) => api.patch(`/admin/users/${userId}/status`, { isActive: false });
-export const resendOrgUserInvite = (userId) => api.post(`/org/users/${userId}/resend-invite`);
 
 // Org API Keys
 export const listOrgApiKeys = () => api.get("/org/api-keys");
