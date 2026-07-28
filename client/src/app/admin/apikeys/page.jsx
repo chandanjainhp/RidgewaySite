@@ -18,7 +18,6 @@ const ALL_SCOPES = [
   'briefings:read',
   'investigations:read',
   'investigations:write',
-  'mcp',
 ];
 
 const PAGE_SIZE = 50;

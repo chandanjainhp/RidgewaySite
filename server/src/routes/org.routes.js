@@ -17,7 +17,6 @@ import {
   getIngestionStatus,
   testWebhook,
   retryWebhookDelivery,
-  getMcpActivity,
   ragUpload,
   uploadDocument,
   listDocuments,
@@ -68,8 +67,5 @@ router.post('/webhooks/rotate-secret', asyncHandler(rotateWebhookSecret));
 router.get('/webhooks/deliveries', asyncHandler(getWebhookDeliveries));
 router.post('/webhooks/test', asyncHandler(testWebhook));
 router.post('/webhooks/deliveries/:deliveryId/retry', asyncHandler(retryWebhookDelivery));
-
-// MCP activity
-router.get('/mcp/activity', asyncHandler(getMcpActivity));
 
 export default router;

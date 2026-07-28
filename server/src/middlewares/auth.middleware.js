@@ -95,14 +95,6 @@ export const requireRole = (...roles) => asyncHandler(async (req, res, next) => 
   next();
 });
 
-export const requireScope = (scope) => asyncHandler(async (req, res, next) => {
-  if (req.user?.role !== 'api_key') return next(); // JWT users bypass scope check
-  if (!req.user.scopes?.includes(scope)) {
-    throw new ApiError(403, `Forbidden: Missing required scope '${scope}'`);
-  }
-  next();
-});
-
 export const scopeToOrg = asyncHandler(async (req, res, next) => {
   if (req.user?.role === 'super_admin') {
     req.orgFilter = {}; // super_admin sees everything

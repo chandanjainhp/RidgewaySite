@@ -324,23 +324,6 @@ export const retryWebhookDelivery = async (req, res) => {
   res.status(200).json(new ApiResponse(200, { queued: true, deliveryId: delivery._id }, 'Delivery queued for retry'));
 };
 
-export const getMcpActivity = async (req, res) => {
-  const { limit = 50, skip = 0 } = req.query;
-
-  const filter = { orgId: req.user.orgId, action: /^mcp\./ };
-
-  const [logs, total] = await Promise.all([
-    AuditLog.find(filter)
-      .sort({ createdAt: -1 })
-      .skip(Number(skip))
-      .limit(Number(limit))
-      .lean(),
-    AuditLog.countDocuments(filter),
-  ]);
-
-  res.status(200).json(new ApiResponse(200, { logs, total }, 'MCP activity retrieved'));
-};
-
 // ─── RAG Document Management ─────────────────────────────────────────────────
 
 const ALLOWED_MIME_TYPES = [

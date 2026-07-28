@@ -1,5 +1,5 @@
 /*
-  MCP-STYLE TOOL REGISTRY FOR AI AGENT
+  TOOL REGISTRY FOR AI AGENT
 
   Defines all tools available to the Claude agent for investigating overnight security incidents.
   Two exports:

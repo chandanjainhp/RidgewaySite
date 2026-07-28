@@ -34,7 +34,7 @@ const ACTION_GROUPS = [
     ],
   },
   { label: 'API Key actions', actions: ['apiKey.created', 'apiKey.revoked'] },
-  { label: 'System actions', actions: ['mcp.tool_called', 'briefing.approved', 'investigation.started'] },
+  { label: 'System actions', actions: ['briefing.approved', 'investigation.started'] },
 ];
 
 const CREATES = new Set(['user.created', 'org.created', 'apiKey.created', 'user.invited']);

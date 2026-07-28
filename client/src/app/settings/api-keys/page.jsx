@@ -21,7 +21,6 @@ const SCOPES = [
   { id: 'briefings:read',       desc: 'Read morning briefings' },
   { id: 'investigations:read',  desc: 'Read investigation results' },
   { id: 'investigations:write', desc: 'Start new investigations' },
-  { id: 'mcp',                  desc: 'Connect via MCP protocol' },
 ];
 
 const EXPIRY_OPTIONS = [

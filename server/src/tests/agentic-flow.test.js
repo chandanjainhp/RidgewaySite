@@ -112,7 +112,7 @@ beforeAll(async () => {
     keyHash: testApiKeyHash,
     keyPrefix: testApiKey.slice(0, 8),
     createdBy: testUserId,
-    scopes: ['events:write', 'mcp'],
+    scopes: ['events:write'],
     isActive: true,
   });
 

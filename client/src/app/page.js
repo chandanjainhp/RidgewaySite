@@ -160,7 +160,7 @@ const STAGES = [
   {
     Icon: Search,
     label: "Investigate",
-    desc: "Argus runs a ReAct loop with RAG and Claude to classify each incident.",
+    desc: "Argus uses Claude to classify each incident.",
   },
   {
     Icon: FileText,
@@ -443,7 +443,6 @@ function LandingFooter() {
             links={[
               ["How it works", "/docs#how-it-works"],
               ["Security", "/docs#security"],
-              ["MCP integration", "/docs#mcp"],
               ["API reference", "/docs#api"],
             ]}
           />

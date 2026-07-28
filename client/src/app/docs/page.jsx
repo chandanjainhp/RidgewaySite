@@ -13,7 +13,6 @@ const SECTIONS = [
   { id: "incidents",     label: "Understanding incidents" },
   { id: "briefing",      label: "Morning briefing" },
   { id: "security",      label: "Security & encryption" },
-  { id: "mcp",           label: "MCP integration" },
   { id: "webhooks",      label: "Webhooks" },
 ];
 
@@ -160,19 +159,6 @@ const EXAMPLE_PAYLOAD = `{
   "rawData": {}
 }`;
 
-const MCP_SNIPPET = `// Claude.ai → Settings → Connectors → Add MCP server
-// Server URL:  https://your-sentinel-host/api/v1/mcp
-// Auth header: Authorization: Bearer <api-key-with-mcp-scope>
-
-// Cursor / VS Code: ~/.cursor/mcp.json
-{
-  "mcpServers": {
-    "sentinel": {
-      "url": "https://your-sentinel-host/api/v1/mcp",
-      "headers": { "Authorization": "Bearer YOUR_API_KEY" }
-    }
-  }
-}`;
 
 const WEBHOOK_EVENTS = [
   ["incident.created",        "Correlation produces a new incident."],
@@ -201,16 +187,6 @@ def verify_sentinel_signature(raw_body: bytes, header: str, secret: str) -> bool
     ).hexdigest()
     return hmac.compare_digest(expected, header or "")`;
 
-const MCP_TOOLS = [
-  ["get_site_status",      "Current site overview — sensor health, active alerts"],
-  ["list_incidents",       "List incidents with optional date / severity / status filters"],
-  ["get_incident",         "Full detail for one incident including evidence chain"],
-  ["list_events",          "Raw overnight events for a given date"],
-  ["get_investigation",    "Investigation results and agent reasoning for an incident"],
-  ["start_investigation",  "Kick off a new AI investigation job"],
-  ["get_latest_briefing",  "Returns the morning briefing for the given date"],
-  ["get_map_geometry",     "Site boundary polygons and drone route geometry"],
-];
 
 export default function DocsPage() {
   const user = useAuthStore((s) => s.user);
@@ -749,46 +725,6 @@ export default function DocsPage() {
           </SectionBody>
         </SectionWrapper>
 
-        {/* Section 8 */}
-        <SectionWrapper id="mcp">
-          <SectionHead>MCP integration</SectionHead>
-          <SectionBody>
-            <Body>
-              Sentinel exposes a Model Context Protocol (MCP) server, letting any MCP-compatible AI agent — Claude.ai, Cursor, VS Code — query your site data directly in conversation.
-            </Body>
-            <Label>Available tools</Label>
-            <div style={{ marginBottom: "16px" }}>
-              {MCP_TOOLS.map(([tool, desc]) => (
-                <div key={tool} style={{
-                  display: "flex",
-                  gap: "12px",
-                  padding: "8px 0",
-                  borderBottom: "1px solid var(--border-hairline)",
-                  alignItems: "flex-start",
-                }}>
-                  <code style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "11px",
-                    color: "var(--accent)",
-                    flexShrink: 0,
-                    width: "180px",
-                    paddingTop: "1px",
-                  }}>
-                    {tool}
-                  </code>
-                  <span style={{ fontFamily: "var(--font-sans)", fontSize: "13px", color: "var(--fg-3)", lineHeight: 1.5 }}>
-                    {desc}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <Label>Connection snippet</Label>
-            <CodeBlock copyable>{MCP_SNIPPET}</CodeBlock>
-            <Body style={{ fontSize: "13px", color: "var(--fg-3)", marginTop: "12px" }}>
-              Generate an API key with the <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--accent)" }}>mcp</span> scope from Settings → API Keys. Rate limit: 60 tool calls per minute per key.
-            </Body>
-          </SectionBody>
-        </SectionWrapper>
 
         {/* Section 9 */}
         <SectionWrapper id="webhooks">
