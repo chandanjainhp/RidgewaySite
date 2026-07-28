@@ -7,7 +7,6 @@ import { useIncidentById, useIncidentEvidenceGraph } from "@/hooks/useIncidents"
 import { useAuthStore } from "@/store/authStore";
 import EvidenceChain from "@/components/incident/EvidenceChain";
 import AgentReasoning from "@/components/incident/AgentReasoning";
-import ReviewControls from "@/components/incident/ReviewControls";
 import dynamic from "next/dynamic";
 import { getSeverity } from "@/lib/severity";
 
@@ -237,15 +236,6 @@ export default function IncidentDetailView({ params }) {
             reasoning={reasoning}
             uncertainties={uncertainties}
             confidence={confidence}
-          />
-        </section>
-
-        {/* Review Controls */}
-        <section style={{ width: "100%" }}>
-          <ReviewControls
-            incidentId={id}
-            agentClassification={classification}
-            incidentLocation={incident.location}
           />
         </section>
       </div>

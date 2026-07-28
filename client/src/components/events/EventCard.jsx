@@ -3,7 +3,6 @@
 import React, { memo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useMapStore } from "@/store/mapStore";
-import { useReviewStore } from "@/store/reviewStore";
 import { formatNightLabel, formatTime } from "@/lib/formatters";
 import { getSeverity } from "@/lib/severity";
 
@@ -20,7 +19,6 @@ const EventCard = memo(({ incident }) => {
 
   const selectPin     = useMapStore((s) => s.selectPin);
   const selectedPinId = useMapStore((s) => s.selectedPinId);
-  const isReviewed    = useReviewStore((s) => s.isReviewed);
 
   const id       = incident?._id || incident?.id || incident?.incidentId;
   const severity = incident.severity || "uncertain";
@@ -28,7 +26,6 @@ const EventCard = memo(({ incident }) => {
   const tok      = { text: s.token, bg: s.bg, border: s.dim, label: s.label.toUpperCase() };
 
   const isSelected = selectedPinId === id;
-  const reviewed   = isReviewed ? isReviewed(id) : false;
 
   const typeLabel = TYPE_LABELS[incident.correlation?.type] || "INCIDENT";
   const location  = incident.location?.name || incident.title || "Unknown Location";
@@ -72,9 +69,6 @@ const EventCard = memo(({ incident }) => {
         </div>
         <div style={{ fontFamily: "var(--font-mono)", fontSize: "10.5px", color: "var(--fg-3)", lineHeight: 1.3 }}>
           {typeLabel}
-          {reviewed && (
-            <span style={{ marginLeft: "8px", color: "var(--sev-harmless)" }}>· REVIEWED</span>
-          )}
         </div>
       </div>
 

@@ -2,7 +2,6 @@ import eventValidator from "./event.validator.js";
 import incidentValidator from "./incident.validator.js";
 import investigationValidator from "./investigation.validator.js";
 import briefingValidator from "./briefing.validator.js";
-import reviewValidator from "./review.validator.js";
 import { body, param } from "express-validator";
 
 const userRegisterValidator = () => [
@@ -33,7 +32,6 @@ export {
   incidentValidator,
   investigationValidator,
   briefingValidator,
-  reviewValidator,
   userRegisterValidator,
   userLoginValidator,
   userForgotPasswordValidator,

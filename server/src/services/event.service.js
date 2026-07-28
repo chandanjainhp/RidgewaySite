@@ -6,7 +6,6 @@
 */
 
 import Event from "../models/event.model.js";
-import Review from "../models/review.model.js";
 import { ApiError } from "../utils/api-error.js";
 import {
   getOvernightAlerts as queryOvernightAlerts,
@@ -124,10 +123,7 @@ export const getEventsForNight = async (nightDate, orgFilter = {}) => {
       .populate("incidentId", "title status")
       .lean();
 
-    const events = rawEvents.map((e) => ({
-      ...e,
-      reviewed: !!e.mayaReview?.decision,
-    }));
+    const events = rawEvents;
 
     console.log(
       `[EventService] Retrieved ${events.length} events for ${nightDate}`,
@@ -238,88 +234,6 @@ export const updateEventClassification = async (
   }
 };
 
-/**
- * Apply Maya's review to an event
- * @param {string} eventId - MongoDB event ID
- * @param {object} reviewData - { decision, overrideSeverity?, note }
- * @param {string} userId - reviewer user ID
- * @returns {Promise<object>} updated event with review
- */
-export const applyMayaReview = async (eventId, reviewData, userId) => {
-  try {
-    // Validate review data
-    const validDecisions = ["agreed", "overridden", "flagged"];
-    if (!validDecisions.includes(reviewData.decision)) {
-      throw new ApiError(400, `Invalid decision: ${reviewData.decision}`, [
-        "Must be one of: " + validDecisions.join(", "),
-      ]);
-    }
-
-    // Load the event
-    const event = await Event.findById(eventId);
-    if (!event) {
-      throw new ApiError(404, `Event not found: ${eventId}`);
-    }
-
-    // Prepare review data
-    const review = {
-      decision: reviewData.decision,
-      note: reviewData.note || "",
-      reviewedAt: new Date(),
-      reviewedBy: userId,
-    };
-
-    // If overridden, update severity
-    let updateData = {
-      mayaReview: review,
-    };
-
-    if (reviewData.decision === "overridden" && reviewData.overrideSeverity) {
-      const validSeverities = ["serious", "minor", "harmless", "uncertain"];
-      if (!validSeverities.includes(reviewData.overrideSeverity)) {
-        throw new ApiError(
-          400,
-          `Invalid override severity: ${reviewData.overrideSeverity}`,
-        );
-      }
-      updateData.severity = reviewData.overrideSeverity;
-    }
-
-    // Update the event
-    const updated = await Event.findByIdAndUpdate(eventId, updateData, {
-      new: true,
-    }).lean();
-
-    console.log(
-      `[EventService] Applied review to event ${eventId}: ${reviewData.decision}`,
-    );
-
-    // Create a Review record for audit trail
-    try {
-      await Review.create({
-        reviewId: `REVIEW-${eventId}-${Date.now()}`,
-        eventId,
-        reviewer: userId,
-        verdict: reviewData.decision,
-        comments: reviewData.note,
-        reviewedAt: new Date(),
-      });
-    } catch (reviewError) {
-      console.warn(
-        `[EventService] Failed to create Review record:`,
-        reviewError.message,
-      );
-      // Don't fail the whole operation if audit record fails
-    }
-
-    return updated;
-  } catch (error) {
-    if (error instanceof ApiError) throw error;
-    console.error(`[EventService] Error applying Maya review:`, error.message);
-    throw new ApiError(500, "Failed to apply review", [error.message]);
-  }
-};
-
 export default {
   getOvernightAlerts,
   getVehiclePaths,
@@ -327,5 +241,4 @@ export default {
   getDronePatrolLog,
   getEventsForNight,
   updateEventClassification,
-  applyMayaReview,
 };

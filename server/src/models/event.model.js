@@ -106,18 +106,6 @@ const eventSchema = new mongoose.Schema(
       classifiedAt: Date,
     },
 
-    // Maya's review and override
-    mayaReview: {
-      decision: {
-        type: String,
-        enum: ['agreed', 'overridden', 'flagged'],
-        nullable: true,
-      },
-      overrideSeverity: String,
-      note: String,
-      reviewedAt: Date,
-    },
-
     // Legacy fields (for compatibility during migration)
     description: String,
     source: String,
@@ -132,11 +120,6 @@ const eventSchema = new mongoose.Schema(
 eventSchema.index({ nightDate: 1, type: 1 });
 eventSchema.index({ 'location.name': 1 });
 eventSchema.index({ severity: 1, nightDate: -1 });
-
-// Virtual: is this event reviewed by Maya?
-eventSchema.virtual('isReviewed').get(function () {
-  return !!this.mayaReview?.decision;
-});
 
 // Ensure virtuals are included in JSON output
 eventSchema.set('toJSON', { virtuals: true });

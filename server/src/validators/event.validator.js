@@ -36,21 +36,8 @@ const correlateSchema = Joi.object({
   correlatedEventIds: Joi.array().items(Joi.string()).required(),
 });
 
-const applyReviewSchema = Joi.object({
-  decision: Joi.string().valid("agreed", "overridden", "flagged").required(),
-  overrideSeverity: Joi.string()
-    .valid("serious", "minor", "harmless", "uncertain")
-    .when("decision", {
-      is: "overridden",
-      then: Joi.required(),
-      otherwise: Joi.optional(),
-    }),
-  note: Joi.string().allow(""),
-});
-
 export default {
   createEventSchema,
   updateStatusSchema,
   correlateSchema,
-  applyReviewSchema,
 };

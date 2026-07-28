@@ -344,15 +344,6 @@ export const getInvestigation = async (id) => api.get(`/investigations/${id}`);
 // Events
 export const getEventsForNight = async (nightDate) => api.get(`/events`, { params: { nightDate } });
 export const getEventById = async (id) => api.get(`/events/${id}`);
-export const applyMayaReview = async (eventId, reviewData) => {
-  const payload = {
-    decision: reviewData?.decision,
-    overrideSeverity: reviewData?.overrideSeverity || reviewData?.override?.newSeverity,
-    note: reviewData?.note || reviewData?.override?.reason || reviewData?.flagDetails?.note || "",
-  };
-
-  return api.patch(`/events/${eventId}/review`, payload);
-};
 
 // Incidents
 export const getIncidents = async ({ nightDate, status, severity }) =>
@@ -365,10 +356,6 @@ export const getLatestBriefing = async (nightDate) => api.get(`/briefings/latest
 export const updateBriefingSection = async (briefingId, { sectionName, content }) =>
   api.patch(`/briefings/${briefingId}/sections/${sectionName}`, { content });
 export const approveBriefing = async (briefingId) => api.post(`/briefings/${briefingId}/approve`);
-
-// Reviews
-export const createReview = async (reviewData) => api.post("/reviews", reviewData);
-export const getReviewsForNight = async (date) => api.get("/reviews", { params: { date } });
 
 // Map
 export const getSiteMapData = async () => api.get("/map/geometry");
