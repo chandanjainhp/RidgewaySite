@@ -17,7 +17,6 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",
-    "@qdrant/js-client-rest": "^1.17.0",
     "@sentry/node": "^10.51.0",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.0.0",

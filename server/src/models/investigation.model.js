@@ -104,9 +104,6 @@ const investigationSchema = new mongoose.Schema(
       outputTokens: Number,
     },
 
-    // RAG sources consulted during investigation
-    ragDocumentsQueried: [String],
-
     // Investigation metrics
     totalToolCalls: Number,
     durationMs: Number,

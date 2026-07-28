@@ -306,7 +306,6 @@ function StepDone() {
       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
         {[
           { label: "Invite your team", href: "/settings/members" },
-          { label: "Upload site documents for RAG context", href: "/settings/documents" },
           { label: "Configure webhooks", href: "/settings/webhooks" },
         ].map(({ label, href }) => (
           <button

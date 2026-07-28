@@ -15,20 +15,6 @@ import OutboxEvent from '../models/outboxEvent.model.js';
 
 const OUTBOX_ENABLED = process.env.OUTBOX_ENABLED === 'true';
 
-const collectRagSources = async (nightDate, orgFilter) => {
-  if (!nightDate) return [];
-  const investigations = await Investigation.find({ ...(orgFilter || {}), nightDate })
-    .select('ragDocumentsQueried')
-    .lean();
-  const seen = new Set();
-  for (const inv of investigations) {
-    for (const name of inv.ragDocumentsQueried || []) {
-      if (name) seen.add(name);
-    }
-  }
-  return [...seen];
-};
-
 // Read section content from the canonical array shape
 const getSectionContent = (sections, name) => {
   if (!sections) return null;
@@ -92,9 +78,7 @@ export const getLatestBriefing = async (req, res) => {
     return res.status(200).json(new ApiResponse(200, null, 'No briefing available yet'));
   }
 
-  const ragSources = await collectRagSources(nightDate, req.orgFilter);
   const payload = briefingToClientFormat(briefing);
-  payload.ragSources = ragSources;
 
   res.status(200).json(new ApiResponse(200, payload, 'Briefing fetched successfully'));
 };

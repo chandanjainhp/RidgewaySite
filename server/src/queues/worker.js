@@ -5,13 +5,11 @@ import { checkNightComplete } from '../services/investigation.service.js';
 import Investigation from '../models/investigation.model.js';
 import WebhookDelivery from '../models/webhookDelivery.model.js';
 import Organisation from '../models/organisation.model.js';
-import RagDocument from '../models/ragDocument.model.js';
 import { emitToStream } from '../lib/streamRegistry.js';
 import OutboxEvent from '../models/outboxEvent.model.js';
 import { startOutboxPoller, stopOutboxPoller } from '../workers/outbox-poller.js';
 
 const OUTBOX_ENABLED = process.env.OUTBOX_ENABLED === 'true';
-import { indexDocument } from '../services/rag.service.js';
 import crypto from 'crypto';
 import fs from 'fs/promises';
 
@@ -22,7 +20,6 @@ import fs from 'fs/promises';
 
 let investigationWorker = null;
 let webhookWorker = null;
-let ragWorker = null;
 let correlationWorker = null;
 let briefingWorker = null;
 let workerRedisConnection = null;
@@ -382,49 +379,6 @@ export const startWorker = async () => {
     console.log('[Worker] ✓ Webhook worker started (concurrency: 3)');
 
     // ==========================================
-    // START RAG INDEXING WORKER
-    // ==========================================
-    ragWorker = new Worker(
-      'rag-indexing',
-      async (job) => {
-        const { ragDocumentId, orgId } = job.data;
-        console.log(`[RagWorker] Processing document ${ragDocumentId}`);
-
-        const doc = await RagDocument.findById(ragDocumentId);
-        if (!doc) {
-          console.warn(`[RagWorker] Document not found: ${ragDocumentId} — skipping`);
-          return { status: 'skipped', reason: 'not_found' };
-        }
-
-        if (doc.status !== 'approved') {
-          console.warn(`[RagWorker] Document ${ragDocumentId} status is "${doc.status}", not "approved" — skipping`);
-          return { status: 'skipped', reason: 'not_approved' };
-        }
-
-        const text = await fs.readFile(doc.storedPath, 'utf8');
-
-        await indexDocument(ragDocumentId, text, orgId);
-
-        console.log(`[RagWorker] ✓ Document ${ragDocumentId} indexed (${doc.chunkCount ?? '?'} chunks)`);
-        return { status: 'indexed', ragDocumentId };
-      },
-      {
-        connection: workerRedisConnection,
-        concurrency: 2,
-      }
-    );
-
-    ragWorker.on('completed', (job, result) => {
-      console.log(`[RagWorker] ✓ Job completed: ${job.id}`, result);
-    });
-
-    ragWorker.on('failed', (job, error) => {
-      console.error(`[RagWorker] ✗ Job failed: ${job.id} - ${error.message}`);
-    });
-
-    console.log('[Worker] ✓ RAG indexing worker started (concurrency: 2)');
-
-    // ==========================================
     // START CORRELATION WORKER
     // ==========================================
     correlationWorker = new Worker(
@@ -565,12 +519,6 @@ export const stopWorker = async () => {
       await webhookWorker.close();
       webhookWorker = null;
       console.log('[Worker] ✓ Webhook worker stopped');
-    }
-
-    if (ragWorker) {
-      await ragWorker.close();
-      ragWorker = null;
-      console.log('[Worker] ✓ RAG indexing worker stopped');
     }
 
     if (correlationWorker) {

@@ -240,37 +240,6 @@ export default function IncidentDetailView({ params }) {
           />
         </section>
 
-        {/* RAG Sources */}
-        {(() => {
-          const sources = incident?.investigationId?.ragDocumentsQueried || [];
-          if (!sources.length) return null;
-          return (
-            <section style={{ width: "100%", marginBottom: "48px" }}>
-              <div style={{
-                fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)",
-                fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em",
-                color: "var(--fg-3)", marginBottom: "12px",
-              }}>
-                Sources consulted
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                {sources.map((filename, i) => (
-                  <div key={i} style={{
-                    display: "flex", alignItems: "center", gap: "8px",
-                    padding: "6px 10px",
-                    background: "var(--bg-surface-1)",
-                    border: "1px solid var(--border-hairline)",
-                    borderRadius: "2px",
-                  }}>
-                    <span style={{ color: "var(--fg-4)", fontFamily: "var(--font-mono)", fontSize: "10px" }}>{i + 1}</span>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: "var(--fg-2)" }}>{filename}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
-          );
-        })()}
-
         {/* Review Controls */}
         <section style={{ width: "100%" }}>
           <ReviewControls

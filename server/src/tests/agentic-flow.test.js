@@ -369,32 +369,3 @@ describe('Group 4 — Briefing', () => {
     }
   });
 });
-
-// ── GROUP 5: RAG pipeline ─────────────────────────────────────────────────────
-
-describe('Group 5 — RAG pipeline', () => {
-  test('queryRag returns an array without throwing', async () => {
-    let queryRag;
-    try {
-      const rag = await import('../services/rag.service.js');
-      queryRag = rag.queryRag;
-    } catch {
-      console.log('[skip] rag.service.js not importable in this context');
-      return;
-    }
-
-    const results = await queryRag('motion detected north gate perimeter breach', testOrgId, 3);
-    expect(Array.isArray(results)).toBe(true);
-    // results may be empty if no docs indexed yet — that is acceptable
-  });
-
-  test('Document upload endpoint exists and requires auth', async () => {
-    const res = await fetch(`${baseUrl}/org/documents/upload`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${testJwt}` },
-      // No file — should get 400, not 401/404
-    });
-
-    expect([400, 200, 201]).toContain(res.status);
-  });
-});
