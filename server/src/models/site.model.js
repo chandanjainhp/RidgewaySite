@@ -1,4 +1,13 @@
+import crypto from 'crypto';
 import mongoose from 'mongoose';
+
+export function hashIngestionSecret(raw) {
+  return crypto.createHash('sha256').update(raw).digest('hex');
+}
+
+export function generateIngestionSecret() {
+  return crypto.randomBytes(32).toString('hex');
+}
 
 /**
  * Singleton site config. One document for the whole deployment.
@@ -38,6 +47,11 @@ const siteSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    ingestionSecret: {
+      type: String,
+      default: null,
+      description: 'SHA-256 hash of the drone event ingestion secret',
+    },
     // 2D map polygons / zones (GeoJSON-ish mixed)
     siteGeometry: {
       type: mongoose.Schema.Types.Mixed,
@@ -53,7 +67,17 @@ const Site = mongoose.model('Site', siteSchema);
 export async function getSite() {
   let site = await Site.findOne();
   if (!site) {
-    site = await Site.create({ name: 'Site', timezone: 'UTC' });
+    const raw = process.env.INGESTION_SECRET || generateIngestionSecret();
+    site = await Site.create({
+      name: 'Site',
+      timezone: 'UTC',
+      ingestionSecret: hashIngestionSecret(raw),
+    });
+  } else if (!site.ingestionSecret) {
+    const raw = process.env.INGESTION_SECRET || generateIngestionSecret();
+    site.ingestionSecret = hashIngestionSecret(raw);
+    await site.save();
+    // ponytail: raw secret not logged — set INGESTION_SECRET or use POST /site/rotate-secret
   }
   return site;
 }

@@ -13,7 +13,7 @@ const SANS = 'var(--font-sans)';
 
 const ALL_NAV_ITEMS = [
   { name: 'General',      path: '/settings/general',      icon: Settings, adminOnly: false, helpAnchor: null },
-  { name: 'API Keys',     path: '/settings/api-keys',     icon: Key,      adminOnly: false, helpAnchor: '#drones' },
+  { name: 'Event Ingestion', path: '/settings/api-keys',     icon: Key,      adminOnly: true,  helpAnchor: '#drones' },
   { name: 'Webhooks',     path: '/settings/webhooks',     icon: Webhook,  adminOnly: true,  helpAnchor: '#webhooks' },
 ];
 

@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { User } from "../models/user.models.js";
-import ApiKey from "../models/apiKey.model.js";
+import { getSite, hashIngestionSecret } from "../models/site.model.js";
 import { ApiError } from "../utils/api-error.js";
 import { asyncHandler } from "../utils/async-handler.js";
 
@@ -39,47 +39,29 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
   throw new ApiError(401, "Invalid access token");
 });
 
-export const verifyApiKey = asyncHandler(async (req, res, next) => {
+export const verifyIngestionSecret = asyncHandler(async (req, res, next) => {
   const headerToken = req.header("Authorization")?.replace("Bearer ", "")?.trim();
 
-  if (!headerToken || !headerToken.startsWith('sk_live_')) {
+  if (!headerToken) {
     throw new ApiError(401, "Unauthorized request");
   }
 
-  const keyHash = crypto.createHash("sha256").update(headerToken).digest("hex");
-  const apiKey = await ApiKey.findOne({ keyHash });
-
-  if (!apiKey || !apiKey.isActive) {
-    throw new ApiError(401, "Invalid or inactive API key");
+  const site = await getSite();
+  if (!site.ingestionSecret) {
+    throw new ApiError(401, "Ingestion secret not configured");
   }
 
-  if (apiKey.expiresAt && apiKey.expiresAt < new Date()) {
-    throw new ApiError(401, "API key has expired");
+  const hash = hashIngestionSecret(headerToken);
+  const a = Buffer.from(hash, "hex");
+  const b = Buffer.from(site.ingestionSecret, "hex");
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    throw new ApiError(401, "Invalid ingestion secret");
   }
-
-  if (apiKey.revokedAt) {
-    throw new ApiError(401, "API key has been revoked");
-  }
-
-  apiKey.lastUsedAt = new Date();
-  await apiKey.save({ validateBeforeSave: false });
-
-  req.user = {
-    _id: apiKey.createdBy,
-    role: 'api_key',
-    scopes: apiKey.scopes,
-  };
 
   next();
 });
 
 export const authenticateRequest = asyncHandler(async (req, res, next) => {
-  const headerToken = req.header("Authorization")?.replace("Bearer ", "")?.trim();
-
-  if (headerToken && headerToken.startsWith('sk_live_')) {
-    return verifyApiKey(req, res, next);
-  }
-
   return verifyJWT(req, res, next);
 });
 

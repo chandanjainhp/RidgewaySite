@@ -2,7 +2,7 @@ import express from 'express';
 import {authenticateRequest, requireRole} from '../middlewares/auth.middleware.js';
 import {asyncHandler} from '../utils/async-handler.js';
 import {requireAdminGateSession} from '../controllers/adminGate.controllers.js';
-import {getSiteConfig, updateSiteConfig, getWebhookConfig, updateWebhookConfig, rotateWebhookSecret, getWebhookDeliveries, listApiKeys, createApiKey, revokeApiKey, getIngestionStatus, testWebhook, retryWebhookDelivery} from '../controllers/site.controller.js';
+import {getSiteConfig, updateSiteConfig, getWebhookConfig, updateWebhookConfig, rotateWebhookSecret, rotateIngestionSecret, getWebhookDeliveries, getIngestionStatus, testWebhook, retryWebhookDelivery} from '../controllers/site.controller.js';
 
 const router = express.Router();
 
@@ -19,9 +19,7 @@ router.use(requireAdminGateSession);
 router.patch('/me', asyncHandler(updateSiteConfig));
 router.patch('/me/config', asyncHandler(updateSiteConfig)); // alias for old clients
 
-router.get('/api-keys', asyncHandler(listApiKeys));
-router.post('/api-keys', asyncHandler(createApiKey));
-router.delete('/api-keys/:keyId', asyncHandler(revokeApiKey));
+router.post('/rotate-secret', asyncHandler(rotateIngestionSecret));
 
 router.get('/webhooks/config', asyncHandler(getWebhookConfig));
 router.put('/webhooks/config', asyncHandler(updateWebhookConfig));

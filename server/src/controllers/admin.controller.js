@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
 import { User } from '../models/user.models.js';
-import ApiKey from '../models/apiKey.model.js';
 import AuditLog from '../models/auditLog.model.js';
 import Event from '../models/event.model.js';
 import Incident from '../models/incident.model.js';
@@ -16,7 +15,6 @@ import { getQueueStats as getBullMQStats, getFailedJobs as getBullMQFailed, retr
 export const getAdminSite = async (req, res) => {
   const site = await getSite();
   const users = await User.find().select('-password -refreshToken').lean();
-  const apiKeys = await ApiKey.find().select('-keyHash').lean();
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
@@ -25,10 +23,10 @@ export const getAdminSite = async (req, res) => {
     Incident.countDocuments({ createdAt: { $gte: startOfMonth } }),
     Investigation.countDocuments({ createdAt: { $gte: startOfMonth } }),
   ]);
+  const { ingestionSecret, webhookSecret, ...safeSite } = site.toObject();
   res.status(200).json(new ApiResponse(200, {
-    site,
+    site: { ...safeSite, ingestionSecretConfigured: Boolean(site.ingestionSecret) },
     users,
-    apiKeys,
     stats: {
       eventsThisMonth: eventsCount,
       incidentsThisMonth: incidentsCount,
@@ -153,45 +151,6 @@ export const updateUserStatus = async (req, res) => {
   logAudit(req, action, { type: 'User', id: user._id });
 
   res.status(200).json(new ApiResponse(200, { isActive: user.isActive }, "User status updated successfully"));
-};
-
-// --- API Key Routes ---
-
-export const listApiKeys = async (req, res) => {
-  const { page = 1, limit = 20, status, scope } = req.query;
-  const query = {};
-  if (status === 'active') query.isActive = true;
-  else if (status === 'revoked') query.isActive = false;
-  if (scope) query.scopes = scope;
-
-  const keys = await ApiKey.find(query)
-    .populate('createdBy', 'email')
-    .select('-keyHash')
-    .sort({ createdAt: -1 })
-    .skip((page - 1) * limit)
-    .limit(Number(limit))
-    .lean();
-
-  const total = await ApiKey.countDocuments(query);
-
-  res.status(200).json(new ApiResponse(200, { data: keys, total, page: Number(page), limit: Number(limit) }, "API keys fetched successfully"));
-};
-
-export const revokeApiKey = async (req, res) => {
-  const { keyId } = req.params;
-
-  const key = await ApiKey.findById(keyId);
-  if (!key) throw new ApiError(404, "API key not found");
-  if (!key.isActive) throw new ApiError(400, "API key is already revoked");
-
-  key.isActive = false;
-  key.revokedAt = new Date();
-  key.revokedBy = req.user._id;
-  await key.save();
-
-  logAudit(req, 'apiKey.revoked', { type: 'ApiKey', id: key._id });
-
-  res.status(200).json(new ApiResponse(200, null, "API key revoked successfully"));
 };
 
 // --- Job Monitor ---

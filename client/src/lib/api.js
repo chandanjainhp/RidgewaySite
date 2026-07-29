@@ -369,10 +369,6 @@ export const updateUserRole = (userId, role) => api.patch(`/admin/users/${userId
 export const updateUserStatus = (userId, isActive) => api.patch(`/admin/users/${userId}/status`, { isActive });
 export const deleteUserSessions = (userId) => api.post(`/admin/users/${userId}/force-logout`);
 
-// Admin — API Keys
-export const listAdminApiKeys = (params) => api.get("/admin/apikeys", { params });
-export const revokeAdminApiKey = (keyId) => api.delete(`/admin/apikeys/${keyId}/revoke`);
-
 // Admin — Jobs
 export const getAdminJobStats = () => api.get("/admin/jobs/stats");
 export const listFailedJobs = () => api.get("/admin/jobs/failed");
@@ -391,10 +387,8 @@ export const updateOrgConfig = (data) => api.patch("/site/me", data);
 export const updateSiteConfig = (data) => api.patch("/site/me", data);
 export const completeSetup = async () => ({ ok: true });
 
-// Site API Keys
-export const listOrgApiKeys = () => api.get("/site/api-keys");
-export const createOrgApiKey = (data) => api.post("/site/api-keys", data);
-export const revokeOrgApiKey = (keyId) => api.delete(`/site/api-keys/${keyId}`);
+// Site ingestion secret
+export const rotateIngestionSecret = () => api.post("/site/rotate-secret");
 export const getIngestionStatus = () => api.get("/site/ingestion-status");
 
 // Site Webhooks

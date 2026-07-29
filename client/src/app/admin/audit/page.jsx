@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { format, subDays } from 'date-fns';
 import { toast } from 'sonner';
@@ -14,7 +14,7 @@ import {
   Search,
   X,
 } from 'lucide-react';
-import { getAuditLog, exportAuditLog, listAdminOrgs } from '@/lib/api';
+import { getAuditLog, exportAuditLog } from '@/lib/api';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -31,18 +31,19 @@ const ACTION_GROUPS = [
     actions: [
       'org.created', 'org.suspended', 'org.activated',
       'org.config_updated', 'org.webhook_secret_rotated',
+      'site.config_updated', 'site.webhook_secret_rotated', 'site.ingestion_secret_rotated',
     ],
   },
-  { label: 'API Key actions', actions: ['apiKey.created', 'apiKey.revoked'] },
   { label: 'System actions', actions: ['briefing.approved', 'investigation.started'] },
 ];
 
-const CREATES = new Set(['user.created', 'org.created', 'apiKey.created', 'user.invited']);
+const CREATES = new Set(['user.created', 'org.created', 'user.invited']);
 const UPDATES = new Set([
   'org.config_updated', 'user.role_changed', 'org.activated', 'user.activated', 'org.webhook_secret_rotated',
+  'site.config_updated', 'site.webhook_secret_rotated', 'site.ingestion_secret_rotated',
 ]);
 const DESTRUCTIVE = new Set([
-  'org.suspended', 'apiKey.revoked', 'user.force_logged_out', 'user.deactivated',
+  'org.suspended', 'user.force_logged_out', 'user.deactivated',
 ]);
 
 function actionBadgeStyle(action) {
@@ -217,7 +218,6 @@ const dateInputStyle = {
 export default function AuditLogPage() {
   const [dateFrom, setDateFrom] = useState(sevenDaysAgoStr);
   const [dateTo, setDateTo] = useState(todayStr);
-  const [listFilter, setListFilter] = useState('');
   const [actionFilter, setActionFilter] = useState('');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -228,24 +228,16 @@ export default function AuditLogPage() {
     return () => clearTimeout(t);
   }, [search]);
 
-  const { data: orgsData } = useQuery({
-    queryKey: ['admin-orgs-list'],
-    queryFn: () => listAdminOrgs({ limit: 100 }),
-    staleTime: 5 * 60 * 1000,
-  });
-  const orgs = orgsData?.orgs ?? orgsData?.data ?? [];
-
   const queryParams = {
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
-    
     action: actionFilter || undefined,
     search: debouncedSearch || undefined,
     limit: PAGE_LIMIT,
   };
 
   const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ['admin-audit', dateFrom, dateTo, listFilter, actionFilter, debouncedSearch],
+    queryKey: ['admin-audit', dateFrom, dateTo, actionFilter, debouncedSearch],
     queryFn: ({ pageParam = 1 }) => getAuditLog({ ...queryParams, page: pageParam }),
     getNextPageParam: (last, allPages) => {
       const loaded = allPages.length * PAGE_LIMIT;
@@ -261,14 +253,12 @@ export default function AuditLogPage() {
   const hasActiveFilters =
     dateFrom !== sevenDaysAgoStr() ||
     dateTo !== todayStr() ||
-    !!listFilter ||
     !!actionFilter ||
     !!debouncedSearch;
 
   const clearFilters = useCallback(() => {
     setDateFrom(sevenDaysAgoStr());
     setDateTo(todayStr());
-    setListFilter('');
     setActionFilter('');
     setSearch('');
     setDebouncedSearch('');
@@ -341,15 +331,6 @@ export default function AuditLogPage() {
               onChange={(e) => setDateTo(e.target.value)}
               style={dateInputStyle}
             />
-          </div>
-
-          {/* org dropdown */}
-          <div className="relative">
-            <select style={selectStyle} value={listFilter} onChange={(e) => setListFilter(e.target.value)}>
-              <option value="">All Sites</option>
-              {orgs.map((o) => <option key={o._id} value={o._id}>{o.name}</option>)}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--fg-4)' }} />
           </div>
 
           {/* action type */}

@@ -9,6 +9,7 @@
 import 'dotenv/config';
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 
 const MONGODB_URI = process.env.MONGODB_URL || process.env.MONGODB_URI;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
@@ -63,17 +64,24 @@ async function run() {
     webhookUrl: String,
     webhookSecret: String,
     webhookEnabled: { type: Boolean, default: true },
+    ingestionSecret: String,
     siteGeometry: mongoose.Schema.Types.Mixed,
   }, { timestamps: true });
 
   const User = mongoose.models.User || mongoose.model('User', userSchema);
   const Site = mongoose.models.Site || mongoose.model('Site', siteSchema);
 
+  const rawIngestionSecret = process.env.INGESTION_SECRET || crypto.randomBytes(32).toString('hex');
+  const ingestionSecretHash = crypto.createHash('sha256').update(rawIngestionSecret).digest('hex');
+
   const site = await Site.create({
     name: SITE_NAME,
     timezone: process.env.SITE_TIMEZONE || 'UTC',
+    ingestionSecret: ingestionSecretHash,
   });
   console.log('[bootstrap] Site created:', site._id.toString(), site.name);
+  console.log('[bootstrap] Ingestion secret (shown once — store securely):');
+  console.log(`  ${rawIngestionSecret}`);
 
   const hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
   const username = ADMIN_EMAIL.split('@')[0];

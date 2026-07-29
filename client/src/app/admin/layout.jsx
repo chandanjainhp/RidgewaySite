@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/authStore';
-import { Building2, Users, Key, Activity, ShieldCheck, ArrowLeft, LogOut, Sliders } from 'lucide-react';
+import { Building2, Users, Activity, ShieldCheck, ArrowLeft, LogOut, Sliders } from 'lucide-react';
 import api, { clearStoredToken } from '../../lib/api';
 
 function SetupSubItems({ isActive }) {
@@ -76,7 +76,6 @@ export default function AdminLayout({ children }) {
 
   const navItems = [
     { name: 'Users', path: '/admin/users', icon: Users },
-    { name: 'API Keys', path: '/admin/apikeys', icon: Key },
     { name: 'Jobs', path: '/admin/jobs', icon: Activity },
     { name: 'Audit Log', path: '/admin/audit', icon: ShieldCheck },
   ];

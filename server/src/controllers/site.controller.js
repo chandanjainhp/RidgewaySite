@@ -1,7 +1,6 @@
 import crypto from 'crypto';
-import { getSite } from '../models/site.model.js';
+import { getSite, hashIngestionSecret, generateIngestionSecret } from '../models/site.model.js';
 import WebhookDelivery from '../models/webhookDelivery.model.js';
-import ApiKey from '../models/apiKey.model.js';
 import Event from '../models/event.model.js';
 import { ApiError } from '../utils/api-error.js';
 import { ApiResponse } from '../utils/api-response.js';
@@ -10,7 +9,7 @@ import { dispatchWebhook } from '../queues/webhook.queue.js';
 
 export const getSiteConfig = async (req, res) => {
   const site = await getSite();
-  const { webhookSecret, ...safe } = site.toObject ? site.toObject() : site;
+  const { webhookSecret, ingestionSecret, ...safe } = site.toObject ? site.toObject() : site;
   // Operators get a trimmed view
   if (req.user.role === 'operator') {
     return res.status(200).json(new ApiResponse(200, {
@@ -21,7 +20,11 @@ export const getSiteConfig = async (req, res) => {
       coordinates: site.coordinates,
     }, 'OK'));
   }
-  res.status(200).json(new ApiResponse(200, { ...safe, webhookSecret: undefined }, 'Site retrieved'));
+  res.status(200).json(new ApiResponse(200, {
+    ...safe,
+    webhookSecret: undefined,
+    ingestionSecretConfigured: Boolean(site.ingestionSecret),
+  }, 'Site retrieved'));
 };
 
 export const updateSiteConfig = async (req, res) => {
@@ -86,55 +89,13 @@ export const getWebhookDeliveries = async (req, res) => {
   res.status(200).json(new ApiResponse(200, { deliveries, total }, 'Webhook deliveries retrieved successfully'));
 };
 
-export const listApiKeys = async (req, res) => {
-  const keys = await ApiKey.find({ isActive: true })
-    .select('name keyPrefix scopes createdAt lastUsedAt expiresAt')
-    .sort({ createdAt: -1 })
-    .lean();
-  res.status(200).json(new ApiResponse(200, keys, 'API keys retrieved successfully'));
-};
-
-export const createApiKey = async (req, res) => {
-  const { name, scopes } = req.body;
-  if (!name) throw new ApiError(400, 'name is required');
-  if (!Array.isArray(scopes) || scopes.length === 0) throw new ApiError(400, 'scopes must be a non-empty array');
-
-  const rawBytes = crypto.randomBytes(32).toString('hex');
-  const fullKey = `sk_live_${rawBytes}`;
-  const keyPrefix = fullKey.substring(0, 12) + '...';
-  const keyHash = crypto.createHash('sha256').update(fullKey).digest('hex');
-
-  const apiKey = await ApiKey.create({
-    name,
-    keyPrefix,
-    keyHash,
-    scopes,
-    createdBy: req.user._id,
-  });
-
-  logAudit(req, 'apiKey.created', { type: 'ApiKey', id: apiKey._id }, { name, scopes });
-
-  res.status(201).json(new ApiResponse(201, {
-    _id: apiKey._id,
-    name: apiKey.name,
-    keyPrefix: apiKey.keyPrefix,
-    scopes: apiKey.scopes,
-    createdAt: apiKey.createdAt,
-    key: fullKey,
-  }, 'API key created — store this key, it will not be shown again'));
-};
-
-export const revokeApiKey = async (req, res) => {
-  const apiKey = await ApiKey.findById(req.params.keyId);
-  if (!apiKey) throw new ApiError(404, 'API key not found');
-
-  apiKey.isActive = false;
-  apiKey.revokedAt = new Date();
-  apiKey.revokedBy = req.user._id;
-  await apiKey.save();
-
-  logAudit(req, 'apiKey.revoked', { type: 'ApiKey', id: apiKey._id }, { name: apiKey.name });
-  res.status(200).json(new ApiResponse(200, { revoked: true }, 'API key revoked'));
+export const rotateIngestionSecret = async (req, res) => {
+  const site = await getSite();
+  const raw = generateIngestionSecret();
+  site.ingestionSecret = hashIngestionSecret(raw);
+  await site.save();
+  logAudit(req, 'site.ingestion_secret_rotated', { type: 'Site', id: site._id });
+  res.status(200).json(new ApiResponse(200, { ingestionSecret: raw }, 'Ingestion secret rotated — store it now, it will not be shown again'));
 };
 
 export const testWebhook = async (req, res) => {

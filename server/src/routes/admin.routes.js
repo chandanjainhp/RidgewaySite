@@ -5,7 +5,6 @@ import { asyncHandler } from '../utils/async-handler.js';
 import {
   getAdminSite, updateAdminSite,
   listUsers, setUserRole, forceLogout, updateUserStatus,
-  listApiKeys, revokeApiKey,
   getQueueStats, getFailedJobs, retryJob, deleteJob,
   getAuditLogs,
 } from '../controllers/admin.controller.js';
@@ -27,10 +26,6 @@ router.get('/users', asyncHandler(listUsers));
 router.patch('/users/:userId/role', asyncHandler(setUserRole));
 router.post('/users/:userId/force-logout', asyncHandler(forceLogout));
 router.patch('/users/:userId/status', asyncHandler(updateUserStatus));
-
-// API Keys
-router.get('/apikeys', asyncHandler(listApiKeys));
-router.delete('/apikeys/:keyId/revoke', asyncHandler(revokeApiKey));
 
 // Jobs Monitor
 router.get('/jobs/stats', asyncHandler(getQueueStats));
