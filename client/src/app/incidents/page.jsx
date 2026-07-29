@@ -6,7 +6,9 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { getSiteMapData, getEventPins } from "@/lib/api";
 import { useMapStore } from "@/store/mapStore";
-import { useIncidents } from "@/hooks/useIncidents";
+import { useIncidents, useIncidentById, useIncidentEvidenceGraph } from "@/hooks/useIncidents";
+import AgentReasoning from "@/components/incident/AgentReasoning";
+import EvidenceChain from "@/components/incident/EvidenceChain";
 import { useStartInvestigation, usePollInvestigationStatus } from "@/hooks/useInvestigation";
 import { useInvestigationStore } from "@/store/investigationStore";
 import AgentFeed from "@/components/agent/AgentFeed";
@@ -145,6 +147,37 @@ function IncidentsWorkspace({ nightDate }) {
   
   // Poll investigation status when job is active
   usePollInvestigationStatus(jobId);
+
+  const { data: selectedDetail, isLoading: detailLoading } = useIncidentById(
+    selectedIncidentId,
+    { enabled: !!selectedIncidentId },
+  );
+  const { data: evidenceGraph, isLoading: graphLoading } = useIncidentEvidenceGraph(
+    selectedIncidentId,
+    { enabled: !!selectedIncidentId },
+  );
+
+  const isNightJobActive = jobStatus !== "idle" || jobId;
+  const persistedInvestigation = selectedDetail?.investigationId;
+  const hasCompletedInvestigation =
+    persistedInvestigation?.status === "complete" ||
+    Boolean(persistedInvestigation?.classification?.reasoning);
+  const showPersistedResults =
+    !!selectedIncidentId && hasCompletedInvestigation && !isNightJobActive;
+  const showPanelWorkspace = isNightJobActive || showPersistedResults;
+
+  const persistedClassification = {
+    ...(evidenceGraph?.classification || {}),
+    ...(persistedInvestigation?.classification || {}),
+  };
+  const persistedReasoning =
+    persistedClassification.reasoning ||
+    selectedDetail?.classification?.reasoning ||
+    selectedIncident?.agentSummary ||
+    "No reasoning attached by Argus.";
+  const persistedConfidence = persistedClassification.confidence ?? 0;
+  const persistedUncertainties = persistedClassification.uncertainties || [];
+  const evidenceSteps = evidenceGraph?.steps || [];
 
   // If selectedIncidentId is not set, select the first matching incident if available
   useEffect(() => {
@@ -398,7 +431,28 @@ function IncidentsWorkspace({ nightDate }) {
           </div>
 
           {/* Investigation Trigger / Progress Banner */}
-          {jobStatus === "idle" && !jobId ? (
+          {showPersistedResults ? (
+            <div style={{
+              padding: "12px 16px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              background: "rgba(184,212,232,0.02)",
+              borderBottom: "1px solid var(--border-default)",
+              fontSize: "11px",
+              fontFamily: MONO,
+              color: "var(--fg-2)",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{
+                  width: "6px", height: "6px", borderRadius: "50%",
+                  background: "var(--sev-harmless)",
+                }} />
+                <span style={{ textTransform: "uppercase" }}>Investigation complete</span>
+              </div>
+              <SeverityBadge severity={persistedClassification.severity || selectedIncident?.severity || "uncertain"} />
+            </div>
+          ) : !isNightJobActive ? (
             <div style={{
               padding: "24px 16px",
               textAlign: "center",
@@ -475,7 +529,7 @@ function IncidentsWorkspace({ nightDate }) {
           )}
 
           {/* Tab Selection */}
-          {(jobStatus !== "idle" || jobId) && (
+          {showPanelWorkspace && (
             <div style={{
               display: "flex",
               borderBottom: "1px solid var(--border-default)",
@@ -526,7 +580,7 @@ function IncidentsWorkspace({ nightDate }) {
 
           {/* Panel Body / Tab Contents */}
           <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-            {jobStatus === "idle" && !jobId ? (
+            {!showPanelWorkspace ? (
               <div style={{
                 padding: "48px 24px",
                 textAlign: "center",
@@ -538,7 +592,29 @@ function IncidentsWorkspace({ nightDate }) {
               </div>
             ) : activeRightTab === "activity" ? (
               <div style={{ height: "100%" }}>
-                <AgentFeed />
+                {showPersistedResults ? (
+                  <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
+                    {(detailLoading || graphLoading) ? (
+                      <div style={{ fontFamily: MONO, fontSize: "11px", color: "var(--fg-4)" }}>
+                        Loading Argus investigation results…
+                      </div>
+                    ) : (
+                      <>
+                        <AgentReasoning
+                          reasoning={persistedReasoning}
+                          uncertainties={persistedUncertainties}
+                          confidence={persistedConfidence}
+                        />
+                        <EvidenceChain
+                          steps={evidenceSteps}
+                          classification={persistedClassification}
+                        />
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <AgentFeed />
+                )}
               </div>
             ) : (
               <div style={{ height: "100%" }}>
