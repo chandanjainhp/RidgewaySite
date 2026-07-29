@@ -2,7 +2,8 @@ import eventValidator from "./event.validator.js";
 import incidentValidator from "./incident.validator.js";
 import investigationValidator from "./investigation.validator.js";
 import briefingValidator from "./briefing.validator.js";
-import { body, param } from "express-validator";
+import siteValidator from "./site.validator.js";
+import { body } from "express-validator";
 
 const userRegisterValidator = () => [
   body("email").isEmail(),
@@ -27,14 +28,18 @@ const userChangeCurrentPasswordValidator = () => [
   body("newPassword").isString().isLength({ min: 8 }),
 ];
 
+const userVerifyEmailValidator = () => [body("otp").isString().trim().notEmpty()];
+
 export {
   eventValidator,
   incidentValidator,
   investigationValidator,
   briefingValidator,
+  siteValidator,
   userRegisterValidator,
   userLoginValidator,
   userForgotPasswordValidator,
   userResetForgotPasswordValidator,
   userChangeCurrentPasswordValidator,
+  userVerifyEmailValidator,
 };

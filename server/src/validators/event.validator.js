@@ -1,7 +1,7 @@
 import Joi from "joi";
 
-const createEventSchema = Joi.object({
-  eventId: Joi.string().required(),
+const ingestEventItemSchema = Joi.object({
+  eventId: Joi.string().optional(),
   type: Joi.string()
     .valid(
       "fence_alert",
@@ -24,6 +24,26 @@ const createEventSchema = Joi.object({
       .required(),
   }).required(),
   rawData: Joi.object(),
+  timestamp: Joi.date().iso().optional(),
+});
+
+const ingestEventsSchema = Joi.alternatives().try(
+  ingestEventItemSchema,
+  Joi.array().items(ingestEventItemSchema).min(1),
+);
+
+const nightDateQuerySchema = Joi.object({
+  nightDate: Joi.string()
+    .pattern(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+});
+
+const mongoIdParamSchema = Joi.object({
+  id: Joi.string().hex().length(24).required(),
+});
+
+const createEventSchema = ingestEventItemSchema.keys({
+  eventId: Joi.string().required(),
 });
 
 const updateStatusSchema = Joi.object({
@@ -38,6 +58,10 @@ const correlateSchema = Joi.object({
 
 export default {
   createEventSchema,
+  ingestEventItemSchema,
+  ingestEventsSchema,
+  nightDateQuerySchema,
+  mongoIdParamSchema,
   updateStatusSchema,
   correlateSchema,
 };

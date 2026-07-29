@@ -16,7 +16,25 @@ const updateIncidentSchema = Joi.object({
   description: Joi.string(),
 }).min(1);
 
+const listIncidentsQuerySchema = Joi.object({
+  nightDate: Joi.string()
+    .pattern(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  status: Joi.string()
+    .valid("open", "investigating", "reviewed", "escalated", "closed")
+    .optional(),
+  severity: Joi.string()
+    .valid("serious", "minor", "harmless", "uncertain")
+    .optional(),
+});
+
+const mongoIdParamSchema = Joi.object({
+  id: Joi.string().hex().length(24).required(),
+});
+
 export default {
   createIncidentSchema,
   updateIncidentSchema,
+  listIncidentsQuerySchema,
+  mongoIdParamSchema,
 };

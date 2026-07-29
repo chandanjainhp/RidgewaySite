@@ -11,16 +11,16 @@ router.use(authenticateRequest);
 router.use(requireRole('super_admin', 'org_admin', 'operator'));
 
 // GET /briefings/latest?nightDate=YYYY-MM-DD
-router.get('/latest', asyncHandler(getLatestBriefing));
+router.get('/latest', validate(briefingValidator.latestBriefingQuerySchema, 'query'), asyncHandler(getLatestBriefing));
 
 // PATCH /briefings/:id/sections/:sectionName
-router.patch('/:id/section', validate(briefingValidator.updateBriefingSectionSchema), asyncHandler(updateBriefingSection));
-router.patch('/:id/sections/:sectionName', validate(briefingValidator.updateBriefingSectionSchema), asyncHandler(updateBriefingSection));
+router.patch('/:id/section', validate(briefingValidator.briefingIdParamSchema, 'params'), validate(briefingValidator.updateBriefingSectionSchema), asyncHandler(updateBriefingSection));
+router.patch('/:id/sections/:sectionName', validate(briefingValidator.briefingSectionParamSchema, 'params'), validate(briefingValidator.updateBriefingSectionSchema), asyncHandler(updateBriefingSection));
 
 // POST /briefings/:id/approve
-router.post('/:id/approve', asyncHandler(approveBriefing));
+router.post('/:id/approve', validate(briefingValidator.briefingIdParamSchema, 'params'), asyncHandler(approveBriefing));
 
 // POST /briefings/:id/retry  (org_admin+)
-router.post('/:id/retry', requireRole('super_admin', 'org_admin'), asyncHandler(retryBriefing));
+router.post('/:id/retry', requireRole('super_admin', 'org_admin'), validate(briefingValidator.briefingIdParamSchema, 'params'), asyncHandler(retryBriefing));
 
 export default router;

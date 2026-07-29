@@ -3,7 +3,7 @@ import {changeCurrentPassword, forgotPasswordRequest, getCurrentUser, login, log
 import {loginAdminGate, getAdminGateStatus, logoutAdminGate} from "../controllers/adminGate.controllers.js";
 import {validate} from "../middlewares/validator.middleware.js";
 import {authLimiter} from "../middlewares/rateLimit.middleware.js";
-import {userChangeCurrentPasswordValidator, userForgotPasswordValidator, userLoginValidator, userRegisterValidator, userResetForgotPasswordValidator} from "../validators/index.js";
+import {userChangeCurrentPasswordValidator, userForgotPasswordValidator, userLoginValidator, userRegisterValidator, userResetForgotPasswordValidator, userVerifyEmailValidator} from "../validators/index.js";
 import {verifyJWT} from "../middlewares/auth.middleware.js";
 
 const router = Router();
@@ -11,7 +11,7 @@ const router = Router();
 // unsecured route
 router.route("/register").post(userRegisterValidator(), validate, registerUser);
 router.route("/login").post(userLoginValidator(), validate, login);
-router.route("/verify-email").post(verifyEmail);
+router.route("/verify-email").post(userVerifyEmailValidator(), validate, verifyEmail);
 router.route("/refresh-token").post(refreshAccessToken);
 router
   .route("/forgot-password")
