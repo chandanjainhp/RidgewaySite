@@ -8,8 +8,6 @@ import {
   registerUser,
   logoutUser,
   refreshAccessToken,
-  getStoredToken,
-  setStoredToken,
   clearStoredToken,
   ERROR_TYPES,
 } from "@/lib/api";
@@ -19,6 +17,12 @@ function clearAuthCookies() {
   if (typeof window === "undefined") return;
   document.cookie = `ridgeway_auth=; path=/; max-age=0; SameSite=Lax`;
   document.cookie = `ridgeway_role=; path=/; max-age=0; SameSite=Lax`;
+  document.cookie = `ridgeway_setup=; path=/; max-age=0; SameSite=Lax`;
+}
+
+function hasAuthCookie() {
+  if (typeof window === "undefined") return false;
+  return document.cookie.split(";").some((c) => c.trim().startsWith("ridgeway_auth=1"));
 }
 
 export function useAuth() {
@@ -42,10 +46,6 @@ export function useAuth() {
         return;
       }
 
-      setStoredToken(data.accessToken);
-      if (data.refreshToken) {
-        localStorage.setItem("ridgeway_refresh_token", data.refreshToken);
-      }
       if (data?.user) {
         localStorage.setItem("ridgeway_user", JSON.stringify(data.user));
         setUser(data.user);
@@ -91,10 +91,6 @@ export function useAuth() {
   const registerMutation = useMutation({
     mutationFn: (userData) => registerUser(userData),
     onSuccess: (data) => {
-      if (data?.accessToken) setStoredToken(data.accessToken);
-      if (data?.refreshToken) {
-        localStorage.setItem("ridgeway_refresh_token", data.refreshToken);
-      }
       if (data?.user) {
         localStorage.setItem("ridgeway_user", JSON.stringify(data.user));
         setUser(data.user);
@@ -114,12 +110,7 @@ export function useAuth() {
   });
 
   const refreshMutation = useMutation({
-    mutationFn: async () => {
-      const refreshToken = localStorage.getItem("ridgeway_refresh_token");
-      if (!refreshToken) throw new Error("No refresh token available");
-      return refreshAccessToken(refreshToken);
-    },
-    onSuccess: (data) => setStoredToken(data.accessToken),
+    mutationFn: async () => refreshAccessToken(),
     onError: () => {
       clearStoredToken();
       router.replace("/");
@@ -131,7 +122,7 @@ export function useAuth() {
     logout: logoutMutation.mutate,
     register: registerMutation.mutate,
     refreshToken: refreshMutation.mutate,
-    isAuthenticated: !!getStoredToken(),
+    isAuthenticated: hasAuthCookie(),
     isLoading:
       loginMutation.isPending ||
       logoutMutation.isPending ||

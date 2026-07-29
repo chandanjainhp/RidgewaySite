@@ -407,11 +407,10 @@ export default function ProfilePage() {
             <button
               type="button"
               onClick={() => {
-                localStorage.removeItem('ridgeway_token');
-                localStorage.removeItem('ridgeway_refresh_token');
                 localStorage.removeItem('ridgeway_user');
                 document.cookie = 'ridgeway_auth=; path=/; max-age=0; SameSite=Lax';
                 document.cookie = 'ridgeway_role=; path=/; max-age=0; SameSite=Lax';
+                document.cookie = 'ridgeway_setup=; path=/; max-age=0; SameSite=Lax';
                 router.replace('/login');
               }}
               style={{

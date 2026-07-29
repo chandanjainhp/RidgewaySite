@@ -17,25 +17,24 @@ const SHOULD_LOG_API =
   process.env.NEXT_PUBLIC_DEBUG_API === "1";
 
 /* =========================================
-     TOKEN HELPERS & ERROR TYPES
+     SESSION HELPERS & ERROR TYPES
 ========================================= */
 
-// Token management helpers
-export const getStoredToken = () => {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("ridgeway_token");
+const hasAuthCookie = () => {
+  if (typeof window === "undefined") return false;
+  return document.cookie.split(";").some((c) => c.trim().startsWith("ridgeway_auth=1"));
 };
 
-export const setStoredToken = (token) => {
-  if (typeof window !== "undefined") {
-    localStorage.setItem("ridgeway_token", token);
-  }
-};
+export const getStoredToken = () => null;
+
+export const setStoredToken = () => {};
 
 export const clearStoredToken = () => {
   if (typeof window !== "undefined") {
-    localStorage.removeItem("ridgeway_token");
-    localStorage.removeItem("ridgeway_refresh_token");
+    localStorage.removeItem("ridgeway_user");
+    document.cookie = "ridgeway_auth=; path=/; max-age=0; SameSite=Lax";
+    document.cookie = "ridgeway_role=; path=/; max-age=0; SameSite=Lax";
+    document.cookie = "ridgeway_setup=; path=/; max-age=0; SameSite=Lax";
   }
 };
 
@@ -89,20 +88,11 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
-// Attach authorization context securely if accessible on client
+// Auth uses httpOnly cookies — withCredentials sends them automatically.
 api.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    const token = getStoredToken();
-    const isRefreshRequest = String(config.url || "").includes("/auth/refresh-token");
-
-    if (token && !isRefreshRequest) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-
-    if (SHOULD_LOG_API) {
-      const method = (config.method || "GET").toUpperCase();
-      console.info("[API] request", method, config.baseURL + config.url);
-    }
+  if (SHOULD_LOG_API && typeof window !== "undefined") {
+    const method = (config.method || "GET").toUpperCase();
+    console.info("[API] request", method, config.baseURL + config.url);
   }
   return config;
 });
@@ -219,10 +209,7 @@ api.interceptors.response.use(
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
-          .then((token) => {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            return api(originalRequest);
-          })
+          .then(() => api(originalRequest))
           .catch((err) => {
             const enrichedError = new Error(message);
             enrichedError.type = errorType;
@@ -235,10 +222,8 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const refreshToken = localStorage.getItem("ridgeway_refresh_token");
-      if (!refreshToken || message.toLowerCase().includes('invalid access token')) {
-        // If the token itself is invalid (not just expired), don't try to refresh
-        processQueue(new Error("No refresh token available or token invalid"), null);
+      if (!hasAuthCookie()) {
+        processQueue(new Error("No active session"), null);
         isRefreshing = false;
         clearClientAuthSession();
         if (typeof window !== "undefined") {
@@ -251,21 +236,8 @@ api.interceptors.response.use(
       }
 
       try {
-        const response = await api.post("/auth/refresh-token", { refreshToken });
-        const newToken = response.accessToken || response.data?.accessToken;
-        const newRefreshToken = response.refreshToken || response.data?.refreshToken;
-
-        if (!newToken) {
-          throw new Error("No token in refresh response");
-        }
-
-        setStoredToken(newToken);
-        if (newRefreshToken) {
-          localStorage.setItem("ridgeway_refresh_token", newRefreshToken);
-        }
-        api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
-        processQueue(null, newToken);
+        await api.post("/auth/refresh-token", {});
+        processQueue(null, true);
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
@@ -326,8 +298,8 @@ export const logoutUser = async () => {
   }
 };
 
-export const refreshAccessToken = async (refreshToken) =>
-  api.post("/auth/refresh-token", { refreshToken });
+export const refreshAccessToken = async () =>
+  api.post("/auth/refresh-token", {});
 
 // Investigations
 export const startInvestigation = async (nightDate) =>

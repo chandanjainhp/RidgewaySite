@@ -12,6 +12,7 @@ export const registerUser = async (userData) => {
   try {
     const response = await fetch(`${API_URL}/api/v1/auth/register`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -28,15 +29,8 @@ export const registerUser = async (userData) => {
       throw new Error(data.message || data.error || 'Registration failed');
     }
 
-    // Store tokens
-    if (data.data?.accessToken) {
-      localStorage.setItem('ridgeway_token', data.data.accessToken);
-      if (data.data.refreshToken) {
-        localStorage.setItem('ridgeway_refresh_token', data.data.refreshToken);
-      }
-      if (data.data.user) {
-        localStorage.setItem('user', JSON.stringify(data.data.user));
-      }
+    if (data.data?.user) {
+      localStorage.setItem('user', JSON.stringify(data.data.user));
       document.cookie = 'ridgeway_auth=1; path=/; max-age=86400; SameSite=Lax';
     }
 
@@ -53,6 +47,7 @@ export const loginUser = async (credentials) => {
   try {
     const response = await fetch(`${API_URL}/api/v1/auth/login`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -65,15 +60,8 @@ export const loginUser = async (credentials) => {
       throw new Error(data.message || data.error || 'Login failed');
     }
 
-    // Store tokens
-    if (data.data?.accessToken) {
-      localStorage.setItem('ridgeway_token', data.data.accessToken);
-      if (data.data.refreshToken) {
-        localStorage.setItem('ridgeway_refresh_token', data.data.refreshToken);
-      }
-      if (data.data.user) {
-        localStorage.setItem('user', JSON.stringify(data.data.user));
-      }
+    if (data.data?.user) {
+      localStorage.setItem('user', JSON.stringify(data.data.user));
       document.cookie = 'ridgeway_auth=1; path=/; max-age=86400; SameSite=Lax';
     }
 
@@ -81,14 +69,6 @@ export const loginUser = async (credentials) => {
   } catch (error) {
     throw new Error(error.message || 'Failed to login');
   }
-};
-
-/**
- * Get stored auth token
- */
-export const getAuthToken = () => {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('ridgeway_token');
 };
 
 /**
@@ -105,16 +85,17 @@ export const getStoredUser = () => {
  */
 export const logoutUser = () => {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem('ridgeway_token');
-  localStorage.removeItem('ridgeway_refresh_token');
   localStorage.removeItem('user');
+  localStorage.removeItem('ridgeway_user');
   document.cookie = 'ridgeway_auth=; path=/; max-age=0; SameSite=Lax';
+  document.cookie = 'ridgeway_role=; path=/; max-age=0; SameSite=Lax';
+  document.cookie = 'ridgeway_setup=; path=/; max-age=0; SameSite=Lax';
 };
 
 /**
  * Check if user is authenticated
  */
 export const isAuthenticated = () => {
-  const token = getAuthToken();
-  return typeof token === 'string' && token.length > 0;
+  if (typeof window === 'undefined') return false;
+  return document.cookie.split(';').some((c) => c.trim().startsWith('ridgeway_auth=1'));
 };

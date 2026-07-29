@@ -43,8 +43,6 @@ function LoginPageInner() {
       }
 
       setLoginSuccess(true);
-      localStorage.setItem('ridgeway_token', data.accessToken);
-      if (data.refreshToken) localStorage.setItem('ridgeway_refresh_token', data.refreshToken);
       if (data?.user) {
         localStorage.setItem('ridgeway_user', JSON.stringify(data.user));
         const { useAuthStore } = require('@/store/authStore');

@@ -62,10 +62,8 @@ export default function RegisterPage() {
     onSuccess: (data) => { 
       setServerError(''); 
       setSuccessMessage('Account created successfully.'); 
-      if (data?.accessToken) {
-        localStorage.setItem('ridgeway_token', data.accessToken);
-        localStorage.setItem('ridgeway_refresh_token', data.refreshToken);
-        if (data?.user) localStorage.setItem('ridgeway_user', JSON.stringify(data.user));
+      if (data?.user) {
+        localStorage.setItem('ridgeway_user', JSON.stringify(data.user));
         document.cookie = 'ridgeway_auth=1; path=/; max-age=86400; SameSite=Lax';
       }
     },

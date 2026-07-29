@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useInvestigationStore } from "@/store/investigationStore";
 import { useMapStore } from "@/store/mapStore";
 import { useQuery } from "@tanstack/react-query";
-import { getStoredToken, clearStoredToken } from "@/lib/api";
+import { clearStoredToken } from "@/lib/api";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import ConnectionStatusPanel from "@/components/shared/ConnectionStatusPanel";
 
@@ -38,11 +38,7 @@ export default function ConnectionStatus() {
       try {
         const response = await fetch(
           (process.env.NEXT_PUBLIC_API_URL || "") + "/api/v1/health",
-          {
-            headers: {
-              "Authorization": `Bearer ${getStoredToken()}`,
-            },
-          }
+          { credentials: "include" }
         );
         return response.ok ? { status: "ok" } : { status: "error" };
       } catch {
@@ -69,7 +65,7 @@ export default function ConnectionStatus() {
   };
 
   const serverHealthOk = healthData?.status === "ok";
-  const tokenPresent = !!getStoredToken();
+  const tokenPresent = typeof document !== "undefined" && document.cookie.includes("ridgeway_auth=1");
   return (
     <div className="fixed bottom-4 left-4 z-50 font-mono text-xs">
       <button
