@@ -26,7 +26,29 @@ const getNightRange = (nightDateInput) => {
 };
 
 const healthCheck = asyncHandler(async (req, res) => {
-  res.status(200).json(new ApiResponse(200, { message: "Server is running" }));
+  const mongoReady = mongoose.connection.readyState === 1;
+  const redisClient = getRedis();
+  let redisReady = false;
+
+  if (redisClient) {
+    try {
+      await redisClient.ping();
+      redisReady = true;
+    } catch {
+      redisReady = false;
+    }
+  }
+
+  const healthy = mongoReady && redisReady;
+  const payload = {
+    status: healthy ? 'ok' : 'degraded',
+    mongo: mongoReady ? 'connected' : 'disconnected',
+    redis: redisReady ? 'connected' : 'disconnected',
+  };
+
+  res
+    .status(healthy ? 200 : 503)
+    .json(new ApiResponse(healthy ? 200 : 503, payload, healthy ? 'Server is healthy' : 'Dependency check failed'));
 });
 
 /**
