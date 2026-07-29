@@ -41,7 +41,7 @@
     "@tanstack/react-query": "^5.99.0",
     "@vercel/analytics": "1.3.1",
     "autoprefixer": "^10.4.20",
-    "axios": "^1.15.0",
+    "axios": "^1.18.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
@@ -72,7 +72,6 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",
     "baseline-browser-mapping": "^2.10.40",
-    "i": "^0.3.7",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
     "tw-animate-css": "1.3.3"
