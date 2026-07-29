@@ -10,7 +10,7 @@ const router = Router();
 
 // unsecured route
 router.route("/register").post(userRegisterValidator(), validate, registerUser);
-router.route("/login").post(userLoginValidator(), validate, login);
+router.route("/login").post(authLimiter, userLoginValidator(), validate, login);
 router.route("/verify-email").post(userVerifyEmailValidator(), validate, verifyEmail);
 router.route("/refresh-token").post(refreshAccessToken);
 router
