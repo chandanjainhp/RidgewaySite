@@ -11,11 +11,15 @@ const errorHandler = (err, req, res, next) => {
 
   // ========== API ERROR ==========
   if (err instanceof ApiError) {
+    const isProd = process.env.NODE_ENV === 'production';
+    const clientMessage =
+      isProd && err.statusCode >= 500 ? 'Internal server error' : err.message;
+
     console.log(
       `[Error] ${req.method} ${req.path} | Status: ${err.statusCode} | Message: ${err.message}`
     );
     return res.status(err.statusCode).json(
-      new ApiResponse(err.statusCode, err.errors || null, err.message)
+      new ApiResponse(err.statusCode, err.errors || null, clientMessage)
     );
   }
 
