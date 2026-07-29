@@ -39,9 +39,17 @@ export const updateSiteConfig = async (req, res) => {
     // ponytail: industry not on Site schema — ignore
   }
   await site.save();
+  // Ensure outbound webhooks can be HMAC-signed once a URL is configured
+  if (site.webhookUrl && !site.webhookSecret) {
+    site.webhookSecret = crypto.randomBytes(32).toString('hex');
+    await site.save();
+  }
   logAudit(req, 'site.config_updated', { type: 'Site', id: site._id }, req.body);
-  const { webhookSecret: _ws, ...safe } = site.toObject();
-  res.status(200).json(new ApiResponse(200, safe, 'Site config updated'));
+  const { webhookSecret: _ws, ingestionSecret: _is, ...safe } = site.toObject();
+  res.status(200).json(new ApiResponse(200, {
+    ...safe,
+    ingestionSecretConfigured: Boolean(site.ingestionSecret),
+  }, 'Site config updated'));
 };
 
 export const getWebhookConfig = async (req, res) => {
@@ -118,7 +126,7 @@ export const testWebhook = async (req, res) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Sentinel-Signature': signature,
+        ...(signature && { 'X-Sentinel-Signature': `sha256=${signature}` }),
         'X-Sentinel-Event': 'webhook.test',
       },
       body: payloadString,

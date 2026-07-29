@@ -382,9 +382,9 @@ export default function OverviewPage() {
               href={`/incident/${incidentId}`}
               style={{
                 display: "flex",
-                alignItems: "center",
-                gap: "12px",
-                padding: "12px 16px",
+                alignItems: "flex-start",
+                gap: "var(--space-3)",
+                padding: "var(--space-3) var(--space-4)",
                 borderBottom: "1px solid var(--border-hairline)",
                 textDecoration: "none",
                 transition: "background 120ms",
@@ -392,7 +392,7 @@ export default function OverviewPage() {
               onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-2)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
             >
-              <div style={{ flexShrink: 0, width: "64px" }}>
+              <div style={{ flexShrink: 0, paddingTop: "var(--space-1)" }}>
                 <SeverityBadge severity={incident.severity || 'uncertain'} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -410,7 +410,7 @@ export default function OverviewPage() {
                   fontFamily: MONO,
                   fontSize: "11px",
                   color: "var(--fg-4)",
-                  marginTop: "2px",
+                  marginTop: "var(--space-1)",
                 }}>
                   {incident.location?.name || "Unknown location"}
                 </div>
@@ -420,6 +420,7 @@ export default function OverviewPage() {
                 fontSize: "10px",
                 color: "var(--fg-4)",
                 flexShrink: 0,
+                paddingTop: "var(--space-1)",
               }}>
                 {incident.createdAt ? formatTime(incident.createdAt) : "—"}
               </div>

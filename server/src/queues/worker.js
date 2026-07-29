@@ -182,7 +182,8 @@ export const startWorker = async () => {
       },
       {
         connection: workerRedisConnection,
-        concurrency: 3, // Run 3 investigations in parallel
+        // Local LLMs serialise better; cloud can run a few in parallel.
+        concurrency: process.env.USE_LOCAL_LLM === 'true' || process.env.NODE_ENV === 'test' ? 1 : 3,
         limiter: {
           max: 5, // Max 5 jobs
           duration: 60000, // Per minute (respect API rate limits)

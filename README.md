@@ -13,10 +13,11 @@ Sentinel helps your team understand what happened overnight at an industrial sit
    - Copy `client/.env.example` to `client/.env`
    - Leave the default values unless your IT team gives you different database or API settings.
 
-3. **Start the database services** (from the project folder):
+3. **Start MongoDB + Redis only** (from the project folder):
    ```bash
-   docker compose -f server/docker-compose.local.yml up -d
+   docker compose up -d
    ```
+   This does **not** start the API or UI. Server and client run on your machine so hot-reload and LM Studio stay simple. Production-style app containers live in the Dockerfiles under `server/` and `client/` — use those only if you are packaging a deploy, not for day-to-day development.
 
 4. **Start Sentinel** — in two terminals:
    ```bash

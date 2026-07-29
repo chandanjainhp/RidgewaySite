@@ -47,8 +47,12 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // 5. Request logger
 app.use(httpLogger);
 
-// 6. Global rate limiter
-app.use(apiLimiter);
+// 6. Global rate limiter — skip health + event ingestion (events have eventsLimiter at 120/min)
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/v1/health')) return next();
+  if (req.method === 'POST' && req.path.startsWith('/api/v1/events')) return next();
+  return apiLimiter(req, res, next);
+});
 
 // ROUTE MOUNTING (all under /api/v1)
 app.use('/api/v1/health', healthCheckRouter);

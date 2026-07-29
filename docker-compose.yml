@@ -1,0 +1,6 @@
+# Root compose = Mongo + Redis only (intended local-dev workflow).
+# Run API/UI with `cd server && bun run dev` and `cd client && npm run dev` (see README).
+# App Dockerfiles under server/ and client/ are for packaging deploys, not day-to-day `compose up`.
+
+include:
+  - path: server/docker-compose.local.yml
