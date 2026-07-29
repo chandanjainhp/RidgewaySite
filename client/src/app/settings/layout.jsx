@@ -26,10 +26,23 @@ export default function SettingsLayout({ children }) {
   const isAdmin = role === 'org_admin' || role === 'super_admin';
   const [gateStatus, setGateStatus] = useState('checking');
 
+  // Keep middleware role cookie in sync with the persisted auth store (Access Denied
+  // happens when ridgeway_auth=1 but ridgeway_role is missing/stale).
+  useEffect(() => {
+    if (typeof document === 'undefined' || !role) return;
+    document.cookie = `ridgeway_role=${role}; path=/; max-age=86400; SameSite=Lax`;
+  }, [role]);
+
   useEffect(() => {
     let isMounted = true;
 
     async function verifyGate() {
+      // JWT admin roles already passed middleware — no second password gate.
+      if (isAdmin) {
+        if (isMounted) setGateStatus('authenticated');
+        return;
+      }
+
       try {
         const status = await getAdminGateStatus();
         if (!isMounted) return;
@@ -53,7 +66,7 @@ export default function SettingsLayout({ children }) {
     return () => {
       isMounted = false;
     };
-  }, [pathname, router]);
+  }, [pathname, router, isAdmin]);
 
   const handleGateLogout = async () => {
     try {

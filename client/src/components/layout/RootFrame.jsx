@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import TopBar from "@/components/layout/TopBar";
+import { useAuthStore } from "@/store/authStore";
 
 const PUBLIC_ROUTES = new Set([
   "/",
@@ -18,11 +20,22 @@ const PUBLIC_ROUTES = new Set([
 export default function RootFrame({ children }) {
   const pathname = usePathname();
   const path = pathname || "";
+  const role = useAuthStore((s) => s.role);
   const isPublicRoute =
     PUBLIC_ROUTES.has(path) ||
     path.startsWith("/reset-password");
 
   const suppressTopBar = isPublicRoute || path.startsWith("/admin");
+
+  // Middleware gates /settings/* on ridgeway_role. Persist store may have the
+  // role while the cookie was cleared — keep them aligned.
+  useEffect(() => {
+    if (typeof document === "undefined" || !role) return;
+    const hasRoleCookie = document.cookie.split(";").some((c) => c.trim().startsWith("ridgeway_role="));
+    if (!hasRoleCookie) {
+      document.cookie = `ridgeway_role=${role}; path=/; max-age=86400; SameSite=Lax`;
+    }
+  }, [role]);
 
   return (
     <>

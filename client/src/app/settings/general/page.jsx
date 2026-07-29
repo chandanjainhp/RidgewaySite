@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Settings, Globe, Sparkles, AlertTriangle, Loader2, Save } from 'lucide-react';
+import { Settings, Globe, MapPin, AlertTriangle, Loader2, Save, Plus, Trash2 } from 'lucide-react';
 import { getOrgMe, updateOrgConfig } from '@/lib/api';
+import { useAuthStore } from '@/store/authStore';
 
 const MONO = 'var(--font-mono)';
 const SANS = 'var(--font-sans)';
@@ -55,85 +56,74 @@ const INPUT_BASE_STYLE = {
   transition: 'border-color 120ms',
 };
 
-/* ── helpers ── */
-function planBadgeStyle(plan) {
-  const base = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    padding: '2px 8px',
-    borderRadius: '2px',
-    fontFamily: MONO,
-    fontSize: '10px',
-    fontWeight: 600,
-    textTransform: 'uppercase',
-    letterSpacing: '0.1em',
-    border: '1px solid var(--border-hairline)',
-  };
-  if (plan === 'enterprise') {
-    return { ...base, background: 'var(--bg-surface-3)', color: 'var(--accent)' };
-  }
-  if (plan === 'standard') {
-    return { ...base, background: 'var(--bg-surface-2)', color: 'var(--sev-info)' };
-  }
-  return { ...base, background: 'var(--bg-surface-2)', color: 'var(--fg-3)' };
+const ZONE_TYPES = ['gate', 'building', 'zone', 'perimeter'];
+
+function emptyZone() {
+  return { name: '', type: 'gate', lat: '', lng: '' };
 }
 
-function statusBadgeStyle(status) {
-  const base = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    padding: '2px 8px',
-    borderRadius: '2px',
-    fontFamily: MONO,
-    fontSize: '10px',
-    fontWeight: 600,
-    textTransform: 'uppercase',
-    letterSpacing: '0.1em',
-    border: '1px solid var(--border-hairline)',
-    background: 'var(--bg-surface-2)',
-  };
-  if (status === 'active') return { ...base, color: 'var(--sev-harmless)' };
-  if (status === 'suspended') return { ...base, color: 'var(--sev-serious)' };
-  return { ...base, color: 'var(--fg-3)' };
+function zonesFromGeometry(siteGeometry) {
+  const locs = siteGeometry?.locations;
+  if (!Array.isArray(locs) || locs.length === 0) return [emptyZone()];
+  return locs.map((loc) => {
+    const c = loc.coordinates;
+    const lat = Array.isArray(c) ? c[0] : c?.lat;
+    const lng = Array.isArray(c) ? c[1] : c?.lng;
+    return {
+      name: loc.name || '',
+      type: loc.type || 'zone',
+      lat: lat ?? '',
+      lng: lng ?? '',
+    };
+  });
 }
 
-function capitalize(s) {
-  if (!s) return '';
-  return s.charAt(0).toUpperCase() + s.slice(1);
+function buildSiteGeometry(zones) {
+  const locations = zones
+    .filter((z) => z.name.trim() && z.lat !== '' && z.lng !== '')
+    .map((z, i) => ({
+      id: `zone-${i + 1}`,
+      name: z.name.trim(),
+      type: z.type || 'zone',
+      coordinates: { lat: Number(z.lat), lng: Number(z.lng) },
+      zone: z.type === 'gate' || z.type === 'perimeter' ? 'perimeter' : 'interior',
+    }));
+  return locations.length ? { locations } : null;
 }
 
-/* ── component ── */
 export default function GeneralSettingsPage() {
   const queryClient = useQueryClient();
+  const role = useAuthStore((s) => s.role);
+  const canEdit = role === 'org_admin' || role === 'super_admin';
 
-  const { data: org, isLoading, isError } = useQuery({
+  const { data: site, isLoading, isError } = useQuery({
     queryKey: ['org-me'],
     queryFn: getOrgMe,
   });
 
-  /* form state */
-  const [webhookUrl, setWebhookUrl]         = useState('');
-  const [promptOverride, setPromptOverride] = useState('');
-  const [webhookError, setWebhookError]     = useState('');
+  const [name, setName] = useState('');
+  const [timezone, setTimezone] = useState('UTC');
+  const [locationLabel, setLocationLabel] = useState('');
+  const [lat, setLat] = useState('');
+  const [lng, setLng] = useState('');
+  const [webhookUrl, setWebhookUrl] = useState('');
+  const [zones, setZones] = useState([emptyZone()]);
+  const [webhookError, setWebhookError] = useState('');
 
-  /* seed form once org loads */
   useEffect(() => {
-    if (org) {
-      setWebhookUrl(org.config?.webhookUrl ?? '');
-      setPromptOverride(org.config?.promptOverride ?? '');
-    }
-  }, [org]);
+    if (!site) return;
+    setName(site.name ?? '');
+    setTimezone(site.timezone ?? 'UTC');
+    setLocationLabel(site.locationLabel ?? '');
+    setLat(site.coordinates?.lat ?? '');
+    setLng(site.coordinates?.lng ?? '');
+    setWebhookUrl(site.webhookUrl ?? '');
+    setZones(zonesFromGeometry(site.siteGeometry));
+  }, [site]);
 
-  /* dirty check */
-  const initialWebhook = org?.config?.webhookUrl ?? '';
-  const initialPrompt  = org?.config?.promptOverride ?? '';
-  const isDirty =
-    webhookUrl !== initialWebhook || promptOverride !== initialPrompt;
-
-  /* client-side validation */
   function validateWebhook(val) {
-    if (val && !val.startsWith('https://')) {
-      return 'Webhook URL must start with https://';
+    if (val && !/^https?:\/\//i.test(val)) {
+      return 'Webhook URL must start with http:// or https://';
     }
     return '';
   }
@@ -141,8 +131,10 @@ export default function GeneralSettingsPage() {
   const saveMutation = useMutation({
     mutationFn: (payload) => updateOrgConfig(payload),
     onSuccess: () => {
-      toast.success('Settings saved');
+      toast.success('Site settings saved');
       queryClient.invalidateQueries({ queryKey: ['org-me'] });
+      queryClient.invalidateQueries({ queryKey: ['siteMap'] });
+      queryClient.invalidateQueries({ queryKey: ['eventPins'] });
     },
     onError: (err) => {
       toast.error(err?.message ?? 'Failed to save settings');
@@ -151,6 +143,10 @@ export default function GeneralSettingsPage() {
 
   function handleSave(e) {
     e.preventDefault();
+    if (!canEdit) {
+      toast.error('Only admins can change site configuration');
+      return;
+    }
 
     const vErr = validateWebhook(webhookUrl);
     if (vErr) {
@@ -159,25 +155,32 @@ export default function GeneralSettingsPage() {
     }
     setWebhookError('');
 
-    /* build diff — only send changed fields */
-    const diff = {};
-    if (webhookUrl !== initialWebhook)     diff.webhookUrl     = webhookUrl;
-    if (promptOverride !== initialPrompt)  diff.promptOverride = promptOverride;
+    if (lat === '' || lng === '') {
+      toast.error('Map center latitude and longitude are required');
+      return;
+    }
 
-    saveMutation.mutate(diff);
+    const payload = {
+      name: name.trim() || 'Site',
+      timezone: timezone.trim() || 'UTC',
+      locationLabel: locationLabel.trim() || null,
+      coordinates: { lat: Number(lat), lng: Number(lng) },
+      siteGeometry: buildSiteGeometry(zones),
+      webhookUrl: webhookUrl.trim() || null,
+    };
+
+    saveMutation.mutate(payload);
   }
 
-  /* ── render ── */
+  function updateZone(index, field, value) {
+    setZones((prev) => prev.map((z, i) => (i === index ? { ...z, [field]: value } : z)));
+  }
+
   if (isLoading) {
     return (
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '96px 0',
-        color: 'var(--fg-3)',
-        fontFamily: SANS,
-        fontSize: '13px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '96px 0', color: 'var(--fg-3)', fontFamily: SANS, fontSize: '13px',
       }}>
         <Loader2 size={16} className="animate-spin" style={{ marginRight: '8px' }} />
         Loading site settings…
@@ -185,20 +188,15 @@ export default function GeneralSettingsPage() {
     );
   }
 
-  if (isError || !org) {
+  if (isError || !site) {
     return (
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
+        display: 'flex', alignItems: 'center', gap: '8px',
         border: '1px solid var(--border-default)',
         borderLeft: '2px solid var(--sev-serious)',
-        background: 'var(--bg-surface-1)',
-        borderRadius: '2px',
-        padding: '12px 16px',
-        color: 'var(--sev-serious)',
-        fontFamily: SANS,
-        fontSize: '13px',
+        background: 'var(--bg-surface-1)', borderRadius: '2px',
+        padding: '12px 16px', color: 'var(--sev-serious)',
+        fontFamily: SANS, fontSize: '13px',
       }}>
         <AlertTriangle size={14} style={{ flexShrink: 0 }} />
         Failed to load site settings. Please refresh the page.
@@ -208,292 +206,195 @@ export default function GeneralSettingsPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px', fontFamily: SANS }}>
-      {/* page header */}
       <div>
         <h1 style={{
-          fontFamily: SANS,
-          fontSize: '20px',
-          fontWeight: 600,
-          letterSpacing: '-0.01em',
-          color: 'var(--fg-1)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          margin: 0,
+          fontFamily: SANS, fontSize: '20px', fontWeight: 600,
+          letterSpacing: '-0.01em', color: 'var(--fg-1)',
+          display: 'flex', alignItems: 'center', gap: '10px', margin: 0,
         }}>
           <Settings size={16} style={{ color: 'var(--accent)' }} />
-          General Settings
+          Site configuration
         </h1>
         <p style={{
-          fontFamily: SANS,
-          fontSize: '12px',
-          color: 'var(--fg-3)',
-          marginTop: '6px',
+          fontFamily: SANS, fontSize: '12px', color: 'var(--fg-3)',
           margin: '6px 0 0 0',
         }}>
-          Site configuration for your Sentinel workspace.
+          Name, map center, zones, and outbound webhook for this Sentinel site.
         </p>
       </div>
 
-      {/* ── site info (read-only) ── */}
-      <section style={CARD_STYLE}>
-        <div style={SECTION_HEADER_STYLE}>
-          <h2 style={SECTION_TITLE_STYLE}>Site</h2>
-        </div>
-        <dl style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          columnGap: '32px',
-          rowGap: '20px',
-          padding: '20px',
-          margin: 0,
-        }}>
-          <div>
-            <dt style={{ ...LABEL_STYLE, marginBottom: '6px' }}>Name</dt>
-            <dd style={{ fontFamily: SANS, fontSize: '13px', color: 'var(--fg-1)', margin: 0 }}>
-              {org.name}
-            </dd>
-          </div>
-          <div>
-            <dt style={{ ...LABEL_STYLE, marginBottom: '6px' }}>Slug</dt>
-            <dd style={{ margin: 0 }}>
-              <code style={{
-                fontFamily: MONO,
-                fontSize: '12px',
-                background: 'var(--bg-surface-2)',
-                color: 'var(--fg-2)',
-                padding: '2px 8px',
-                borderRadius: '2px',
-                border: '1px solid var(--border-hairline)',
-              }}>
-                {org.slug}
-              </code>
-            </dd>
-          </div>
-          <div>
-            <dt style={{ ...LABEL_STYLE, marginBottom: '6px' }}>Plan</dt>
-            <dd style={{ margin: 0 }}>
-              <span style={planBadgeStyle(org.plan)}>
-                {capitalize(org.plan)}
-              </span>
-            </dd>
-          </div>
-          <div>
-            <dt style={{ ...LABEL_STYLE, marginBottom: '6px' }}>Status</dt>
-            <dd style={{ margin: 0 }}>
-              <span style={statusBadgeStyle(org.status)}>
-                {capitalize(org.status)}
-              </span>
-            </dd>
-          </div>
-        </dl>
-      </section>
-
-      {/* ── editable config ── */}
-      <form onSubmit={handleSave}>
+      <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <section style={CARD_STYLE}>
           <div style={SECTION_HEADER_STYLE}>
             <Globe size={13} style={{ color: 'var(--fg-3)' }} />
-            <h2 style={SECTION_TITLE_STYLE}>Configuration</h2>
+            <h2 style={SECTION_TITLE_STYLE}>Site</h2>
           </div>
-
-          <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* webhook url */}
-            <div>
-              <label
-                htmlFor="webhookUrl"
-                style={{ ...LABEL_STYLE, display: 'block', marginBottom: '6px' }}
-              >
-                Webhook URL
-              </label>
-              <input
-                id="webhookUrl"
-                type="text"
-                autoComplete="off"
-                placeholder="https://your-server.com/webhooks/sentinel"
-                value={webhookUrl}
-                onChange={(e) => {
-                  setWebhookUrl(e.target.value);
-                  setWebhookError(validateWebhook(e.target.value));
-                }}
-                style={{
-                  ...INPUT_BASE_STYLE,
-                  borderColor: webhookError ? 'var(--sev-serious)' : 'var(--border-default)',
-                  background: webhookError ? 'var(--bg-surface-2)' : 'var(--bg-base)',
-                }}
-              />
-              {webhookError && (
-                <p style={{
-                  marginTop: '6px',
-                  fontFamily: SANS,
-                  fontSize: '11px',
-                  color: 'var(--sev-serious)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  margin: '6px 0 0 0',
-                }}>
-                  <AlertTriangle size={11} />
-                  {webhookError}
-                </p>
-              )}
-              <p style={{
-                marginTop: '6px',
-                fontFamily: SANS,
-                fontSize: '11px',
-                color: 'var(--fg-3)',
-                margin: '6px 0 0 0',
-              }}>
-                Sentinel will POST event payloads to this URL. Must use HTTPS.
-              </p>
+          <div style={{ padding: '20px', display: 'grid', gap: '16px', gridTemplateColumns: '1fr 1fr' }}>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label htmlFor="siteName" style={{ ...LABEL_STYLE, display: 'block', marginBottom: '6px' }}>Name</label>
+              <input id="siteName" style={INPUT_BASE_STYLE} value={name} disabled={!canEdit}
+                onChange={(e) => setName(e.target.value)} />
             </div>
-
-            {/* enterprise-only prompt override */}
-            {org.plan === 'enterprise' && (
-              <div>
-                <label
-                  htmlFor="promptOverride"
-                  style={{
-                    ...LABEL_STYLE,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    marginBottom: '6px',
-                  }}
-                >
-                  <Sparkles size={11} style={{ color: 'var(--accent)' }} />
-                  AI Prompt Override
-                  <span style={{
-                    marginLeft: '4px',
-                    padding: '2px 6px',
-                    borderRadius: '2px',
-                    fontFamily: MONO,
-                    fontSize: '9px',
-                    fontWeight: 600,
-                    background: 'var(--bg-surface-3)',
-                    color: 'var(--accent)',
-                    border: '1px solid var(--border-hairline)',
-                    letterSpacing: '0.1em',
-                  }}>
-                    Enterprise
-                  </span>
-                </label>
-                <textarea
-                  id="promptOverride"
-                  rows={5}
-                  placeholder="Custom instructions prepended to all AI investigation prompts for this site"
-                  value={promptOverride}
-                  onChange={(e) => setPromptOverride(e.target.value)}
-                  style={{
-                    ...INPUT_BASE_STYLE,
-                    resize: 'vertical',
-                    fontFamily: SANS,
-                  }}
-                />
-                <p style={{
-                  marginTop: '6px',
-                  fontFamily: SANS,
-                  fontSize: '11px',
-                  color: 'var(--fg-3)',
-                  margin: '6px 0 0 0',
-                }}>
-                  These instructions are prepended to every AI investigation prompt. Use them to enforce site-specific
-                  terminology, reporting standards, or escalation logic.
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* footer / save */}
-          <div style={{
-            padding: '12px 20px',
-            background: 'var(--bg-surface-2)',
-            borderTop: '1px solid var(--border-hairline)',
-            display: 'flex',
-            justifyContent: 'flex-end',
-          }}>
-            <button
-              type="submit"
-              disabled={!isDirty || saveMutation.isPending || !!webhookError}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 14px',
-                borderRadius: '2px',
-                fontFamily: MONO,
-                fontSize: '11px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.1em',
-                color: 'var(--bg-base)',
-                background: 'var(--accent)',
-                border: '1px solid var(--accent)',
-                cursor: (!isDirty || saveMutation.isPending || !!webhookError) ? 'not-allowed' : 'pointer',
-                opacity: (!isDirty || saveMutation.isPending || !!webhookError) ? 0.4 : 1,
-                transition: 'opacity 120ms',
-              }}
-            >
-              {saveMutation.isPending ? (
-                <Loader2 size={13} className="animate-spin" />
-              ) : (
-                <Save size={13} />
-              )}
-              {saveMutation.isPending ? 'Saving…' : 'Save Changes'}
-            </button>
+            <div>
+              <label htmlFor="timezone" style={{ ...LABEL_STYLE, display: 'block', marginBottom: '6px' }}>Timezone</label>
+              <input id="timezone" style={INPUT_BASE_STYLE} value={timezone} disabled={!canEdit}
+                placeholder="UTC" onChange={(e) => setTimezone(e.target.value)} />
+            </div>
+            <div>
+              <label htmlFor="locationLabel" style={{ ...LABEL_STYLE, display: 'block', marginBottom: '6px' }}>Location label</label>
+              <input id="locationLabel" style={INPUT_BASE_STYLE} value={locationLabel} disabled={!canEdit}
+                placeholder="North Gate Plant" onChange={(e) => setLocationLabel(e.target.value)} />
+            </div>
           </div>
         </section>
-      </form>
 
-      {/* ── danger zone ── */}
-      <section style={{
-        background: 'var(--bg-surface-1)',
-        border: '1px solid var(--border-default)',
-        borderLeft: '2px solid var(--sev-serious)',
-        borderRadius: '2px',
-        overflow: 'hidden',
-      }}>
-        <div style={{
-          padding: '12px 20px',
-          borderBottom: '1px solid var(--border-hairline)',
-          background: 'var(--bg-surface-2)',
-        }}>
-          <h2 style={{
-            ...SECTION_TITLE_STYLE,
-            color: 'var(--sev-serious)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            margin: 0,
-          }}>
-            <AlertTriangle size={13} />
-            Danger Zone
-          </h2>
-        </div>
-        <div style={{ padding: '16px 20px' }}>
-          <p style={{
-            fontFamily: SANS,
-            fontSize: '13px',
-            color: 'var(--fg-2)',
-            margin: 0,
-          }}>
-            For account closure requests, contact{' '}
-            <a
-              href="mailto:support@sentinel.io"
+        <section style={CARD_STYLE}>
+          <div style={SECTION_HEADER_STYLE}>
+            <MapPin size={13} style={{ color: 'var(--fg-3)' }} />
+            <h2 style={SECTION_TITLE_STYLE}>Map center</h2>
+          </div>
+          <div style={{ padding: '20px', display: 'grid', gap: '16px', gridTemplateColumns: '1fr 1fr' }}>
+            <div>
+              <label htmlFor="lat" style={{ ...LABEL_STYLE, display: 'block', marginBottom: '6px' }}>Latitude</label>
+              <input id="lat" type="number" step="any" style={INPUT_BASE_STYLE} value={lat} disabled={!canEdit}
+                placeholder="51.5074" onChange={(e) => setLat(e.target.value)} />
+            </div>
+            <div>
+              <label htmlFor="lng" style={{ ...LABEL_STYLE, display: 'block', marginBottom: '6px' }}>Longitude</label>
+              <input id="lng" type="number" step="any" style={INPUT_BASE_STYLE} value={lng} disabled={!canEdit}
+                placeholder="-0.1278" onChange={(e) => setLng(e.target.value)} />
+            </div>
+          </div>
+        </section>
+
+        <section style={CARD_STYLE}>
+          <div style={SECTION_HEADER_STYLE}>
+            <MapPin size={13} style={{ color: 'var(--fg-3)' }} />
+            <h2 style={SECTION_TITLE_STYLE}>Zones</h2>
+            {canEdit && (
+              <button type="button" onClick={() => setZones((z) => [...z, emptyZone()])}
+                style={{
+                  marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '4px',
+                  background: 'transparent', border: '1px solid var(--border-default)',
+                  color: 'var(--fg-2)', fontFamily: MONO, fontSize: '10px',
+                  letterSpacing: '0.08em', textTransform: 'uppercase',
+                  padding: '4px 8px', cursor: 'pointer',
+                }}>
+                <Plus size={12} /> Add zone
+              </button>
+            )}
+          </div>
+          <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <p style={{ margin: 0, fontSize: '12px', color: 'var(--fg-3)' }}>
+              Add named locations (gates, buildings). These become map zones for Argus and the incidents map.
+            </p>
+            {zones.map((zone, index) => (
+              <div key={index} style={{
+                display: 'grid', gap: '8px',
+                gridTemplateColumns: '1.4fr 0.8fr 0.8fr 0.8fr auto',
+                alignItems: 'end',
+              }}>
+                <div>
+                  <label style={{ ...LABEL_STYLE, display: 'block', marginBottom: '4px' }}>Name</label>
+                  <input style={INPUT_BASE_STYLE} value={zone.name} disabled={!canEdit}
+                    placeholder="North Gate" onChange={(e) => updateZone(index, 'name', e.target.value)} />
+                </div>
+                <div>
+                  <label style={{ ...LABEL_STYLE, display: 'block', marginBottom: '4px' }}>Type</label>
+                  <select style={INPUT_BASE_STYLE} value={zone.type} disabled={!canEdit}
+                    onChange={(e) => updateZone(index, 'type', e.target.value)}>
+                    {ZONE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ ...LABEL_STYLE, display: 'block', marginBottom: '4px' }}>Lat</label>
+                  <input type="number" step="any" style={INPUT_BASE_STYLE} value={zone.lat} disabled={!canEdit}
+                    onChange={(e) => updateZone(index, 'lat', e.target.value)} />
+                </div>
+                <div>
+                  <label style={{ ...LABEL_STYLE, display: 'block', marginBottom: '4px' }}>Lng</label>
+                  <input type="number" step="any" style={INPUT_BASE_STYLE} value={zone.lng} disabled={!canEdit}
+                    onChange={(e) => updateZone(index, 'lng', e.target.value)} />
+                </div>
+                {canEdit && (
+                  <button type="button" aria-label="Remove zone"
+                    disabled={zones.length <= 1}
+                    onClick={() => setZones((z) => z.filter((_, i) => i !== index))}
+                    style={{
+                      background: 'transparent', border: '1px solid var(--border-default)',
+                      color: 'var(--fg-3)', padding: '8px', cursor: zones.length <= 1 ? 'not-allowed' : 'pointer',
+                    }}>
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section style={CARD_STYLE}>
+          <div style={SECTION_HEADER_STYLE}>
+            <Globe size={13} style={{ color: 'var(--fg-3)' }} />
+            <h2 style={SECTION_TITLE_STYLE}>Webhook</h2>
+          </div>
+          <div style={{ padding: '20px' }}>
+            <label htmlFor="webhookUrl" style={{ ...LABEL_STYLE, display: 'block', marginBottom: '6px' }}>
+              Webhook URL
+            </label>
+            <input
+              id="webhookUrl"
+              type="text"
+              autoComplete="off"
+              placeholder="https://your-server.com/webhooks/sentinel"
+              value={webhookUrl}
+              disabled={!canEdit}
+              onChange={(e) => {
+                setWebhookUrl(e.target.value);
+                setWebhookError(validateWebhook(e.target.value));
+              }}
               style={{
-                fontFamily: MONO,
-                fontSize: '12px',
-                color: 'var(--accent)',
-                textDecoration: 'underline',
-                textUnderlineOffset: '2px',
+                ...INPUT_BASE_STYLE,
+                borderColor: webhookError ? 'var(--sev-serious)' : 'var(--border-default)',
+              }}
+            />
+            {webhookError && (
+              <p style={{
+                margin: '6px 0 0 0', fontFamily: SANS, fontSize: '11px',
+                color: 'var(--sev-serious)', display: 'flex', alignItems: 'center', gap: '4px',
+              }}>
+                <AlertTriangle size={11} />
+                {webhookError}
+              </p>
+            )}
+          </div>
+        </section>
+
+        {canEdit && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              type="submit"
+              disabled={saveMutation.isPending}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '8px',
+                background: 'var(--accent)', color: 'var(--bg-base)',
+                border: 'none', borderRadius: '2px',
+                padding: '10px 16px', fontFamily: MONO, fontSize: '11px',
+                fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase',
+                cursor: saveMutation.isPending ? 'wait' : 'pointer',
               }}
             >
-              support@sentinel.io
-            </a>
-            . Our team will process your request within 5 business days.
+              {saveMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              Save site
+            </button>
+          </div>
+        )}
+
+        {!canEdit && (
+          <p style={{ margin: 0, fontSize: '12px', color: 'var(--fg-3)' }}>
+            You can view site settings. An admin is required to change them.
           </p>
-        </div>
-      </section>
+        )}
+      </form>
     </div>
   );
 }

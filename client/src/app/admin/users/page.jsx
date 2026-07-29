@@ -5,7 +5,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   listAdminUsers,
-  listAdminOrgs,
   updateUserRole,
   updateUserStatus,
   deleteUserSessions,
@@ -215,7 +214,6 @@ export default function UsersPage() {
 
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [listFilter, setListFilter] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -228,18 +226,11 @@ export default function UsersPage() {
     return () => clearTimeout(t);
   }, [search]);
 
-  const { data: orgsData } = useQuery({
-    queryKey: ['admin-orgs-list'],
-    queryFn: () => listAdminOrgs({ limit: 100 }),
-  });
-  const orgs = orgsData?.orgs ?? orgsData?.data ?? [];
-
   const { data: usersData, isLoading, isError } = useQuery({
-    queryKey: ['admin-users', debouncedSearch, listFilter, roleFilter, statusFilter],
+    queryKey: ['admin-users', debouncedSearch, roleFilter, statusFilter],
     queryFn: () =>
       listAdminUsers({
         search: debouncedSearch || undefined,
-        
         role: roleFilter || undefined,
         isActive: statusFilter === '' ? undefined : statusFilter === 'active',
         limit: 50,
@@ -252,7 +243,7 @@ export default function UsersPage() {
   async function handleRoleChange(userId, newRole) {
     setLoadingRole(userId);
     queryClient.setQueryData(
-      ['admin-users', debouncedSearch, listFilter, roleFilter, statusFilter],
+      ['admin-users', debouncedSearch, roleFilter, statusFilter],
       (old) => {
         if (!old) return old;
         const list = old?.users ?? old?.data ?? [];
@@ -264,7 +255,7 @@ export default function UsersPage() {
       await updateUserRole(userId, newRole);
     } catch (err) {
       toast.error(err?.message ?? 'Failed to update role');
-      queryClient.invalidateQueries({ queryKey: ['admin-users', debouncedSearch, listFilter, roleFilter, statusFilter] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users', debouncedSearch, roleFilter, statusFilter] });
     } finally {
       setLoadingRole(null);
     }
@@ -273,7 +264,7 @@ export default function UsersPage() {
   async function handleStatusChange(userId, isActive) {
     setLoadingStatus(userId);
     queryClient.setQueryData(
-      ['admin-users', debouncedSearch, listFilter, roleFilter, statusFilter],
+      ['admin-users', debouncedSearch, roleFilter, statusFilter],
       (old) => {
         if (!old) return old;
         const list = old?.users ?? old?.data ?? [];
@@ -286,7 +277,7 @@ export default function UsersPage() {
       toast.success(isActive ? 'User activated' : 'User deactivated');
     } catch (err) {
       toast.error(err?.message ?? 'Failed to update status');
-      queryClient.invalidateQueries({ queryKey: ['admin-users', debouncedSearch, listFilter, roleFilter, statusFilter] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users', debouncedSearch, roleFilter, statusFilter] });
     } finally {
       setLoadingStatus(null);
     }
@@ -338,11 +329,6 @@ export default function UsersPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-
-        <select style={selectStyle} value={listFilter} onChange={(e) => setListFilter(e.target.value)}>
-          <option value="">All Sites</option>
-          {orgs.map((o) => <option key={o._id} value={o._id}>{o.name}</option>)}
-        </select>
 
         <select style={selectStyle} value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
           <option value="">All Roles</option>

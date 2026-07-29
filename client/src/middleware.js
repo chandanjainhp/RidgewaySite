@@ -13,7 +13,8 @@ const PUBLIC_PATHS = new Set([
 ]);
 
 const ADMIN_SETTINGS_PATHS = [
-  '/settings/general',
+  // /settings/general is intentionally open to any authenticated user (map CTA,
+  // read site config). Mutations stay server-gated via requireRole on PATCH.
   '/settings/api-keys',
   '/settings/webhooks',
   '/settings/integrations',

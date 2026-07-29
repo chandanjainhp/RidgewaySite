@@ -273,8 +273,11 @@ export const loginUser = async (email, password) =>
 
 export const getCurrentUser = async () => api.get("/auth/current-user");
 
-export const changePassword = async ({ currentPassword, newPassword }) =>
-  api.post("/auth/change-password", { currentPassword, newPassword });
+export const changePassword = async ({ currentPassword, oldPassword, newPassword }) =>
+  api.post("/auth/change-password", {
+    oldPassword: oldPassword || currentPassword,
+    newPassword,
+  });
 
 export const registerUser = async ({ email, username, password }) =>
   api.post("/auth/register", { email, username, password });

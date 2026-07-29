@@ -3,7 +3,6 @@ import {authenticateRequest, requireRole} from '../middlewares/auth.middleware.j
 import validate from '../middlewares/validation.middleware.js';
 import {siteValidator} from '../validators/index.js';
 import {asyncHandler} from '../utils/async-handler.js';
-import {requireAdminGateSession} from '../controllers/adminGate.controllers.js';
 import {getSiteConfig, updateSiteConfig, getWebhookConfig, updateWebhookConfig, rotateWebhookSecret, rotateIngestionSecret, getWebhookDeliveries, getIngestionStatus, testWebhook, retryWebhookDelivery} from '../controllers/site.controller.js';
 
 const router = express.Router();
@@ -14,9 +13,8 @@ router.use(authenticateRequest);
 router.get('/me', asyncHandler(getSiteConfig));
 router.get('/ingestion-status', asyncHandler(getIngestionStatus));
 
-// Admin-only site config + integrations
+// Admin-only site config + integrations (JWT role is enough — no second admin-gate login)
 router.use(requireRole('org_admin', 'super_admin'));
-router.use(requireAdminGateSession);
 
 router.patch('/me', validate(siteValidator.updateSiteConfigSchema), asyncHandler(updateSiteConfig));
 router.patch('/me/config', validate(siteValidator.updateSiteConfigSchema), asyncHandler(updateSiteConfig)); // alias for old clients
