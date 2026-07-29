@@ -2,10 +2,6 @@ import Briefing from '../models/briefing.model.js';
 import Investigation from '../models/investigation.model.js';
 import '../models/incident.model.js';
 import { ApiError } from '../utils/api-error.js';
-import { getClaudeClient, getModelName } from '../utils/anthropic.js';
-
-const BRIEFING_PROSE_INSTRUCTION =
-  'Write the following briefing section as clear plain English prose. Do not use JSON format. Do not use markdown. Write natural paragraphs that an operator can read aloud to the site head.';
 
 const INVESTIGATION_START_PLACEHOLDER =
   'Starting investigation. I will gather the overnight alerts first.';
@@ -82,6 +78,8 @@ const getFallbackSectionText = (sectionName, investigations, severityBuckets) =>
   return 'No content generated.';
 };
 
+const SECTION_NAMES = ['executive_summary', 'incidents', 'recommendations', 'anomalies', 'follow_up'];
+
 const SECTION_TITLES = {
   executive_summary: 'What Happened Last Night',
   incidents: 'Cleared - No Action Required',
@@ -90,41 +88,29 @@ const SECTION_TITLES = {
   follow_up: 'Requires Follow-Up',
 };
 
-const SECTION_NAMES = ['executive_summary', 'incidents', 'recommendations', 'anomalies', 'follow_up'];
-
-const draftSection = async (sectionName, investigations, severityBuckets) => {
-  const inputContext = investigations.map((inv, index) => {
-    const incident = inv.incidentId;
-    const classification = inv.classification || {};
-    return `${index + 1}. Title: ${incident?.title || 'Unnamed incident'}; Location: ${incident?.location?.name || 'unknown'}; Severity: ${classification.severity || 'uncertain'}; Confidence: ${classification.confidence ?? 0}; Reasoning: ${classification.reasoning || incident?.agentSummary || 'No reasoning'}; Uncertainties: ${(classification.uncertainties || []).join(' | ') || 'None'}`;
-  });
-
-  const prompt = [
-    BRIEFING_PROSE_INSTRUCTION,
-    `Section: ${SECTION_TITLES[sectionName] || sectionName}`,
-    'Write this as plain English prose paragraphs.',
-    'Do not return JSON. Do not return structured data.',
-    'Incident data:',
-    ...inputContext,
-  ].join('\n');
-
-  try {
-    const claude = getClaudeClient();
-    const response = await claude.messages.create({
-      model: getModelName(),
-      max_tokens: 500,
-      messages: [{ role: 'user', content: prompt }],
-    });
-    const textOutput = response?.content?.find((block) => block?.type === 'text')?.text || '';
-    const extracted = extractTextFromResponse(textOutput);
-    if (isInvestigationPlaceholder(extracted)) {
-      return getFallbackSectionText(sectionName, investigations, severityBuckets);
-    }
-    return extracted || getFallbackSectionText(sectionName, investigations, severityBuckets);
-  } catch {
-    return getFallbackSectionText(sectionName, investigations, severityBuckets);
-  }
+const isStaleSectionContent = (sectionName, content) => {
+  if (isInvestigationPlaceholder(content)) return true;
+  const title = SECTION_TITLES[sectionName];
+  const trimmed = String(content || '').trim();
+  if (title && trimmed.startsWith(`${title}:`)) return true;
+  return false;
 };
+
+const briefingSectionsAreStale = (briefing) => {
+  const sections = Array.isArray(briefing?.sections) ? briefing.sections : [];
+  if (sections.length === 0) return true;
+  return SECTION_NAMES.some((name) => {
+    const section = sections.find((s) => s.name === name);
+    return !section || isStaleSectionContent(name, section.content);
+  });
+};
+
+const buildSectionsFromInvestigations = (investigations, severityBuckets) =>
+  SECTION_NAMES.map((name) => ({
+    name,
+    content: getFallbackSectionText(name, investigations, severityBuckets),
+    lastEditedAt: new Date(),
+  }));
 
 export const buildBriefing = async (nightDate, existingBriefingId = null) => {
   let briefing = null;
@@ -151,6 +137,8 @@ export const buildBriefing = async (nightDate, existingBriefingId = null) => {
       briefing = await Briefing.findOne({ nightDate }).sort({ generatedAt: -1 });
     }
 
+    const wasApproved = briefing?.status === 'approved';
+
     if (briefing) {
       briefing.status = 'generating';
       briefing.generationStartedAt = new Date();
@@ -170,15 +158,8 @@ export const buildBriefing = async (nightDate, existingBriefingId = null) => {
 
     const briefingId = briefing._id.toString();
 
-    // Draft each section sequentially
-    const sections = [];
-    for (let i = 0; i < SECTION_NAMES.length; i++) {
-      const name = SECTION_NAMES[i];
-      const content = extractTextFromResponse(
-        await draftSection(name, investigations, severityBuckets)
-      );
-      sections.push({ name, content, lastEditedAt: new Date() });
-    }
+    // Build sections from completed investigation records — not the agent opener.
+    const sections = buildSectionsFromInvestigations(investigations, severityBuckets);
 
     const metadata = {
       investigationCount: investigations.length,
@@ -188,7 +169,7 @@ export const buildBriefing = async (nightDate, existingBriefingId = null) => {
       ),
     };
 
-    briefing.status = 'draft';
+    briefing.status = wasApproved ? 'approved' : 'draft';
     briefing.sections = sections;
     briefing.metadata = metadata;
     briefing.generationCompletedAt = new Date();
@@ -208,9 +189,22 @@ export const buildBriefing = async (nightDate, existingBriefingId = null) => {
 
 export const getLatestBriefing = async (nightDate) => {
   try {
-    return (
-      (await Briefing.findOne({ nightDate }).sort({ generatedAt: -1 }).lean()) || null
-    );
+    let briefing =
+      (await Briefing.findOne({ nightDate }).sort({ generatedAt: -1 }).lean()) || null;
+
+    if (!briefing) return null;
+
+    const completedCount = await Investigation.countDocuments({
+      nightDate,
+      status: 'complete',
+    });
+
+    if (completedCount > 0 && briefingSectionsAreStale(briefing)) {
+      briefing = await buildBriefing(nightDate, briefing._id.toString());
+      if (briefing?.toJSON) briefing = briefing.toJSON();
+    }
+
+    return briefing;
   } catch (error) {
     throw new ApiError(500, 'Failed to retrieve latest briefing', [error.message]);
   }
