@@ -3,14 +3,19 @@
  * Handles auth requests with the backend
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Browser: same-origin so Next rewrites (and Cloudflare Tunnel) proxy to the API.
+// SSR: absolute upstream when NEXT_PUBLIC_API_URL / default is set.
+const getAuthApiBase = () => {
+  if (typeof window !== 'undefined') return '';
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+};
 
 /**
  * Register a new user
  */
 export const registerUser = async (userData) => {
   try {
-    const response = await fetch(`${API_URL}/api/v1/auth/register`, {
+    const response = await fetch(`${getAuthApiBase()}/api/v1/auth/register`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -45,7 +50,7 @@ export const registerUser = async (userData) => {
  */
 export const loginUser = async (credentials) => {
   try {
-    const response = await fetch(`${API_URL}/api/v1/auth/login`, {
+    const response = await fetch(`${getAuthApiBase()}/api/v1/auth/login`, {
       method: 'POST',
       credentials: 'include',
       headers: {

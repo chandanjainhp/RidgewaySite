@@ -1,45 +1,56 @@
-# Build stage
-FROM oven/bun:1.2.20-alpine AS builder
+# Multi-stage Next.js production image (standalone output).
+# Base tags verified for linux/arm64 on Docker Hub (node:20-alpine).
+# Build: docker build -t sentinel-client ./client
+# Target platforms: linux/arm64 (Pi 5), linux/amd64
+
+# --- deps ---
+FROM node:20-alpine AS deps
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json bun.lock ./
+RUN apk add --no-cache libc6-compat
 
-# Install dependencies
-RUN bun install --frozen-lockfile
+COPY package.json package-lock.json ./
+RUN npm ci
 
-# Copy source code
+# --- build ---
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build Next.js application
-RUN bun run build
+# Do not bake a browser-facing API host. Browser calls stay same-origin (/api/v1);
+# container rewrites use API_UPSTREAM_URL at runtime (see next.config.mjs).
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    NODE_ENV=production
 
-# Production stage
-FROM oven/bun:1.2.20-alpine
+RUN npm run build
+
+# --- runtime ---
+FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json bun.lock ./
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    HOSTNAME=0.0.0.0 \
+    API_UPSTREAM_URL=http://server:8000
 
-# Install production dependencies only
-RUN bun install --frozen-lockfile --production
+RUN addgroup --system --gid 1001 nodejs \
+  && adduser --system --uid 1001 nextjs
 
-# Copy built application from builder
-COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/next.config.mjs ./next.config.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Expose port
+USER nextjs
+
 EXPOSE 3000
 
-# Environment variable for Next.js
-ENV NODE_ENV production
-
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-	CMD bun -e "fetch('http://localhost:3000').then((r) => { if (!r.ok) process.exit(1); }).catch(() => process.exit(1))"
+  CMD node -e "fetch('http://127.0.0.1:3000').then((r) => { if (!r.ok) process.exit(1); }).catch(() => process.exit(1))"
 
-# Start Next.js application
-CMD ["bun", "run", "start"]
+CMD ["node", "server.js"]
