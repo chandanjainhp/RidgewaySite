@@ -19,11 +19,22 @@ export const startInvestigation = async (req, res) => {
     .json(new ApiResponse(202, result, "Investigation queued successfully"));
 };
 
-export const getInvestigation = async (req, res) => {
-  const owned = await Investigation.findOne({ _id: req.params.id }).lean();
-  if (!owned) throw new ApiError(404, 'Investigation not found');
+const resolveInvestigationId = async (rawId) => {
+  if (!rawId) return null;
 
-  const investigation = await getInvestigationWithEvidence(req.params.id);
+  const byJobId = await Investigation.findOne({ jobId: rawId }).lean();
+  if (byJobId) return byJobId._id.toString();
+
+  const objectId = rawId.startsWith('inv-') ? rawId.slice(4) : rawId;
+  const byId = await Investigation.findOne({ _id: objectId }).lean();
+  return byId ? byId._id.toString() : null;
+};
+
+export const getInvestigation = async (req, res) => {
+  const investigationId = await resolveInvestigationId(req.params.id);
+  if (!investigationId) throw new ApiError(404, 'Investigation not found');
+
+  const investigation = await getInvestigationWithEvidence(investigationId);
 
   res
     .status(200)

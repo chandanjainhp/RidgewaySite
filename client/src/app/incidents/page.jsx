@@ -1,8 +1,11 @@
 "use client";
 
 import { useMemo, useState, useEffect, Suspense } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { getSiteMapData, getEventPins } from "@/lib/api";
+import { useMapStore } from "@/store/mapStore";
 import { useIncidents } from "@/hooks/useIncidents";
 import { useStartInvestigation, usePollInvestigationStatus } from "@/hooks/useInvestigation";
 import { useInvestigationStore } from "@/store/investigationStore";
@@ -13,6 +16,78 @@ import { Activity, ShieldAlert, Sliders, Calendar, Play } from "lucide-react";
 
 const MONO = "var(--font-mono)";
 const SANS = "var(--font-sans)";
+
+const SiteMap = dynamic(() => import("@/components/map/SiteMap"), {
+  ssr: false,
+  loading: () => (
+    <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--fg-4)", fontFamily: "var(--font-mono)", fontSize: "11px" }}>
+      Loading map…
+    </div>
+  ),
+});
+
+function IncidentsMapPanel({ nightDate }) {
+  const setEventPins = useMapStore((s) => s.setEventPins);
+  const { data: siteMapData, isLoading: mapLoading, isError: mapError, error: mapErr } = useQuery({
+    queryKey: ["siteMap"],
+    queryFn: getSiteMapData,
+    staleTime: 3600000,
+  });
+  const { data: eventPins, isLoading: pinsLoading } = useQuery({
+    queryKey: ["eventPins", nightDate],
+    queryFn: () => getEventPins(nightDate),
+    staleTime: 60000,
+  });
+
+  useEffect(() => {
+    if (Array.isArray(eventPins)) setEventPins(eventPins);
+  }, [eventPins, setEventPins]);
+
+  const resolvedMapData = useMemo(() => {
+    if (!siteMapData && !eventPins?.length) return null;
+    const coords = siteMapData?.coordinates;
+    const hasCoords = coords && typeof coords.lat === "number" && typeof coords.lng === "number";
+    if (hasCoords) return siteMapData;
+    const firstPin = eventPins?.find((p) => p?.coordinates?.lat != null && p?.coordinates?.lng != null);
+    if (!firstPin) return siteMapData;
+    return { ...siteMapData, coordinates: firstPin.coordinates };
+  }, [siteMapData, eventPins]);
+
+  return (
+    <div style={{
+      marginTop: "16px",
+      background: "var(--bg-surface-1)",
+      border: "1px solid var(--border-default)",
+      borderRadius: "4px",
+      overflow: "hidden",
+      height: "320px",
+    }}>
+      <div style={{
+        padding: "8px 16px",
+        borderBottom: "1px solid var(--border-hairline)",
+        background: "var(--bg-surface-2)",
+        fontFamily: MONO,
+        fontSize: "10px",
+        fontWeight: 600,
+        textTransform: "uppercase",
+        letterSpacing: "0.1em",
+        color: "var(--fg-3)",
+      }}>
+        Site map — overnight events
+      </div>
+      <div style={{ height: "calc(100% - 33px)" }}>
+        <SiteMap
+          siteMapData={resolvedMapData}
+          eventPins={eventPins || []}
+          isLoading={mapLoading || pinsLoading}
+          isError={mapError}
+          errorMessage={mapErr?.message}
+          nightDate={nightDate}
+        />
+      </div>
+    </div>
+  );
+}
 
 function useNightDate() {
   return useMemo(() => {
@@ -56,8 +131,10 @@ function IncidentsWorkspace({ nightDate }) {
   }, [incidents, severityFilter, priorityFilter]);
 
   // Find selected incident details
+  const getIncidentId = (inc) => inc?.id || inc?._id;
+
   const selectedIncident = useMemo(() => {
-    return incidents.find((i) => i._id === selectedIncidentId);
+    return incidents.find((i) => getIncidentId(i) === selectedIncidentId);
   }, [incidents, selectedIncidentId]);
 
   // Connect to investigation store and polling
@@ -72,7 +149,7 @@ function IncidentsWorkspace({ nightDate }) {
   // If selectedIncidentId is not set, select the first matching incident if available
   useEffect(() => {
     if (!selectedIncidentId && filteredIncidents.length > 0) {
-      setSelectedIncidentId(filteredIncidents[0]._id);
+      setSelectedIncidentId(getIncidentId(filteredIncidents[0]));
     }
   }, [filteredIncidents, selectedIncidentId]);
 
@@ -204,30 +281,32 @@ function IncidentsWorkspace({ nightDate }) {
                   </td>
                 </tr>
               ) : (
-                filteredIncidents.map((inc) => (
+                filteredIncidents.map((inc) => {
+                  const incidentId = getIncidentId(inc);
+                  return (
                   <tr
-                    key={inc._id}
-                    onClick={() => setSelectedIncidentId(inc._id)}
+                    key={incidentId}
+                    onClick={() => setSelectedIncidentId(incidentId)}
                     style={{
                       borderBottom: "1px solid var(--border-hairline)",
                       cursor: "pointer",
-                      background: selectedIncidentId === inc._id ? "rgba(184,212,232,0.06)" : "transparent",
+                      background: selectedIncidentId === incidentId ? "rgba(184,212,232,0.06)" : "transparent",
                       transition: "background 150ms ease",
                     }}
                     onMouseEnter={(e) => {
-                      if (selectedIncidentId !== inc._id) e.currentTarget.style.background = "var(--bg-surface-2)";
+                      if (selectedIncidentId !== incidentId) e.currentTarget.style.background = "var(--bg-surface-2)";
                     }}
                     onMouseLeave={(e) => {
-                      if (selectedIncidentId !== inc._id) e.currentTarget.style.background = "transparent";
+                      if (selectedIncidentId !== incidentId) e.currentTarget.style.background = "transparent";
                     }}
                   >
                     <td style={{ padding: "12px 16px", fontFamily: MONO, fontSize: "11px" }}>
                       <Link
-                        href={`/incident/${inc._id}`}
+                        href={`/incident/${incidentId}`}
                         onClick={(e) => e.stopPropagation()}
                         style={{ color: "var(--accent)", textDecoration: "none", fontWeight: 600 }}
                       >
-                        {inc.incidentId || inc._id.substring(0, 8)}
+                        {inc.incidentId || String(incidentId).substring(0, 8)}
                       </Link>
                     </td>
                     <td style={{ padding: "12px 16px", fontFamily: SANS, fontSize: "13px", color: "var(--fg-1)", fontWeight: 500 }}>
@@ -243,10 +322,12 @@ function IncidentsWorkspace({ nightDate }) {
                       <SeverityBadge severity={inc.severity || "uncertain"} />
                     </td>
                   </tr>
-                ))
+                );
+                })
               )}
             </tbody>
           </table>
+          <IncidentsMapPanel nightDate={nightDate} />
         </div>
 
         {/* Right Side: Panel */}
@@ -274,7 +355,7 @@ function IncidentsWorkspace({ nightDate }) {
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
                   <span style={{ fontFamily: MONO, fontSize: "11px", color: "var(--accent)", fontWeight: 600 }}>
-                    INCIDENT: {selectedIncident.incidentId || selectedIncident._id.substring(0, 8)}
+                    INCIDENT: {selectedIncident.incidentId || String(getIncidentId(selectedIncident)).substring(0, 8)}
                   </span>
                   <button
                     onClick={() => setSelectedIncidentId(null)}

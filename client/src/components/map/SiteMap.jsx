@@ -111,7 +111,7 @@ export default function SiteMap({
           <ZoomControl position="topright" />
           {polygons}
           {hasZones && <DroneRoute siteMapData={siteMapData} />}
-          {hasZones && activePins && activePins.map((pin) => (
+          {hasCoords && activePins && activePins.map((pin) => (
             <EventPin key={pin.id} pin={pin} />
           ))}
         </MapContainer>
@@ -127,8 +127,8 @@ export default function SiteMap({
         />
       )}
 
-      {/* STATE C — zones, no events */}
-      {hasCoords && hasZones && !hasEvents && !isError && (
+      {/* STATE C — coords, no events */}
+      {hasCoords && !hasEvents && !isError && (
         <div
           style={{
             position: "absolute",

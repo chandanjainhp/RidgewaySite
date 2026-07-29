@@ -182,7 +182,7 @@ export default function OverviewPage() {
   else if (briefingStatus === "draft" || totalIncidents > 0) dashState = "ready";
   else if (isStarting) dashState = "running";
 
-  const siteName = orgData?.config?.siteName || orgData?.siteName || orgName || "Your site";
+  const siteName = orgData?.config?.siteName || orgData?.name || orgData?.siteName || orgName || "Your site";
   const greeting = (() => {
     const h = new Date().getHours();
     if (h < 12) return "Good morning";
@@ -374,10 +374,12 @@ export default function OverviewPage() {
               View all →
             </Link>
           </div>
-          {incidents.slice(0, 5).map((incident) => (
+          {incidents.slice(0, 5).map((incident) => {
+            const incidentId = incident.id || incident._id;
+            return (
             <Link
-              key={incident._id}
-              href={`/incident/${incident._id}`}
+              key={incidentId}
+              href={`/incident/${incidentId}`}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -422,7 +424,8 @@ export default function OverviewPage() {
                 {incident.createdAt ? formatTime(incident.createdAt) : "—"}
               </div>
             </Link>
-          ))}
+          );
+          })}
         </section>
       )}
 

@@ -1,11 +1,11 @@
 import BriefingSection from "./BriefingSection";
 
 const SECTION_ORDER = [
-  "whatHappened",
-  "harmlessEvents",
-  "escalations",
-  "droneFindings",
-  "followUpItems",
+  "executive_summary",
+  "incidents",
+  "recommendations",
+  "anomalies",
+  "follow_up",
 ];
 
 // Skeleton placeholder for one section
@@ -43,15 +43,19 @@ export default function BriefingDocument({ briefing, isApproved }) {
           SECTION_ORDER.map((key) => <SectionSkeleton key={key} />)
         ) : (
           <>
-            {SECTION_ORDER.map((key) => (
+            {SECTION_ORDER.map((key) => {
+              const raw = briefing.sections?.[key];
+              const agentDraft = typeof raw === "string" ? raw : raw?.agentDraft || "";
+              return (
               <BriefingSection
                 key={key}
                 sectionName={key}
-                sectionData={briefing.sections?.[key] || { agentDraft: "", mayaVersion: null, isEdited: false }}
+                sectionData={{ agentDraft, mayaVersion: null, isEdited: false }}
                 briefingId={briefing.id}
                 isApproved={isApproved}
               />
-            ))}
+            );
+            })}
             {Array.isArray(briefing.ragSources) && briefing.ragSources.length > 0 && (
               <div
                 style={{

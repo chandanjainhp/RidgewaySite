@@ -15,6 +15,31 @@ import {
 import { useUpdateBriefingSection } from "@/hooks/useBriefing";
 
 const SECTION_CONFIG = {
+  executive_summary: {
+    label: "What Happened Last Night",
+    Icon: Moon,
+    iconClass: "text-text-secondary",
+  },
+  incidents: {
+    label: "Cleared — No Action Required",
+    Icon: CheckCircle2,
+    iconClass: "text-severity-harmless",
+  },
+  recommendations: {
+    label: "Requires Escalation",
+    Icon: AlertTriangle,
+    iconClass: "text-severity-serious",
+  },
+  anomalies: {
+    label: "Drone Patrol Findings",
+    Icon: Scan,
+    iconClass: "text-agent-blue",
+  },
+  follow_up: {
+    label: "Requires Follow-Up",
+    Icon: ListTodo,
+    iconClass: "text-severity-minor",
+  },
   whatHappened: {
     label: "What Happened Last Night",
     Icon: Moon,

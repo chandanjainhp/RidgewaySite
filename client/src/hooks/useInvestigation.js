@@ -115,6 +115,11 @@ export function usePollInvestigationStatus(jobId, options = {}) {
         }
       }
     },
+    retry: (failureCount, error) => {
+      if (error?.statusCode === 401 || error?.statusCode === 403 || error?.statusCode === 400) return false;
+      if (!error?.statusCode) return failureCount < 2;
+      return failureCount < 1;
+    },
     ...options,
   });
 
