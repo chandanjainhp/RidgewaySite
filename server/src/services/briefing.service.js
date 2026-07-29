@@ -7,6 +7,14 @@ import { getClaudeClient, getModelName } from '../utils/anthropic.js';
 const BRIEFING_PROSE_INSTRUCTION =
   'Write the following briefing section as clear plain English prose. Do not use JSON format. Do not use markdown. Write natural paragraphs that an operator can read aloud to the site head.';
 
+const INVESTIGATION_START_PLACEHOLDER =
+  'Starting investigation. I will gather the overnight alerts first.';
+
+const isInvestigationPlaceholder = (text) => {
+  const trimmed = String(text || '').trim();
+  return !trimmed || trimmed === INVESTIGATION_START_PLACEHOLDER || trimmed.includes(INVESTIGATION_START_PLACEHOLDER);
+};
+
 export const extractTextFromResponse = (text) => {
   if (!text) return 'No content generated.';
   const trimmed = String(text).trim();
@@ -109,6 +117,9 @@ const draftSection = async (sectionName, investigations, severityBuckets) => {
     });
     const textOutput = response?.content?.find((block) => block?.type === 'text')?.text || '';
     const extracted = extractTextFromResponse(textOutput);
+    if (isInvestigationPlaceholder(extracted)) {
+      return getFallbackSectionText(sectionName, investigations, severityBuckets);
+    }
     return extracted || getFallbackSectionText(sectionName, investigations, severityBuckets);
   } catch {
     return getFallbackSectionText(sectionName, investigations, severityBuckets);

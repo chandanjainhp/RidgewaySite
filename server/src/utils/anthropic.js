@@ -260,7 +260,27 @@ const createLMStudioClient = ({ baseURL, apiKey }) => {
 const createMockAIClient = () => {
   return {
     messages: {
-      create: async ({ messages }) => {
+      create: async ({ messages, tools }) => {
+        const hasTools = Array.isArray(tools) && tools.length > 0;
+        if (!hasTools) {
+          const userText = String(messages?.find((m) => m.role === 'user')?.content || '');
+          const sectionMatch = userText.match(/Section: (.+)/);
+          const sectionTitle = sectionMatch?.[1]?.trim() || 'Briefing section';
+          const reasoningLines = [...userText.matchAll(/Reasoning: ([^\n;]+)/g)].map((m) => m[1].trim());
+          const prose = reasoningLines.length
+            ? `${sectionTitle}: ${reasoningLines.join('. ')}.`
+            : `${sectionTitle} summary for overnight operations.`;
+
+          return {
+            id: `msg_mock_brief_${Date.now()}`,
+            type: 'message',
+            role: 'assistant',
+            stop_reason: 'end_turn',
+            content: [{ type: 'text', text: prose }],
+            usage: { input_tokens: 100, output_tokens: 50 },
+          };
+        }
+
         const assistantMsgs = messages.filter(m => m.role === 'assistant');
         const count = assistantMsgs.length;
 
@@ -342,6 +362,10 @@ const getAIProvider = () => {
   if (process.env.MOCK_AI === 'true') {
     return 'mock';
   }
+  // Local LM Studio wins when explicitly enabled (or under NODE_ENV=test).
+  if (process.env.USE_LOCAL_LLM === 'true' || process.env.NODE_ENV === 'test') {
+    return 'lmstudio';
+  }
   if (process.env.OPENROUTER_API_KEY) {
     return 'openrouter';
   }
@@ -352,7 +376,7 @@ const getAIProvider = () => {
     return 'lmstudio';
   }
   throw new Error(
-    'No AI provider configured. Set OPENROUTER_API_KEY, ANTHROPIC_API_KEY, or OPENAI_BASE_URL in .env'
+    'No AI provider configured. Set USE_LOCAL_LLM=true, OPENROUTER_API_KEY, ANTHROPIC_API_KEY, or OPENAI_BASE_URL in .env'
   );
 };
 
@@ -389,13 +413,13 @@ export const getAIClient = () => {
     } else if (aiProvider === 'lmstudio') {
       console.log('[AI] Initializing LM Studio client...');
       clientInstance = createLMStudioClient({
-        baseURL: process.env.OPENAI_BASE_URL,
-        apiKey: process.env.OPENAI_API_KEY,
+        baseURL: process.env.OPENAI_BASE_URL || 'http://localhost:1234/v1',
+        apiKey: process.env.OPENAI_API_KEY || 'lm-studio',
       });
       console.log(
         `[AI] ✅ LM Studio initialized - Model: ${
-          process.env.LMSTUDIO_MODEL || 'openai/gpt-oss-20b'
-        } | Base URL: ${process.env.OPENAI_BASE_URL}`
+          process.env.LOCAL_LLM_MODEL || process.env.LMSTUDIO_MODEL || 'qwen2.5-7b-instruct'
+        } | Base URL: ${process.env.OPENAI_BASE_URL || 'http://localhost:1234/v1'}`
       );
     }
   }
@@ -434,7 +458,7 @@ export const getModelName = () => {
   }
 
   if (provider === 'lmstudio') {
-    return process.env.LMSTUDIO_MODEL || 'openai/gpt-oss-20b';
+    return process.env.LOCAL_LLM_MODEL || process.env.LMSTUDIO_MODEL || 'qwen2.5-7b-instruct';
   }
 
   // Anthropic uses claude-3-sonnet by default
