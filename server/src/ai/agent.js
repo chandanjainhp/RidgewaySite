@@ -9,7 +9,7 @@
   5. Save complete investigation record to MongoDB
 */
 
-import { getClaudeClient, getModelName } from "../utils/anthropic.js";
+import { getClaudeClient, getModelName, getAIProviderName } from "../utils/anthropic.js";
 import { buildSystemPrompt } from "./prompts/system.js";
 import { TOOLS_FOR_CLAUDE, executeTool } from "./tools-registry.js";
 import Incident from "../models/incident.model.js";
@@ -118,10 +118,9 @@ Begin by gathering all available data for this location and these event types. O
     const claude = getClaudeClient();
     let loopComplete = false;
 
-    // Local / test LLMs cannot hold the full ReAct tool schemas in context.
-    // Use a single classification call (no tools) so investigation can complete.
-    const useSingleShot =
-      process.env.USE_LOCAL_LLM === "true" || process.env.NODE_ENV === "test";
+    // Local LLMs often cannot hold full ReAct tool schemas — single-shot classify.
+    // Hosted providers (anthropic / mistral / openrouter) use the full ReAct loop.
+    const useSingleShot = getAIProviderName() === "local";
 
     if (useSingleShot) {
       console.log("[Agent] Local LLM single-shot classification");

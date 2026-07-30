@@ -214,14 +214,21 @@ const createOpenRouterCompatClient = ({ apiKey, baseURL }) => {
   };
 };
 
-const createLMStudioClient = ({ baseURL, apiKey }) => {
+/** OpenAI-compatible chat completions (LM Studio, Mistral, etc.). */
+const createOpenAICompatClient = ({
+  baseURL,
+  apiKey,
+  label = 'OpenAI-compat',
+  maxTokensCap = null,
+}) => {
   const base = (baseURL || 'http://localhost:1234/v1').replace(/\/$/, '');
-  const maxTokensCap = parseInt(process.env.LMSTUDIO_MAX_TOKENS || '800', 10);
 
   return {
     messages: {
       create: async ({ model, max_tokens, system, tools, tool_choice, messages }) => {
-        max_tokens = Math.min(max_tokens, maxTokensCap);
+        if (Number.isFinite(maxTokensCap)) {
+          max_tokens = Math.min(max_tokens, maxTokensCap);
+        }
         const openAIMessages = [
           { role: 'system', content: system || '' },
           ...anthropicMessagesToOpenAIMessages(messages || []),
@@ -235,11 +242,11 @@ const createLMStudioClient = ({ baseURL, apiKey }) => {
         }
 
         const body = JSON.stringify(payload);
-        console.log(`[LMStudio] sending payload chars=${body.length} prompt_msgs=${openAIMessages.length} max_tokens=${max_tokens}`);
+        console.log(`[${label}] payload chars=${body.length} msgs=${openAIMessages.length} max_tokens=${max_tokens}`);
         const response = await fetch(`${base}/chat/completions`, {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${apiKey || 'lm-studio'}`,
+            Authorization: `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
           },
           body,
@@ -247,7 +254,7 @@ const createLMStudioClient = ({ baseURL, apiKey }) => {
 
         if (!response.ok) {
           const text = await response.text();
-          throw new Error(`LM Studio error (${response.status}): ${text.slice(0, 500)}`);
+          throw new Error(`${label} error (${response.status}): ${text.slice(0, 500)}`);
         }
 
         const data = await response.json();
@@ -355,16 +362,24 @@ const createMockAIClient = () => {
 };
 
 /**
- * Determine which AI provider to use based on environment variables
- * @returns {'openrouter' | 'anthropic' | 'lmstudio' | 'mock'} The configured AI provider
+ * @returns {'openrouter' | 'anthropic' | 'local' | 'mistral' | 'mock'}
  */
 const getAIProvider = () => {
   if (process.env.MOCK_AI === 'true') {
     return 'mock';
   }
-  // Local LM Studio wins when explicitly enabled (or under NODE_ENV=test).
+
+  const explicit = (process.env.LLM_PROVIDER || '').trim().toLowerCase();
+  if (explicit === 'mistral' || explicit === 'anthropic' || explicit === 'openrouter') {
+    return explicit;
+  }
+  if (explicit === 'local' || explicit === 'lmstudio') {
+    return 'local';
+  }
+
+  // Backward compat when LLM_PROVIDER unset
   if (process.env.USE_LOCAL_LLM === 'true' || process.env.NODE_ENV === 'test') {
-    return 'lmstudio';
+    return 'local';
   }
   if (process.env.OPENROUTER_API_KEY) {
     return 'openrouter';
@@ -372,11 +387,14 @@ const getAIProvider = () => {
   if (process.env.ANTHROPIC_API_KEY) {
     return 'anthropic';
   }
+  if (process.env.MISTRAL_API_KEY) {
+    return 'mistral';
+  }
   if (process.env.OPENAI_BASE_URL) {
-    return 'lmstudio';
+    return 'local';
   }
   throw new Error(
-    'No AI provider configured. Set USE_LOCAL_LLM=true, OPENROUTER_API_KEY, ANTHROPIC_API_KEY, or OPENAI_BASE_URL in .env'
+    'No AI provider configured. Set LLM_PROVIDER=anthropic|local|mistral (or USE_LOCAL_LLM / API keys) in .env'
   );
 };
 
@@ -410,16 +428,34 @@ export const getAIClient = () => {
         apiKey: process.env.ANTHROPIC_API_KEY,
       });
       console.log('[AI] ✅ Anthropic Claude initialized');
-    } else if (aiProvider === 'lmstudio') {
-      console.log('[AI] Initializing LM Studio client...');
-      clientInstance = createLMStudioClient({
+    } else if (aiProvider === 'local') {
+      console.log('[AI] Initializing local OpenAI-compat client (LM Studio)...');
+      clientInstance = createOpenAICompatClient({
         baseURL: process.env.OPENAI_BASE_URL || 'http://localhost:1234/v1',
         apiKey: process.env.OPENAI_API_KEY || 'lm-studio',
+        label: 'LM Studio',
+        maxTokensCap: parseInt(process.env.LMSTUDIO_MAX_TOKENS || '800', 10),
       });
       console.log(
-        `[AI] ✅ LM Studio initialized - Model: ${
+        `[AI] ✅ Local LLM - Model: ${
           process.env.LOCAL_LLM_MODEL || process.env.LMSTUDIO_MODEL || 'qwen2.5-7b-instruct'
         } | Base URL: ${process.env.OPENAI_BASE_URL || 'http://localhost:1234/v1'}`
+      );
+    } else if (aiProvider === 'mistral') {
+      if (!process.env.MISTRAL_API_KEY) {
+        throw new Error('LLM_PROVIDER=mistral requires MISTRAL_API_KEY');
+      }
+      const baseURL = process.env.MISTRAL_BASE_URL || 'https://api.mistral.ai/v1';
+      console.log('[AI] Initializing Mistral client...');
+      clientInstance = createOpenAICompatClient({
+        baseURL,
+        apiKey: process.env.MISTRAL_API_KEY,
+        label: 'Mistral',
+      });
+      console.log(
+        `[AI] ✅ Mistral initialized - Model: ${
+          process.env.MISTRAL_MODEL || 'mistral-large-latest'
+        } | Base URL: ${baseURL}`
       );
     }
   }
@@ -457,12 +493,22 @@ export const getModelName = () => {
     return configuredModel;
   }
 
-  if (provider === 'lmstudio') {
+  if (provider === 'local') {
     return process.env.LOCAL_LLM_MODEL || process.env.LMSTUDIO_MODEL || 'qwen2.5-7b-instruct';
+  }
+
+  if (provider === 'mistral') {
+    return process.env.MISTRAL_MODEL || 'mistral-large-latest';
   }
 
   // Anthropic uses claude-3-sonnet by default
   return 'claude-3-sonnet-20240229';
+};
+
+/** Reset singleton — tests / hot env switches only. */
+export const resetAIClient = () => {
+  clientInstance = null;
+  aiProvider = null;
 };
 
 // Backwards compatibility
@@ -473,4 +519,5 @@ export default {
   getClaudeClient,
   getAIProviderName,
   getModelName,
+  resetAIClient,
 };
