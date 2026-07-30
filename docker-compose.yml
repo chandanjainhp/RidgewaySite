@@ -4,8 +4,9 @@
 # Local day-to-day Mongo/Redis: docker compose -f docker-compose.dev.yml up -d
 #
 # Prerequisites:
-#   1. Copy .env.example → .env and fill secrets + CLOUDFLARE_TUNNEL_TOKEN
-#   2. In Cloudflare Zero Trust: create a tunnel, copy token; map public hostname → http://client:3000
+#   1. cp server/.env.example server/.env  — fill secrets + CLOUDFLARE_TUNNEL_TOKEN
+#   2. docker compose --env-file server/.env up -d --build
+#   3. Cloudflare: map public hostname → http://client:3000
 #
 # Memory limits below target an 8GB Pi 5. On a 16GB Pi you can raise server/client/mongo
 # (e.g. server 1536M, mongo 1536M) — ask if you want a tuned 16GB overlay file.
@@ -18,7 +19,7 @@ services:
     restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-sentinel}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?set MONGO_ROOT_PASSWORD in .env}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?set MONGO_ROOT_PASSWORD in server/.env}
       MONGO_INITDB_DATABASE: ${MONGO_DB:-sentinel}
     volumes:
       - mongodb_data:/data/db
@@ -42,7 +43,7 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in server/.env}
     command: >
       redis-server
       --appendonly yes
@@ -73,15 +74,15 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     env_file:
-      - path: .env
-        required: false
+      - path: server/.env
+        required: true
     environment:
       NODE_ENV: production
       PORT: "8000"
       MONGODB_URL: mongodb://${MONGO_ROOT_USER:-sentinel}:${MONGO_ROOT_PASSWORD}@mongodb:27017/${MONGO_DB:-sentinel}?authSource=admin
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
-      CLIENT_URL: ${CLIENT_URL:?set CLIENT_URL to your public https hostname}
-      CORS_ORIGIN: ${CORS_ORIGIN:?set CORS_ORIGIN to your public https hostname}
+      CLIENT_URL: ${CLIENT_URL:?set CLIENT_URL in server/.env}
+      CORS_ORIGIN: ${CORS_ORIGIN:?set CORS_ORIGIN in server/.env}
     depends_on:
       mongodb:
         condition: service_healthy
@@ -150,7 +151,7 @@ services:
     restart: unless-stopped
     command: tunnel run
     environment:
-      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN in .env}
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN in server/.env}
     depends_on:
       client:
         condition: service_healthy

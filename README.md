@@ -54,6 +54,13 @@ Day-to-day: **Mongo + Redis in Docker**, **API and UI on the host** (hot reload,
 
 ### 1. Clone and env files
 
+There are **only two** env templates — nowhere else:
+
+| File | Copy to | Used for |
+|---|---|---|
+| `server/.env.example` | `server/.env` | API, workers, and Pi `docker compose` |
+| `client/.env.example` | `client/.env` | Local Next.js only |
+
 ```bash
 git clone <repo-url> RidgewaySite
 cd RidgewaySite
@@ -62,31 +69,15 @@ cp server/.env.example server/.env
 cp client/.env.example client/.env
 ```
 
-Point `server/.env` at the local Compose data plane (credentials match `server/docker-compose.local.yml`):
+Local DB URLs are already in `server/.env.example` (match `docker-compose.dev.yml`). For local Argus without Anthropic:
 
 ```bash
-MONGODB_URL=mongodb://admin:StrongMongoPass%40123@localhost:27017/ridgeway?authSource=admin
-REDIS_URL=redis://:StrongRedisPass%40123@localhost:6379
-CLIENT_URL=http://localhost:3000
-CORS_ORIGIN=http://localhost:3000
-```
-
-For local Argus without Anthropic cost, also set:
-
-```bash
+# in server/.env
 USE_LOCAL_LLM=true
 OPENAI_BASE_URL=http://localhost:1234/v1
 OPENAI_API_KEY=lm-studio
 LOCAL_LLM_MODEL=<your-loaded-chat-model>
 ```
-
-`client/.env` can keep:
-
-```bash
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
-(The browser still calls same-origin `/api/v1`; Next rewrites that to the API.)
 
 ### 2. Start MongoDB + Redis
 
@@ -202,17 +193,14 @@ Rotate the secret from **Settings → API keys** (shown once).
 
 ```
 RidgewaySite/
-├── client/                 # Next.js app (Night Watch UI)
-├── server/                 # Express/Bun API + Argus + workers
-│   ├── src/ai/             # Argus agent, LLM client, tools
-│   ├── src/queues/         # BullMQ correlation / investigation / webhooks
-│   ├── src/scripts/        # bootstrap-admin, seed, migrations
-│   └── Dockerfile          # Production API image (Bun, arm64-ready)
-├── docs/technical/         # Architecture, CLAUDE.md, HANDOFF, audits
+├── client/
+│   └── .env.example        # → client/.env (local UI only)
+├── server/
+│   ├── .env.example        # → server/.env (API + Pi compose)
+│   └── Dockerfile
 ├── docker-compose.dev.yml  # Local Mongo + Redis only
-├── docker-compose.yml      # Pi 5 production: mongo, redis, server, client, cloudflared
-├── .env.example            # Root env for Pi / Cloudflare deploy
-└── README.md               # ← you are here
+├── docker-compose.yml      # Pi stack (reads --env-file server/.env)
+└── README.md
 ```
 
 ---
@@ -224,32 +212,54 @@ Full stack on one arm64 Pi, **no port forwarding** — Cloudflare Tunnel dials o
 ### Prep
 
 ```bash
-cp .env.example .env
-# Fill: CLOUDFLARE_TUNNEL_TOKEN, CLIENT_URL, CORS_ORIGIN,
-# Mongo/Redis passwords, JWT secrets, ANTHROPIC_API_KEY
-# Escape any literal $ in secrets as $$ (Compose interpolates $NAME otherwise).
+cp server/.env.example server/.env
+# Uncomment / fill the Pi section in server/.env:
+#   CLOUDFLARE_TUNNEL_TOKEN, CLIENT_URL, CORS_ORIGIN,
+#   MONGO_ROOT_PASSWORD, REDIS_PASSWORD, JWT secrets, ANTHROPIC_API_KEY
+# Prefer openssl rand -hex 24|32 (no $ — Compose interpolates $NAME).
 ```
 
-MongoDB and Redis persist in Docker-managed named volumes (`mongodb_data`, `redis_data` — see `docker volume ls`). No host path bind mounts.
+No root `.env`. No `client/.env` needed on the Pi (compose sets `API_UPSTREAM_URL`).
+
+MongoDB/Redis data: Docker named volumes (`docker volume ls` → `mongodb_data` / `redis_data`).
 
 ### Cloudflare
 
-1. Zero Trust → **Networks → Tunnels** → create tunnel → copy token → `CLOUDFLARE_TUNNEL_TOKEN`.
-2. Public hostname → service **`http://client:3000`** (Compose service name, not `localhost`).
+1. Zero Trust → **Networks → Tunnels** → create tunnel → put token in `server/.env` as `CLOUDFLARE_TUNNEL_TOKEN`.
+2. Public hostname → service **`http://client:3000`**.
 
-**One hostname is enough.** Next rewrites `/api/v1/*` to `http://server:8000` on the Docker network (`API_UPSTREAM_URL`). No separate `api.*` route required.
+**One hostname is enough.** Next rewrites `/api/v1/*` to `http://server:8000` inside Docker.
 
 ### Start
 
 ```bash
-docker compose up -d --build
-docker compose ps
+docker compose --env-file server/.env up -d --build
+docker compose --env-file server/.env ps
 curl -fsS https://yourdomain.com/api/v1/health
 ```
 
 Images used (`mongo:7.0`, `redis:7-alpine`, `oven/bun:1-slim`, `node:20-alpine`, `cloudflare/cloudflared:latest`) publish **linux/arm64** manifests. Memory limits assume an **8GB** Pi 5; raise them on 16GB if needed.
 
 After first boot, run bootstrap against the running Mongo container (or exec into the network) the same way as local, then open your public URL.
+
+### Troubleshooting: `server` unhealthy / `$zR1` warnings
+
+Compose expands `$word` inside `server/.env`. A password with `$zR1` gets mangled → Mongo/Redis auth fails → API unhealthy.
+
+```bash
+docker compose --env-file server/.env logs server --tail 80
+
+openssl rand -hex 24   # → MONGO_ROOT_PASSWORD and REDIS_PASSWORD
+openssl rand -hex 32   # → JWT / webhook secrets
+# edit server/.env — no $ characters
+
+docker compose --env-file server/.env down
+docker volume rm sentinel_mongodb_data sentinel_redis_data
+docker compose --env-file server/.env up -d
+docker compose --env-file server/.env ps
+```
+
+`memory soft limit` / cgroup warnings on the Pi are noise — ignore them.
 
 ---
 
