@@ -7,7 +7,11 @@ const getApiBaseUrl = () => {
     return "/api/v1";
   }
 
-  const upstream = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  // SSR / Node only — never reaches the browser bundle's request path.
+  const upstream =
+    process.env.API_UPSTREAM_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://localhost:8000";
   return `${upstream}/api/v1`;
 };
 

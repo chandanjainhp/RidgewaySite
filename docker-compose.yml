@@ -5,8 +5,7 @@
 #
 # Prerequisites:
 #   1. Copy .env.example → .env and fill secrets + CLOUDFLARE_TUNNEL_TOKEN
-#   2. mkdir -p /srv/sentinel/{mongodb,redis}  (OMV/NAS-backed path — adjust if needed)
-#   3. In Cloudflare Zero Trust: create a tunnel, copy token; map public hostname → http://client:3000
+#   2. In Cloudflare Zero Trust: create a tunnel, copy token; map public hostname → http://client:3000
 #
 # Memory limits below target an 8GB Pi 5. On a 16GB Pi you can raise server/client/mongo
 # (e.g. server 1536M, mongo 1536M) — ask if you want a tuned 16GB overlay file.
@@ -171,20 +170,6 @@ networks:
   sentinel:
     driver: bridge
 
-# Bind mounts under /srv/sentinel — typical OpenMediaVault shared-folder root.
-# Create once: sudo mkdir -p /srv/sentinel/{mongodb,redis} && sudo chown -R 999:999 /srv/sentinel/mongodb
-# (mongo UID is usually 999; redis alpine uses 999). Adjust device paths if your OMV
-# disk lives under /srv/dev-disk-by-uuid-…/sentinel instead.
 volumes:
   mongodb_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${SENTINEL_DATA_ROOT:-/srv/sentinel}/mongodb
   redis_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${SENTINEL_DATA_ROOT:-/srv/sentinel}/redis

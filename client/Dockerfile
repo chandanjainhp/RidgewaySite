@@ -21,10 +21,12 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Do not bake a browser-facing API host. Browser calls stay same-origin (/api/v1);
-# container rewrites use API_UPSTREAM_URL at runtime (see next.config.mjs).
+# Do not bake a browser-facing API host (no NEXT_PUBLIC_API_URL).
+# Rewrites are resolved at build time into routes-manifest — set Docker-network
+# upstream here so /api/v1 → http://server:8000 (see next.config.mjs).
 ENV NEXT_TELEMETRY_DISABLED=1 \
-    NODE_ENV=production
+    NODE_ENV=production \
+    API_UPSTREAM_URL=http://server:8000
 
 RUN npm run build
 

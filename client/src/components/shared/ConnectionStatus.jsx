@@ -36,10 +36,10 @@ export default function ConnectionStatus() {
     queryKey: ["health"],
     queryFn: async () => {
       try {
-        const response = await fetch(
-          (process.env.NEXT_PUBLIC_API_URL || "") + "/api/v1/health",
-          { credentials: "include" }
-        );
+        // Same-origin — Next rewrites proxy to the API (do not bake NEXT_PUBLIC_API_URL).
+        const response = await fetch("/api/v1/health", {
+          credentials: "include",
+        });
         return response.ok ? { status: "ok" } : { status: "error" };
       } catch {
         return { status: "error" };

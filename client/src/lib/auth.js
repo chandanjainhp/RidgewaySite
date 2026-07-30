@@ -4,10 +4,14 @@
  */
 
 // Browser: same-origin so Next rewrites (and Cloudflare Tunnel) proxy to the API.
-// SSR: absolute upstream when NEXT_PUBLIC_API_URL / default is set.
+// SSR: prefer Docker-internal API_UPSTREAM_URL, then local NEXT_PUBLIC_API_URL.
 const getAuthApiBase = () => {
   if (typeof window !== 'undefined') return '';
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  return (
+    process.env.API_UPSTREAM_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    'http://localhost:8000'
+  );
 };
 
 /**

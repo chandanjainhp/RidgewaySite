@@ -12,6 +12,8 @@ const nextConfig = {
   // (cookies + single Cloudflare hostname). Prefer API_UPSTREAM_URL for
   // container networking (http://server:8000); fall back to NEXT_PUBLIC_API_URL
   // for local SSR / legacy configs.
+  // Note: rewrites() is evaluated at `next build` / `next dev` start — set
+  // API_UPSTREAM_URL in the Docker *builder* stage (see client/Dockerfile).
   async rewrites() {
     const upstream =
       process.env.API_UPSTREAM_URL ||

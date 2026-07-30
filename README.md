@@ -224,15 +224,12 @@ Full stack on one arm64 Pi, **no port forwarding** — Cloudflare Tunnel dials o
 ### Prep
 
 ```bash
-sudo mkdir -p /srv/sentinel/{mongodb,redis}
-sudo chown -R 999:999 /srv/sentinel/mongodb /srv/sentinel/redis
-
 cp .env.example .env
 # Fill: CLOUDFLARE_TUNNEL_TOKEN, CLIENT_URL, CORS_ORIGIN,
 # Mongo/Redis passwords, JWT secrets, ANTHROPIC_API_KEY
 ```
 
-If OpenMediaVault mounts elsewhere, set `SENTINEL_DATA_ROOT` or symlink to `/srv/sentinel`.
+MongoDB and Redis persist in Docker-managed named volumes (`mongodb_data`, `redis_data` — see `docker volume ls`). No host path bind mounts.
 
 ### Cloudflare
 
