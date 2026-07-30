@@ -227,6 +227,7 @@ Full stack on one arm64 Pi, **no port forwarding** — Cloudflare Tunnel dials o
 cp .env.example .env
 # Fill: CLOUDFLARE_TUNNEL_TOKEN, CLIENT_URL, CORS_ORIGIN,
 # Mongo/Redis passwords, JWT secrets, ANTHROPIC_API_KEY
+# Escape any literal $ in secrets as $$ (Compose interpolates $NAME otherwise).
 ```
 
 MongoDB and Redis persist in Docker-managed named volumes (`mongodb_data`, `redis_data` — see `docker volume ls`). No host path bind mounts.
